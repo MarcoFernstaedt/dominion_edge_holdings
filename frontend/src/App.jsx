@@ -9,6 +9,7 @@ import AIAgents from './modules/AIAgents';
 import Resources from './modules/Resources';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { PHASES } from './data/checklistData';
+import ErrorBoundary from './components/ErrorBoundary';
 
 const NAV_ITEMS = [
   { id: 'dashboard', label: 'Dashboard', icon: '⬛' },
@@ -136,7 +137,9 @@ export default function App() {
 
       {/* Main content */}
       <div style={{ flex: 1, overflow: 'auto', background: '#0D0D0D' }}>
-        {renderModule()}
+        <ErrorBoundary key={activeModule}>
+          {renderModule()}
+        </ErrorBoundary>
       </div>
     </div>
   );
