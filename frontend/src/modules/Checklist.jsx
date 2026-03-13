@@ -87,21 +87,21 @@ export default function Checklist({ checklistState, setChecklistState }) {
             {open && (
               <div style={st.phaseBody}>
                 {phase.items.map((item, idx) => {
-                  const done = checklistState[item.id] ?? item.done;
+                  const itemDone = checklistState[item.id] ?? item.done;
                   return (
                     <div
                       key={item.id}
-                      style={{ ...st.item(done), background: 'transparent' }}
+                      style={{ ...st.item(itemDone), background: 'transparent' }}
                       onClick={() => toggle(item.id)}
                       onMouseEnter={e => { e.currentTarget.style.background = '#131313'; }}
                       onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
                     >
-                      <div style={st.checkbox(done, phase.color)}>
-                        {done && '✓'}
+                      <div style={st.checkbox(itemDone, phase.color)}>
+                        {itemDone && '✓'}
                       </div>
                       <div>
                         <span style={{ fontSize: 11, color: '#444', marginRight: 8 }}>{idx + 1}.</span>
-                        <span style={{ fontSize: 13, color: done ? '#555' : '#CCC', lineHeight: 1.5, textDecoration: done ? 'line-through' : 'none' }}>
+                        <span style={{ fontSize: 13, color: itemDone ? '#555' : '#CCC', lineHeight: 1.5, textDecoration: itemDone ? 'line-through' : 'none' }}>
                           {item.text}
                         </span>
                       </div>

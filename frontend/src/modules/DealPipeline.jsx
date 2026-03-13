@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { DEAL_STAGES } from '../data/checklistData';
+import { formInput as input, formLabel as lbl } from '../styles/shared';
 
 const HOW_FOUND = ['AZ OPM Registry', 'Google Maps', 'Referral', 'LinkedIn', 'AZPMA Event', 'Other'];
 
@@ -26,8 +27,6 @@ const fmtRevenue = (n) => {
 };
 
 const empty = { company: '', owner: '', phone: '', email: '', revenue: '', ebitda: '', trucks: '', years: '', howFound: 'AZ OPM Registry', stage: 'Identified', notes: '' };
-const input = { background: '#1A1A1A', border: '1px solid #2A2A2A', color: '#E8E0D0', padding: '7px 10px', borderRadius: 4, fontSize: 13, width: '100%', boxSizing: 'border-box', outline: 'none' };
-const lbl = { fontSize: 11, color: '#666', marginBottom: 4, display: 'block', letterSpacing: '0.06em' };
 
 export default function DealPipeline({ deals, setDeals }) {
   const [showForm, setShowForm] = useState(false);
@@ -44,8 +43,9 @@ export default function DealPipeline({ deals, setDeals }) {
   const updateStage = (id, stage) => setDeals(prev => prev.map(d => d.id === id ? { ...d, stage } : d));
   const removeDeal = (id) => setDeals(prev => prev.filter(d => d.id !== id));
 
-  const stageCounts = DEAL_STAGES.reduce((acc, s) => {
-    acc[s] = deals.filter(d => d.stage === s).length;
+  // Single O(n) pass instead of O(n × stages)
+  const stageCounts = deals.reduce((acc, d) => {
+    acc[d.stage] = (acc[d.stage] || 0) + 1;
     return acc;
   }, {});
 

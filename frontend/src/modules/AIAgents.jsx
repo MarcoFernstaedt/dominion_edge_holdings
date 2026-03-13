@@ -1,18 +1,23 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { AGENT_CONFIGS } from '../data/checklistData';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
+// Shared avatar for all assistant messages — extracted to avoid triple duplication
+function AgentAvatar() {
+  return (
+    <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#1A1A1A', border: '1px solid #333', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, flexShrink: 0, marginTop: 2 }}>
+      ◆
+    </div>
+  );
+}
+
 function Message({ role, content }) {
   const isUser = role === 'user';
   return (
     <div style={{ display: 'flex', gap: 10, marginBottom: 16, justifyContent: isUser ? 'flex-end' : 'flex-start' }}>
-      {!isUser && (
-        <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#1A1A1A', border: '1px solid #333', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, flexShrink: 0, marginTop: 2 }}>
-          ◆
-        </div>
-      )}
+      {!isUser && <AgentAvatar />}
       <div style={{
         maxWidth: '75%', padding: '10px 14px', borderRadius: isUser ? '12px 12px 4px 12px' : '12px 12px 12px 4px',
         background: isUser ? '#C9A84C22' : '#1A1A1A',
@@ -32,24 +37,43 @@ function AgentChat({ agent }) {
   const [loading, setLoading] = useState(false);
   const [streamText, setStreamText] = useState('');
   const bottomRef = useRef(null);
+  const abortRef = useRef(null);
 
+  // Smooth scroll only when a complete message lands (not per-token)
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, streamText]);
+  }, [messages]);
 
-  const setMessages = (updater) => {
+  // Instant scroll during streaming to track new tokens without animation fighting itself
+  useEffect(() => {
+    if (streamText) bottomRef.current?.scrollIntoView({ behavior: 'instant' });
+  }, [streamText]);
+
+  // Cancel in-flight stream when agent changes or component unmounts
+  useEffect(() => {
+    return () => { abortRef.current?.abort(); };
+  }, [agent.id]);
+
+  const setMessages = useCallback((updater) => {
     setHistories(prev => ({
       ...prev,
       [agent.id]: typeof updater === 'function' ? updater(prev[agent.id] || []) : updater,
     }));
-  };
+  }, [agent.id, setHistories]);
 
   const clearHistory = () => setMessages([]);
 
   const send = async (text) => {
     if (!text.trim() || loading) return;
+
+    // Cancel any previous in-flight request before starting a new one
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     const userMsg = { role: 'user', content: text };
-    setMessages(prev => [...prev, userMsg]);
+    const currentMessages = [...messages, userMsg];
+    setMessages(currentMessages);
     setInput('');
     setLoading(true);
     setStreamText('');
@@ -58,40 +82,46 @@ function AgentChat({ agent }) {
       const resp = await fetch(`${API_URL}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
         body: JSON.stringify({
           system: agent.systemPrompt,
-          messages: [...messages, userMsg].map(m => ({ role: m.role, content: m.content })),
+          messages: currentMessages,
         }),
       });
+
+      if (!resp.ok) throw new Error(`Server error: ${resp.status}`);
 
       const reader = resp.body.getReader();
       const decoder = new TextDecoder();
       let full = '';
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        const chunk = decoder.decode(value);
-        const lines = chunk.split('\n');
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          const chunk = decoder.decode(value, { stream: true });
+          for (const line of chunk.split('\n')) {
+            if (!line.startsWith('data: ')) continue;
             const data = line.slice(6).trim();
             if (data === '[DONE]') break;
+            let parsed;
             try {
-              const parsed = JSON.parse(data);
-              if (parsed.text) {
-                full += parsed.text;
-                setStreamText(full);
-              }
-              if (parsed.error) throw new Error(parsed.error);
-            } catch {}
+              parsed = JSON.parse(data);
+            } catch {
+              continue; // Malformed SSE frame — skip, don't swallow API errors below
+            }
+            if (parsed.error) throw new Error(parsed.error);
+            if (parsed.text) { full += parsed.text; setStreamText(full); }
           }
         }
+      } finally {
+        reader.releaseLock();
       }
 
       setMessages(prev => [...prev, { role: 'assistant', content: full }]);
       setStreamText('');
     } catch (err) {
+      if (err.name === 'AbortError') return; // Navigated away — not an error
       setMessages(prev => [...prev, { role: 'assistant', content: `Error: ${err.message}. Check that the backend is running and ANTHROPIC_API_KEY is set.` }]);
       setStreamText('');
     } finally {
@@ -101,7 +131,6 @@ function AgentChat({ agent }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      {/* Chat Header */}
       <div style={{ padding: '14px 20px', borderBottom: '1px solid #1E1E1E', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <div style={{ fontSize: 14, fontWeight: 600, color: agent.color }}>{agent.name}</div>
@@ -114,7 +143,6 @@ function AgentChat({ agent }) {
         )}
       </div>
 
-      {/* Messages */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '20px' }}>
         {messages.length === 0 && (
           <div style={{ marginBottom: 24 }}>
@@ -139,7 +167,7 @@ function AgentChat({ agent }) {
 
         {streamText && (
           <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
-            <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#1A1A1A', border: '1px solid #333', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, flexShrink: 0, marginTop: 2 }}>◆</div>
+            <AgentAvatar />
             <div style={{ maxWidth: '75%', padding: '10px 14px', borderRadius: '12px 12px 12px 4px', background: '#1A1A1A', border: '1px solid #2A2A2A', fontSize: 13, color: '#E8E0D0', lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>
               {streamText}<span style={{ opacity: 0.5, animation: 'blink 1s infinite' }}>▌</span>
             </div>
@@ -148,7 +176,7 @@ function AgentChat({ agent }) {
 
         {loading && !streamText && (
           <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
-            <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#1A1A1A', border: '1px solid #333', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12 }}>◆</div>
+            <AgentAvatar />
             <div style={{ padding: '12px 16px', background: '#1A1A1A', border: '1px solid #2A2A2A', borderRadius: '12px 12px 12px 4px', color: '#555', fontSize: 13 }}>Thinking…</div>
           </div>
         )}
@@ -156,7 +184,6 @@ function AgentChat({ agent }) {
         <div ref={bottomRef} />
       </div>
 
-      {/* Input */}
       <div style={{ padding: '14px 20px', borderTop: '1px solid #1E1E1E', display: 'flex', gap: 10 }}>
         <textarea
           value={input}
@@ -184,7 +211,6 @@ export default function AIAgents() {
 
   return (
     <div style={{ display: 'flex', height: '100%', color: '#E8E0D0' }}>
-      {/* Agent Sidebar */}
       <div style={{ width: 200, background: '#111', borderRight: '1px solid #1E1E1E', flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
         <div style={{ padding: '16px', borderBottom: '1px solid #1E1E1E' }}>
           <div style={{ fontSize: 11, color: '#555', letterSpacing: '0.1em', textTransform: 'uppercase' }}>AI Agents</div>
@@ -212,7 +238,6 @@ export default function AIAgents() {
         </div>
       </div>
 
-      {/* Chat Area */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         <AgentChat key={activeAgent} agent={agent} />
       </div>

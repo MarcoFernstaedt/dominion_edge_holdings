@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { BOARD_SEATS, CONTACT_STATUSES } from '../data/checklistData';
+import { formInput as input, formLabel as label } from '../styles/shared';
 
 const ROLES = BOARD_SEATS.map(s => s.role);
 
@@ -41,9 +42,6 @@ export default function BoardCRM({ boardContacts, setBoardContacts }) {
   };
 
   const committedForSeat = (role) => boardContacts.find(c => c.role === role && c.status === 'Committed');
-
-  const input = { background: '#1A1A1A', border: '1px solid #2A2A2A', color: '#E8E0D0', padding: '7px 10px', borderRadius: 4, fontSize: 13, width: '100%', boxSizing: 'border-box', outline: 'none' };
-  const label = { fontSize: 11, color: '#666', marginBottom: 4, display: 'block', letterSpacing: '0.06em' };
 
   return (
     <div style={{ padding: '28px 32px', maxWidth: 960, margin: '0 auto', color: '#E8E0D0' }}>
