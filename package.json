@@ -1,15 +1,21 @@
 {
   "name": "dominion-edge-holdings",
   "version": "1.0.0",
-  "description": "QLA Acquisition Platform — Dominion Edge Holdings",
+  "private": true,
   "scripts": {
-    "dev:frontend": "cd frontend && npm run dev",
-    "dev:backend": "cd backend && npm run dev",
-    "dev": "concurrently \"npm run dev:frontend\" \"npm run dev:backend\"",
-    "build": "cd frontend && npm run build",
-    "install:all": "cd frontend && npm install && cd ../backend && npm install"
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
+    "next": "15.2.4",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
   },
   "devDependencies": {
-    "concurrently": "^9.0.0"
+    "eslint": "^9",
+    "eslint-config-next": "15.2.4"
   }
 }
