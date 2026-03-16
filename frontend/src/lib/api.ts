@@ -259,3 +259,54 @@ export const dealProbabilityApi = {
   getSummary: () => api.get<unknown>('/api/dashboard/probability-summary'),
   getCommentary: (dealId: string) => api.post<unknown>('/api/agents/deal-probability-commentary', { dealId }),
 };
+
+// ─── Capital Raising ──────────────────────────────────────────────────────────
+
+export const capitalRaisingApi = {
+  // Investor CRM
+  listInvestors: (params?: { investorType?: string; relationshipStage?: string; minCheckSize?: number; industry?: string }) => {
+    const qs = new URLSearchParams(Object.entries(params || {}).reduce((a, [k, v]) => v != null ? { ...a, [k]: String(v) } : a, {} as Record<string, string>)).toString();
+    return api.get<{ investors: unknown[]; total: number }>(`/api/capital-raising/investors${qs ? `?${qs}` : ''}`);
+  },
+  createInvestor: (data: unknown) => api.post<unknown>('/api/capital-raising/investors', data),
+  getInvestor: (id: string) => api.get<unknown>(`/api/capital-raising/investors/${id}`),
+  updateInvestor: (id: string, data: unknown) => api.patch<unknown>(`/api/capital-raising/investors/${id}`, data),
+  deleteInvestor: (id: string) => api.delete(`/api/capital-raising/investors/${id}`),
+  markInterested: (id: string) => api.post<unknown>(`/api/capital-raising/investors/${id}/mark-interested`, {}),
+
+  // Capital Stack
+  listStacks: (dealId?: string) => api.get<{ capitalStacks: unknown[] }>(`/api/capital-raising/capital-stacks${dealId ? `?dealId=${dealId}` : ''}`),
+  createStack: (data: unknown) => api.post<unknown>('/api/capital-raising/capital-stacks', data),
+  getStack: (id: string) => api.get<unknown>(`/api/capital-raising/capital-stacks/${id}`),
+  updateStack: (id: string, data: unknown) => api.patch<unknown>(`/api/capital-raising/capital-stacks/${id}`, data),
+  deleteStack: (id: string) => api.delete(`/api/capital-raising/capital-stacks/${id}`),
+
+  // Investor Memos
+  listMemos: (dealId?: string) => api.get<{ memos: unknown[] }>(`/api/capital-raising/memos${dealId ? `?dealId=${dealId}` : ''}`),
+  createMemo: (data: unknown) => api.post<unknown>('/api/capital-raising/memos', data),
+  getMemo: (id: string) => api.get<unknown>(`/api/capital-raising/memos/${id}`),
+  updateMemo: (id: string, data: unknown) => api.patch<unknown>(`/api/capital-raising/memos/${id}`, data),
+  deleteMemo: (id: string) => api.delete(`/api/capital-raising/memos/${id}`),
+  generateMemo: (data: unknown) => api.post<unknown>('/api/capital-raising/memos/generate', data),
+
+  // Firm Messaging
+  listMessaging: () => api.get<{ firmMessaging: unknown[]; latest: unknown | null }>('/api/capital-raising/messaging'),
+  createMessaging: (data: unknown) => api.post<unknown>('/api/capital-raising/messaging', data),
+  updateMessaging: (id: string, data: unknown) => api.patch<unknown>(`/api/capital-raising/messaging/${id}`, data),
+  generateMission: (data: unknown) => api.post<{ missionStatement: string; investmentThesis: string }>('/api/capital-raising/messaging/generate', data),
+
+  // Pitch Decks
+  listDecks: () => api.get<{ pitchDecks: unknown[] }>('/api/capital-raising/pitch-decks'),
+  getDeck: (id: string) => api.get<unknown>(`/api/capital-raising/pitch-decks/${id}`),
+  saveDeck: (data: unknown) => api.post<unknown>('/api/capital-raising/pitch-decks', data),
+  updateDeck: (id: string, data: unknown) => api.patch<unknown>(`/api/capital-raising/pitch-decks/${id}`, data),
+  deleteDeck: (id: string) => api.delete(`/api/capital-raising/pitch-decks/${id}`),
+  generateDeck: (data: unknown) => api.post<unknown>('/api/capital-raising/pitch-decks/generate', data),
+
+  // Outreach
+  generateOutreach: (data: { mode?: string; investorId?: string; investor?: unknown; dealSummary?: unknown; useAI?: boolean }) =>
+    api.post<{ subjectDraft: string; emailDraft: string; keyHighlights: string[] }>('/api/capital-raising/outreach/generate', data),
+
+  // Dashboard
+  getDashboard: () => api.get<{ pipeline: unknown; capital: unknown }>('/api/capital-raising/dashboard'),
+};

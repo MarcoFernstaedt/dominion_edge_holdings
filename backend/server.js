@@ -28,6 +28,14 @@ import CandidateDeduplicationService from './services/CandidateDeduplicationServ
 import MeetingPreparationService from './services/MeetingPreparationService.js';
 import DealProbabilityService  from './services/DealProbabilityService.js';
 
+// ─── Capital Raising Services ──────────────────────────────────────────────────
+import InvestorCRMService    from './services/InvestorCRMService.js';
+import CapitalStackService   from './services/CapitalStackService.js';
+import InvestorMemoService   from './services/InvestorMemoService.js';
+import FirmMessagingService  from './services/FirmMessagingService.js';
+import PitchDeckService      from './services/PitchDeckService.js';
+import InvestorOutreachAgent from './agents/investorOutreach.js';
+
 dotenv.config();
 
 // ─── Environment validation ───────────────────────────────────────────────────
@@ -117,6 +125,10 @@ app.use('/api/outreach/generate', aiLimiter);
 app.use('/api/ai', aiLimiter);
 app.use('/api/dashboard/briefing', aiLimiter);
 app.use('/api/agents', aiLimiter);
+app.use('/api/capital-raising/memos/generate', aiLimiter);
+app.use('/api/capital-raising/messaging/generate', aiLimiter);
+app.use('/api/capital-raising/pitch-deck/generate', aiLimiter);
+app.use('/api/capital-raising/outreach/generate', aiLimiter);
 
 // ─── Structured error response ────────────────────────────────────────────────
 /**
@@ -165,6 +177,12 @@ const store = {
   sourcingRadarCandidates: [],
   // System: Meeting Prep
   meetingPrepPackets: [],
+  // Capital Raising
+  investors:      [],
+  capitalStacks:  [],
+  investorMemos:  [],
+  firmMessaging:  [],
+  pitchDecks:     [],
   _metrics: {},
   settings: {
     fromName: '',
@@ -2394,6 +2412,330 @@ app.get('/api/dashboard/prep-summary', (req, res) => {
   }
 });
 
+// ─── Capital Raising: Investor CRM ───────────────────────────────────────────
+
+const investorSchema = z.object({
+  name:                z.string().min(1),
+  organization:        z.string().optional().default(''),
+  investorType:        z.enum(['angel','family_office','private_equity','operator_investor','private_lender','bank','search_fund_investor']).optional().default('angel'),
+  email:               z.string().email().optional().or(z.literal('')).default(''),
+  phone:               z.string().optional().default(''),
+  location:            z.string().optional().default(''),
+  checkSizeMin:        z.number().nullable().optional(),
+  checkSizeMax:        z.number().nullable().optional(),
+  industriesPreferred: z.array(z.string()).optional().default([]),
+  dealStagePreference: z.string().optional().default(''),
+  riskTolerance:       z.string().optional().default('moderate'),
+  priorDeals:          z.string().optional().default(''),
+  relationshipStage:   z.enum(['cold','aware','engaged','relationship','active_investor']).optional().default('cold'),
+  notes:               z.string().optional().default(''),
+  lastInteractionAt:   z.string().nullable().optional(),
+});
+
+app.get('/api/capital-raising/investors', (req, res) => {
+  try {
+    const { investorType, relationshipStage, minCheckSize, industry } = req.query;
+    const list = InvestorCRMService.listInvestors({
+      investorType,
+      relationshipStage,
+      minCheckSize: minCheckSize ? Number(minCheckSize) : undefined,
+      industry,
+    });
+    res.json({ investors: list, total: list.length });
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', err.message);
+  }
+});
+
+app.post('/api/capital-raising/investors', validate(investorSchema), (req, res) => {
+  try {
+    const investor = InvestorCRMService.createInvestor(req.validated);
+    AuditLogService.log('investor_created', { investorId: investor.id, name: investor.name });
+    AutomationRuleEngine.fire('investor_created', { investor }, serviceCtx);
+    res.status(201).json(investor);
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', err.message);
+  }
+});
+
+app.get('/api/capital-raising/investors/:id', (req, res) => {
+  const investor = InvestorCRMService.getInvestor(req.params.id);
+  if (!investor) return errorResponse(res, 404, 'NOT_FOUND', 'Investor not found');
+  res.json(investor);
+});
+
+app.patch('/api/capital-raising/investors/:id', (req, res) => {
+  try {
+    const updated = InvestorCRMService.updateInvestor(req.params.id, req.body);
+    if (!updated) return errorResponse(res, 404, 'NOT_FOUND', 'Investor not found');
+    if (updated.relationshipStage === 'engaged') {
+      AutomationRuleEngine.fire('investor_engaged', { investor: updated }, serviceCtx);
+    }
+    res.json(updated);
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', err.message);
+  }
+});
+
+app.delete('/api/capital-raising/investors/:id', (req, res) => {
+  const deleted = InvestorCRMService.deleteInvestor(req.params.id);
+  if (!deleted) return errorResponse(res, 404, 'NOT_FOUND', 'Investor not found');
+  AuditLogService.log('investor_deleted', { investorId: req.params.id });
+  res.json({ success: true });
+});
+
+app.post('/api/capital-raising/investors/:id/mark-interested', (req, res) => {
+  try {
+    const updated = InvestorCRMService.markInterested(req.params.id);
+    if (!updated) return errorResponse(res, 404, 'NOT_FOUND', 'Investor not found');
+    res.json(updated);
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', err.message);
+  }
+});
+
+// ─── Capital Raising: Capital Stack ──────────────────────────────────────────
+
+const capitalStackSchema = z.object({
+  dealId:              z.string().optional().nullable(),
+  purchasePrice:       z.number().default(0),
+  seniorDebtAmount:    z.number().default(0),
+  sellerNoteAmount:    z.number().default(0),
+  operatorEquity:      z.number().default(0),
+  investorEquity:      z.number().default(0),
+  debtInterestRate:    z.number().default(0),
+  debtTermMonths:      z.number().default(0),
+  sellerNoteRate:      z.number().default(0),
+  sellerNoteTermMonths:z.number().default(0),
+});
+
+app.get('/api/capital-raising/capital-stacks', (req, res) => {
+  const list = CapitalStackService.listStacks(req.query.dealId || null);
+  res.json({ capitalStacks: list });
+});
+
+app.post('/api/capital-raising/capital-stacks', validate(capitalStackSchema), (req, res) => {
+  try {
+    const stack = CapitalStackService.createStack(req.validated.dealId, req.validated);
+    res.status(201).json(stack);
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', err.message);
+  }
+});
+
+app.get('/api/capital-raising/capital-stacks/:id', (req, res) => {
+  const stack = CapitalStackService.getStack(req.params.id);
+  if (!stack) return errorResponse(res, 404, 'NOT_FOUND', 'Capital stack not found');
+  res.json(stack);
+});
+
+app.patch('/api/capital-raising/capital-stacks/:id', (req, res) => {
+  try {
+    const updated = CapitalStackService.updateStack(req.params.id, req.body);
+    if (!updated) return errorResponse(res, 404, 'NOT_FOUND', 'Capital stack not found');
+    res.json(updated);
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', err.message);
+  }
+});
+
+app.delete('/api/capital-raising/capital-stacks/:id', (req, res) => {
+  const deleted = CapitalStackService.deleteStack(req.params.id);
+  if (!deleted) return errorResponse(res, 404, 'NOT_FOUND', 'Capital stack not found');
+  res.json({ success: true });
+});
+
+// ─── Capital Raising: Investor Memos ─────────────────────────────────────────
+
+const investorMemoSchema = z.object({
+  dealId:             z.string().optional().nullable(),
+  title:              z.string().optional().default(''),
+  summary:            z.string().optional().default(''),
+  purchasePrice:      z.number().default(0),
+  revenue:            z.number().default(0),
+  ebitda:             z.number().default(0),
+  dealStructure:      z.string().optional().default(''),
+  expectedReturns:    z.string().optional().default(''),
+  riskFactors:        z.string().optional().default(''),
+  operatorBackground: z.string().optional().default(''),
+});
+
+app.get('/api/capital-raising/memos', (req, res) => {
+  const list = InvestorMemoService.listMemos(req.query.dealId || null);
+  res.json({ memos: list });
+});
+
+app.post('/api/capital-raising/memos', validate(investorMemoSchema), (req, res) => {
+  try {
+    const memo = InvestorMemoService.createMemo(req.validated);
+    res.status(201).json(memo);
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', err.message);
+  }
+});
+
+app.get('/api/capital-raising/memos/:id', (req, res) => {
+  const memo = InvestorMemoService.getMemo(req.params.id);
+  if (!memo) return errorResponse(res, 404, 'NOT_FOUND', 'Memo not found');
+  res.json(memo);
+});
+
+app.patch('/api/capital-raising/memos/:id', (req, res) => {
+  try {
+    const updated = InvestorMemoService.updateMemo(req.params.id, req.body);
+    if (!updated) return errorResponse(res, 404, 'NOT_FOUND', 'Memo not found');
+    res.json(updated);
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', err.message);
+  }
+});
+
+app.delete('/api/capital-raising/memos/:id', (req, res) => {
+  const deleted = InvestorMemoService.deleteMemo(req.params.id);
+  if (!deleted) return errorResponse(res, 404, 'NOT_FOUND', 'Memo not found');
+  res.json({ success: true });
+});
+
+app.post('/api/capital-raising/memos/generate', async (req, res) => {
+  try {
+    const { useAI = true, ...data } = req.body;
+    const generated = await InvestorMemoService.generateMemo(data, useAI);
+    res.json(generated);
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', err.message);
+  }
+});
+
+// ─── Capital Raising: Firm Messaging ─────────────────────────────────────────
+
+const firmMessagingSchema = z.object({
+  missionStatement:      z.string().optional().default(''),
+  investmentThesis:      z.string().optional().default(''),
+  targetIndustries:      z.array(z.string()).optional().default([]),
+  targetDealSize:        z.string().optional().default(''),
+  geographicFocus:       z.string().optional().default(''),
+  valueCreationStrategy: z.string().optional().default(''),
+});
+
+app.get('/api/capital-raising/messaging', (req, res) => {
+  const list = FirmMessagingService.list();
+  res.json({ firmMessaging: list, latest: list[0] || null });
+});
+
+app.post('/api/capital-raising/messaging', validate(firmMessagingSchema), (req, res) => {
+  try {
+    const record = FirmMessagingService.create(req.validated);
+    res.status(201).json(record);
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', err.message);
+  }
+});
+
+app.patch('/api/capital-raising/messaging/:id', (req, res) => {
+  try {
+    const updated = FirmMessagingService.update(req.params.id, req.body);
+    if (!updated) return errorResponse(res, 404, 'NOT_FOUND', 'Firm messaging record not found');
+    res.json(updated);
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', err.message);
+  }
+});
+
+app.post('/api/capital-raising/messaging/generate', async (req, res) => {
+  try {
+    const { useAI = true, ...inputs } = req.body;
+    const result = await FirmMessagingService.generateMission(inputs, useAI);
+    res.json(result);
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', err.message);
+  }
+});
+
+// ─── Capital Raising: Pitch Deck ──────────────────────────────────────────────
+
+app.get('/api/capital-raising/pitch-decks', (req, res) => {
+  res.json({ pitchDecks: PitchDeckService.listDecks() });
+});
+
+app.get('/api/capital-raising/pitch-decks/:id', (req, res) => {
+  const deck = PitchDeckService.getDeck(req.params.id);
+  if (!deck) return errorResponse(res, 404, 'NOT_FOUND', 'Pitch deck not found');
+  res.json(deck);
+});
+
+app.post('/api/capital-raising/pitch-decks', (req, res) => {
+  try {
+    const deck = PitchDeckService.saveDeck(req.body);
+    res.status(201).json(deck);
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', err.message);
+  }
+});
+
+app.patch('/api/capital-raising/pitch-decks/:id', (req, res) => {
+  try {
+    const deck = PitchDeckService.getDeck(req.params.id);
+    if (!deck) return errorResponse(res, 404, 'NOT_FOUND', 'Pitch deck not found');
+    const updated = PitchDeckService.saveDeck({ ...req.body, id: req.params.id });
+    res.json(updated);
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', err.message);
+  }
+});
+
+app.delete('/api/capital-raising/pitch-decks/:id', (req, res) => {
+  const deleted = PitchDeckService.deleteDeck(req.params.id);
+  if (!deleted) return errorResponse(res, 404, 'NOT_FOUND', 'Pitch deck not found');
+  res.json({ success: true });
+});
+
+app.post('/api/capital-raising/pitch-decks/generate', async (req, res) => {
+  try {
+    const { firmMessagingId, operatorName, useAI = true, deckTitle } = req.body;
+    const firmMessaging = firmMessagingId
+      ? FirmMessagingService.get(firmMessagingId)
+      : FirmMessagingService.getLatest();
+    const slides = await PitchDeckService.generateWithAI(firmMessaging, operatorName, useAI);
+    const deck = PitchDeckService.saveDeck({
+      firmMessagingId: firmMessaging?.id || null,
+      deckTitle:       deckTitle || 'Investor Pitch Deck',
+      slides,
+    });
+    res.json(deck);
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', err.message);
+  }
+});
+
+// ─── Capital Raising: Outreach ────────────────────────────────────────────────
+
+app.post('/api/capital-raising/outreach/generate', async (req, res) => {
+  try {
+    const { mode = 'introduction', investorId, dealSummary, useAI = true } = req.body;
+    const investor = investorId ? InvestorCRMService.getInvestor(investorId) : req.body.investor;
+    const firmMessaging = FirmMessagingService.getLatest();
+    const result = await InvestorOutreachAgent.run(
+      { mode, investor, dealSummary, firmMessaging },
+      useAI ? AIService : null
+    );
+    res.json(result);
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', err.message);
+  }
+});
+
+// ─── Capital Raising: Dashboard ───────────────────────────────────────────────
+
+app.get('/api/capital-raising/dashboard', (req, res) => {
+  try {
+    const pipeline = InvestorCRMService.getPipelineSummary();
+    const capital  = CapitalStackService.getCapitalSummary();
+    res.json({ pipeline, capital });
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', err.message);
+  }
+});
+
 // ─── 404 ──────────────────────────────────────────────────────────────────────
 app.use((req, res) => {
   errorResponse(res, 404, 'NOT_FOUND', `Route not found: ${req.method} ${req.path}`);
@@ -2413,6 +2755,13 @@ app.use((err, req, res, _next) => {
 // Sync IntegrationRegistry with settings (runs in all environments)
 IntegrationRegistry.syncFromSettings(store.settings);
 
+// ─── Capital Raising services init ───────────────────────────────────────────
+InvestorCRMService.init(store);
+CapitalStackService.init(store);
+InvestorMemoService.init(store, AIService);
+FirmMessagingService.init(store, AIService);
+PitchDeckService.init(store, AIService);
+
 // Initialize new platform services
 SourceAdapterRegistryService.init(store, store.settings);
 SourcingRadarService.init(store);
@@ -2424,6 +2773,68 @@ if (store.settings?.enableProbabilityScoring !== false) {
 }
 
 // Register new automation rules
+// ─── Capital Raising Automation Rules ────────────────────────────────────────
+AutomationRuleEngine.register({
+  id: 'investor_follow_up_reminder',
+  description: 'When investor has not been contacted in 30 days → create follow-up task',
+  trigger: 'daily_check',
+  condition: () => true,
+  action: (_, { store: s, taskService, uid, nowIso }) => {
+    const stale = InvestorCRMService.getStaleInvestors(30);
+    const existingTaskSubjects = new Set(
+      (s.tasks || [])
+        .filter((t) => t.status !== 'done' && t.title?.startsWith('[Investor Follow-up]'))
+        .map((t) => t.title)
+    );
+    let created = 0;
+    for (const inv of stale) {
+      const title = `[Investor Follow-up] Reach out to ${inv.name}`;
+      if (!existingTaskSubjects.has(title)) {
+        taskService.createTask({
+          id:          uid(),
+          title,
+          description: `${inv.name} at ${inv.organization || 'N/A'} has not been contacted in over 30 days.`,
+          dueDate:     nowIso(),
+          priority:    'medium',
+          status:      'todo',
+          entityType:  'investor',
+          entityId:    inv.id,
+        }, s);
+        created++;
+      }
+    }
+    return { staleCount: stale.length, tasksCreated: created };
+  },
+  enabled: true,
+});
+
+AutomationRuleEngine.register({
+  id: 'investor_interest_stage_upgrade',
+  description: 'When investor expresses interest → update relationshipStage to engaged',
+  trigger: 'investor_engaged',
+  condition: (ctx) => !!ctx.investor?.id,
+  action: (ctx, { notificationService, store: s, nowIso }) => {
+    const updated = InvestorCRMService.updateInvestor(
+      ctx.investor.id,
+      { relationshipStage: 'engaged', lastInteractionAt: nowIso() },
+      nowIso()
+    );
+    if (updated) {
+      const n = notificationService.createNotification({
+        type:       'system',
+        title:      `Investor engaged: ${updated.name}`,
+        message:    `${updated.name} has expressed interest. Relationship stage updated to Engaged.`,
+        priority:   'medium',
+        entityType: 'investor',
+        entityId:   updated.id,
+      });
+      s.notifications = [n, ...(s.notifications || [])].slice(0, 50);
+    }
+    return { updated: !!updated };
+  },
+  enabled: true,
+});
+
 AutomationRuleEngine.register({
   id: 'generate_prep_on_meeting_confirmed',
   description: 'When meeting confirmed or scheduled → generate prep packet (deterministic)',

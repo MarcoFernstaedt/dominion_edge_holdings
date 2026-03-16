@@ -836,6 +836,132 @@ export interface AppState {
   // Affirmations
   currentAffirmationIndex: number;
   setAffirmationIndex: (idx: number) => void;
+
+  // Capital Raising
+  investors: Investor[];
+  addInvestor: (i: Investor) => void;
+  updateInvestor: (id: ID, updates: Partial<Investor>) => void;
+  deleteInvestor: (id: ID) => void;
+  capitalStacks: CapitalStack[];
+  addCapitalStack: (s: CapitalStack) => void;
+  updateCapitalStack: (id: ID, updates: Partial<CapitalStack>) => void;
+  investorMemos: InvestorMemo[];
+  addInvestorMemo: (m: InvestorMemo) => void;
+  updateInvestorMemo: (id: ID, updates: Partial<InvestorMemo>) => void;
+  deleteInvestorMemo: (id: ID) => void;
+  firmMessaging: FirmMessaging[];
+  addFirmMessaging: (f: FirmMessaging) => void;
+  updateFirmMessaging: (id: ID, updates: Partial<FirmMessaging>) => void;
+  pitchDecks: PitchDeck[];
+  addPitchDeck: (d: PitchDeck) => void;
+  updatePitchDeck: (id: ID, updates: Partial<PitchDeck>) => void;
+  deletePitchDeck: (id: ID) => void;
+}
+
+// ─── Capital Raising ──────────────────────────────────────────────────────────
+
+export type InvestorType =
+  | 'angel' | 'family_office' | 'private_equity' | 'operator_investor'
+  | 'private_lender' | 'bank' | 'search_fund_investor';
+
+export type RelationshipStage = 'cold' | 'aware' | 'engaged' | 'relationship' | 'active_investor';
+
+export interface Investor {
+  id: ID;
+  name: string;
+  organization: string;
+  investorType: InvestorType;
+  email: string;
+  phone: string;
+  location: string;
+  checkSizeMin: number | null;
+  checkSizeMax: number | null;
+  industriesPreferred: string[];
+  dealStagePreference: string;
+  riskTolerance: string;
+  priorDeals: string;
+  relationshipStage: RelationshipStage;
+  notes: string;
+  lastInteractionAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CapitalStack {
+  id: ID;
+  dealId: ID | null;
+  purchasePrice: number;
+  seniorDebtAmount: number;
+  sellerNoteAmount: number;
+  equityRequired: number;
+  operatorEquity: number;
+  investorEquity: number;
+  committedInvestorEquity: number;
+  equityStillNeeded: number;
+  debtInterestRate: number;
+  debtTermMonths: number;
+  sellerNoteRate: number;
+  sellerNoteTermMonths: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface InvestorMemo {
+  id: ID;
+  dealId: ID | null;
+  title: string;
+  summary: string;
+  purchasePrice: number;
+  revenue: number;
+  ebitda: number;
+  dealStructure: string;
+  expectedReturns: string;
+  riskFactors: string;
+  operatorBackground: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface FirmMessaging {
+  id: ID;
+  missionStatement: string;
+  investmentThesis: string;
+  targetIndustries: string[];
+  targetDealSize: string;
+  geographicFocus: string;
+  valueCreationStrategy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PitchSlide {
+  title: string;
+  bulletPoints: string[];
+  speakerNotes: string;
+}
+
+export interface PitchDeck {
+  id: ID;
+  firmMessagingId: ID | null;
+  deckTitle: string;
+  slides: PitchSlide[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface InvestorPipeline {
+  identified: number;
+  contacted: number;
+  conversations: number;
+  meetings: number;
+  commitments: number;
+}
+
+export interface CapitalSummary {
+  purchasePrice: number;
+  equityRequired: number;
+  equityCommitted: number;
+  equityRemaining: number;
 }
 
 export interface AppSettings {

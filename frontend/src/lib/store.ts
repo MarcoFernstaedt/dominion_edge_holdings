@@ -24,6 +24,11 @@ import type {
   SourcingCandidate,
   SourceAdapter,
   SourcingRadarRun,
+  Investor,
+  CapitalStack,
+  InvestorMemo,
+  FirmMessaging,
+  PitchDeck,
   ID,
 } from './types';
 import { CHECKLIST_PHASES } from '@/data/checklistData';
@@ -257,6 +262,38 @@ export const useAppStore = create<AppState>()(
       updateSettings: (updates: Partial<AppSettings>) =>
         set((s) => ({ settings: { ...s.settings, ...updates } })),
 
+      // ── Capital Raising ────────────────────────────────────────────────────
+      investors: [] as Investor[],
+      addInvestor: (i: Investor) => set((s) => ({ investors: [i, ...s.investors] })),
+      updateInvestor: (id: ID, updates: Partial<Investor>) =>
+        set((s) => ({ investors: s.investors.map((x) => (x.id === id ? { ...x, ...updates } : x)) })),
+      deleteInvestor: (id: ID) =>
+        set((s) => ({ investors: s.investors.filter((x) => x.id !== id) })),
+
+      capitalStacks: [] as CapitalStack[],
+      addCapitalStack: (st: CapitalStack) => set((s) => ({ capitalStacks: [st, ...s.capitalStacks] })),
+      updateCapitalStack: (id: ID, updates: Partial<CapitalStack>) =>
+        set((s) => ({ capitalStacks: s.capitalStacks.map((x) => (x.id === id ? { ...x, ...updates } : x)) })),
+
+      investorMemos: [] as InvestorMemo[],
+      addInvestorMemo: (m: InvestorMemo) => set((s) => ({ investorMemos: [m, ...s.investorMemos] })),
+      updateInvestorMemo: (id: ID, updates: Partial<InvestorMemo>) =>
+        set((s) => ({ investorMemos: s.investorMemos.map((x) => (x.id === id ? { ...x, ...updates } : x)) })),
+      deleteInvestorMemo: (id: ID) =>
+        set((s) => ({ investorMemos: s.investorMemos.filter((x) => x.id !== id) })),
+
+      firmMessaging: [] as FirmMessaging[],
+      addFirmMessaging: (f: FirmMessaging) => set((s) => ({ firmMessaging: [f, ...s.firmMessaging] })),
+      updateFirmMessaging: (id: ID, updates: Partial<FirmMessaging>) =>
+        set((s) => ({ firmMessaging: s.firmMessaging.map((x) => (x.id === id ? { ...x, ...updates } : x)) })),
+
+      pitchDecks: [] as PitchDeck[],
+      addPitchDeck: (d: PitchDeck) => set((s) => ({ pitchDecks: [d, ...s.pitchDecks] })),
+      updatePitchDeck: (id: ID, updates: Partial<PitchDeck>) =>
+        set((s) => ({ pitchDecks: s.pitchDecks.map((x) => (x.id === id ? { ...x, ...updates } : x)) })),
+      deletePitchDeck: (id: ID) =>
+        set((s) => ({ pitchDecks: s.pitchDecks.filter((x) => x.id !== id) })),
+
       // ── Affirmations ───────────────────────────────────────────────────────
       currentAffirmationIndex: 0,
       setAffirmationIndex: (idx: number) => set({ currentAffirmationIndex: idx }),
@@ -287,6 +324,11 @@ export const useAppStore = create<AppState>()(
         sourcingRadarRuns: state.sourcingRadarRuns,
         settings: state.settings,
         currentAffirmationIndex: state.currentAffirmationIndex,
+        investors: state.investors,
+        capitalStacks: state.capitalStacks,
+        investorMemos: state.investorMemos,
+        firmMessaging: state.firmMessaging,
+        pitchDecks: state.pitchDecks,
       }),
     }
   )
