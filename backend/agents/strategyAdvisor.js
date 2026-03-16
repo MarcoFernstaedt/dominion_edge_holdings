@@ -16,13 +16,31 @@ Senior advisor to a search fund entrepreneur (Marco Fernstaedt). Expertise:
 - Post-acquisition value creation
 - Board governance
 
+When given acquisition scoreboard data, analyze weekly trends and identify outreach slowdowns, pipeline stagnation, and conversion rate drops.
+Example insights: "Owner contact rate dropped this week.", "Reply rate below 10% — review outreach messaging.", "No new LOIs in 30 days — pipeline stagnating."
+
 Advice is specific, actionable, and grounded in search fund best practices. Return structured JSON only.`;
 
-export async function StrategyAdvisorAgent({ question, context, dealData, entityId, costFlags }) {
+export async function StrategyAdvisorAgent({ question, context, dealData, scoreboard, entityId, costFlags }) {
+  const scoreboardSection = scoreboard
+    ? `\nAcquisition Scoreboard (System 5):
+Targets found: ${scoreboard.targetsFound}
+Owners contacted: ${scoreboard.ownersContacted}
+Conversations started: ${scoreboard.conversationsStarted}
+Meetings held: ${scoreboard.meetingsHeld}
+Deals evaluated: ${scoreboard.dealsEvaluated}
+LOIs submitted: ${scoreboard.LOIsSubmitted}
+Deals closed: ${scoreboard.dealsClosed}
+Emails sent this week: ${scoreboard.emailsSentThisWeek ?? 'N/A'}
+Replies this week: ${scoreboard.repliesThisWeek ?? 'N/A'}
+Reply rate: ${scoreboard.emailsSentThisWeek > 0 ? ((scoreboard.repliesThisWeek / scoreboard.emailsSentThisWeek) * 100).toFixed(1) + '%' : 'N/A'}`
+    : '';
+
   const userMessage = `Provide strategic advice.
 
 Question: ${question}
 ${context ? `\nContext:\n${context}` : ''}
+${scoreboardSection}
 ${dealData ? `\nDeal data:\n${JSON.stringify(dealData, null, 2)}` : ''}
 
 Return ONLY this JSON:
@@ -39,7 +57,8 @@ Return ONLY this JSON:
   "keyConsiderations": ["<consideration>", ...],
   "riskFactors": ["<risk>", ...],
   "nextSteps": ["<step>", ...],
-  "confidenceLevel": "<high|medium|low>"
+  "confidenceLevel": "<high|medium|low>",
+  "scoreboardInsights": ["<insight about scoreboard metrics>", ...]
 }`;
 
   const result = await AIService.run('strategy_summary', { question: question.slice(0, 100) }, {

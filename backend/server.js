@@ -21,6 +21,7 @@ import TaskService             from './services/TaskService.js';
 import NotificationService     from './services/NotificationService.js';
 import IntegrationRegistry     from './services/IntegrationRegistry.js';
 import IntegrationHealthService from './services/IntegrationHealthService.js';
+import PipelinePressureService  from './services/PipelinePressureService.js';
 
 dotenv.config();
 
@@ -173,6 +174,10 @@ const store = {
     enableAIReplySuggestions: true,
     enableDealAnalysis: true,
     enableStrategyInsights: true,
+    // Contact frequency targets (System 6)
+    ownersContactedPerWeek: 25,
+    followUpsPerDay:        5,
+    boardOutreachPerWeek:   3,
   },
 };
 
@@ -221,6 +226,18 @@ const CompanySchema = z.object({
   status: z.enum(['target', 'contacted', 'conversation', 'interested', 'diligence', 'under_loi', 'under_contract', 'closed', 'lost', 'archived']).optional(),
   retirementSignal: z.boolean().optional(),
   noWebsiteSignal: z.boolean().optional(),
+  // Seller signal detection (System 3)
+  reviewDeclineSignal:   z.boolean().optional(),
+  websiteOutdatedSignal: z.boolean().optional(),
+  hiringSlowdownSignal:  z.boolean().optional(),
+  linkedinInactiveSignal: z.boolean().optional(),
+  sellerSignalScore:     z.number().min(0).max(10).optional(),
+  // Owner conversation pipeline (System 8)
+  sellerConversationStatus: z.enum(['not_contacted', 'contacted', 'conversation_started', 'meeting_scheduled', 'negotiation']).optional(),
+  // Pipeline pressure (System 1) — read-only computed fields, accepted on PATCH for direct overrides
+  lastInteractionAt:         z.string().datetime().optional().or(z.literal('')),
+  pipelinePressureLevel:     z.enum(['active', 'cooling', 'stalled']).optional(),
+  daysSinceLastInteraction:  z.number().min(0).optional(),
 });
 
 const ContactSchema = z.object({
@@ -232,6 +249,16 @@ const ContactSchema = z.object({
   email: z.string().email().optional().or(z.literal('')),
   phone: z.string().max(30).trim().optional(),
   notes: z.string().max(5000).trim().optional(),
+  // Relationship intelligence (System 2)
+  influenceScore:           z.number().min(1).max(10).optional(),
+  relationshipWarmth:       z.enum(['cold', 'cooling', 'warm', 'hot']).optional(),
+  relationshipStage:        z.enum(['cold', 'aware', 'engaged', 'relationship', 'trusted']).optional(),
+  lastConversationSummary:  z.string().max(2000).trim().optional(),
+  relationshipNotes:        z.string().max(5000).trim().optional(),
+  // Pipeline pressure (System 1)
+  lastInteractionAt:        z.string().datetime().optional().or(z.literal('')),
+  pipelinePressureLevel:    z.enum(['active', 'cooling', 'stalled']).optional(),
+  daysSinceLastInteraction: z.number().min(0).optional(),
 });
 
 const InteractionSchema = z.object({
@@ -245,6 +272,12 @@ const InteractionSchema = z.object({
   outcome: z.string().max(500).trim().optional(),
   requiresFollowUp: z.boolean().optional(),
   followUpDate: z.string().datetime().optional().or(z.literal('')),
+  // Conversation intelligence (System 4)
+  conversationSummary:  z.string().max(5000).trim().optional(),
+  sellerMotivation:     z.enum(['retirement', 'burnout', 'expansion_capital', 'family_transition', 'unknown']).optional(),
+  sellerTimeline:       z.enum(['immediate', '6_months', '1_year', 'unknown']).optional(),
+  sellerConcerns:       z.string().max(2000).trim().optional(),
+  nextConversationGoal: z.string().max(1000).trim().optional(),
 });
 
 const DealSchema = z.object({
@@ -259,6 +292,15 @@ const DealSchema = z.object({
   riskLevel: z.enum(['low', 'medium', 'high', 'critical']).optional(),
   confidenceLevel: z.number().min(0).max(100).optional(),
   source: z.string().max(100).trim().optional(),
+  // Deal velocity tracking (System 7)
+  stage:           z.string().max(50).trim().optional(),
+  status:          z.string().max(50).trim().optional(),
+  stageEnteredAt:  z.string().datetime().optional().or(z.literal('')),
+  stageDurationDays: z.number().min(0).optional(),
+  // Pipeline pressure (System 1)
+  lastInteractionAt:        z.string().datetime().optional().or(z.literal('')),
+  pipelinePressureLevel:    z.enum(['active', 'cooling', 'stalled']).optional(),
+  daysSinceLastInteraction: z.number().min(0).optional(),
 });
 
 const TaskSchema = z.object({
@@ -313,6 +355,10 @@ const SettingsPatchSchema = z.object({
   aiDraftingEnabled: z.boolean().optional(),
   aiReplyEnabled: z.boolean().optional(),
   aiBriefingEnabled: z.boolean().optional(),
+  // Contact frequency targets (System 6)
+  ownersContactedPerWeek: z.number().int().min(0).max(500).optional(),
+  followUpsPerDay:        z.number().int().min(0).max(100).optional(),
+  boardOutreachPerWeek:   z.number().int().min(0).max(100).optional(),
 }).strict();
 
 const UnderwritingCalcSchema = z.object({
@@ -557,12 +603,28 @@ app.get('/api/companies', (req, res) => {
 
 app.post('/api/companies', validate(CompanySchema), (req, res) => {
   try {
+    const validated = req.validated;
+    // Compute sellerSignalScore from boolean signals
+    const signals = [
+      validated.retirementSignal,
+      validated.noWebsiteSignal,
+      validated.reviewDeclineSignal,
+      validated.websiteOutdatedSignal,
+      validated.hiringSlowdownSignal,
+      validated.linkedinInactiveSignal,
+    ];
+    const sellerSignalScore = signals.filter(Boolean).length;
     const company = {
       id: uid(),
       createdAt: nowIso(),
       updatedAt: nowIso(),
       status: 'target',
-      ...req.validated,
+      sellerConversationStatus: 'not_contacted',
+      pipelinePressureLevel: 'active',
+      daysSinceLastInteraction: 0,
+      sellerSignalScore,
+      ...validated,
+      sellerSignalScore: Math.max(sellerSignalScore, validated.sellerSignalScore ?? 0),
     };
     store.companies.push(company);
     res.status(201).json(company);
@@ -590,7 +652,13 @@ app.patch('/api/companies/:id', validate(CompanySchema.partial()), (req, res) =>
   try {
     const idx = store.companies.findIndex((c) => c.id === req.params.id);
     if (idx === -1) return errorResponse(res, 404, 'NOT_FOUND', 'Company not found');
-    store.companies[idx] = { ...store.companies[idx], ...req.validated, updatedAt: nowIso() };
+    const merged = { ...store.companies[idx], ...req.validated, updatedAt: nowIso() };
+    // Recompute sellerSignalScore if any signal field was changed
+    const SIGNAL_FIELDS = ['retirementSignal','noWebsiteSignal','reviewDeclineSignal','websiteOutdatedSignal','hiringSlowdownSignal','linkedinInactiveSignal'];
+    if (SIGNAL_FIELDS.some((f) => f in req.validated)) {
+      merged.sellerSignalScore = SIGNAL_FIELDS.filter((f) => merged[f]).length;
+    }
+    store.companies[idx] = merged;
     res.json(store.companies[idx]);
   } catch (err) {
     console.error('[PATCH /api/companies/:id]', err);
@@ -681,9 +749,43 @@ app.post('/api/interactions', validate(InteractionSchema), (req, res) => {
     const interaction = { id: uid(), createdAt: nowIso(), ...req.validated };
     store.interactions.push(interaction);
 
+    const now = nowIso();
     if (interaction.companyId) {
       const idx = store.companies.findIndex((c) => c.id === interaction.companyId);
-      if (idx !== -1) store.companies[idx].updatedAt = nowIso();
+      if (idx !== -1) {
+        const days  = 0;
+        store.companies[idx] = {
+          ...store.companies[idx],
+          updatedAt:        now,
+          lastInteractionAt: now,
+          pipelinePressureLevel: 'active',
+          daysSinceLastInteraction: days,
+        };
+      }
+    }
+    if (interaction.contactId) {
+      const idx = store.contacts.findIndex((c) => c.id === interaction.contactId);
+      if (idx !== -1) {
+        store.contacts[idx] = {
+          ...store.contacts[idx],
+          updatedAt:        now,
+          lastInteractionAt: now,
+          pipelinePressureLevel: 'active',
+          daysSinceLastInteraction: 0,
+        };
+      }
+    }
+    if (interaction.dealId) {
+      const idx = store.deals.findIndex((d) => d.id === interaction.dealId);
+      if (idx !== -1) {
+        store.deals[idx] = {
+          ...store.deals[idx],
+          updatedAt:        now,
+          lastInteractionAt: now,
+          pipelinePressureLevel: 'active',
+          daysSinceLastInteraction: 0,
+        };
+      }
     }
 
     res.status(201).json(interaction);
@@ -713,7 +815,10 @@ app.post('/api/deals', validate(DealSchema), (req, res) => {
       createdAt: nowIso(),
       updatedAt: nowIso(),
       status: 'active',
-      stage: 'sourcing',
+      stage: 'identified',
+      stageEnteredAt: nowIso(),
+      pipelinePressureLevel: 'active',
+      daysSinceLastInteraction: 0,
       ...req.validated,
     };
     store.deals.push(deal);
@@ -740,7 +845,13 @@ app.patch('/api/deals/:id', validate(DealSchema.partial()), (req, res) => {
   try {
     const idx = store.deals.findIndex((d) => d.id === req.params.id);
     if (idx === -1) return errorResponse(res, 404, 'NOT_FOUND', 'Deal not found');
-    store.deals[idx] = { ...store.deals[idx], ...req.validated, updatedAt: nowIso() };
+    const existing = store.deals[idx];
+    const updates  = { ...req.validated, updatedAt: nowIso() };
+    // Track stage entry time for velocity monitoring (System 7)
+    if (updates.stage && updates.stage !== existing.stage) {
+      updates.stageEnteredAt = nowIso();
+    }
+    store.deals[idx] = { ...existing, ...updates };
     res.json(store.deals[idx]);
   } catch (err) {
     errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to update deal');
@@ -1814,6 +1925,71 @@ app.post('/api/integrations/health/check-all', async (req, res) => {
     res.json({ results, checkedAt: new Date().toISOString() });
   } catch (err) {
     errorResponse(res, 500, 'INTERNAL_ERROR', 'Health checks failed');
+  }
+});
+
+// ─── Performance Systems (Systems 1-8) ───────────────────────────────────────
+
+// GET /api/pipeline-pressure — System 1 dashboard metrics
+app.get('/api/pipeline-pressure', (_req, res) => {
+  try {
+    PipelinePressureService.updatePressureLevels(store);
+    const metrics = PipelinePressureService.getDashboardMetrics(store);
+    res.json(metrics);
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to compute pipeline pressure');
+  }
+});
+
+// GET /api/scoreboard — System 5 acquisition scoreboard
+app.get('/api/scoreboard', (_req, res) => {
+  try {
+    res.json(PipelinePressureService.computeScoreboard(store));
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to compute scoreboard');
+  }
+});
+
+// GET /api/deal-velocity — System 7 deal velocity tracker
+app.get('/api/deal-velocity', (_req, res) => {
+  try {
+    const velocity = PipelinePressureService.checkDealVelocity(store.deals);
+    const slowMoving = velocity.filter((v) => v.slowMoving);
+    res.json({ deals: velocity, slowMovingCount: slowMoving.length });
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to compute deal velocity');
+  }
+});
+
+// GET /api/conversation-funnel — System 8 conversation funnel
+app.get('/api/conversation-funnel', (_req, res) => {
+  try {
+    res.json(PipelinePressureService.computeConversationFunnel(store));
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to compute conversation funnel');
+  }
+});
+
+// GET /api/frequency-progress — System 6 contact frequency targets
+app.get('/api/frequency-progress', (_req, res) => {
+  try {
+    res.json(PipelinePressureService.computeFrequencyProgress(store));
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to compute frequency progress');
+  }
+});
+
+// POST /api/pipeline-pressure/scan — manually trigger pipeline scan + task creation
+app.post('/api/pipeline-pressure/scan', (_req, res) => {
+  try {
+    PipelinePressureService.updatePressureLevels(store);
+    const stalled  = PipelinePressureService.scanForStalledEntities(store);
+    const created  = PipelinePressureService.createFollowUpTasks(stalled, store, uid, nowIso);
+    const metrics  = PipelinePressureService.getDashboardMetrics(store);
+    AuditLogService.log(AuditLogService.AUDIT_EVENTS.AGENT_RUN, 'system', 'pipeline_pressure_scan', { tasksCreated: created.length });
+    res.json({ ...metrics, tasksCreated: created.length, tasks: created });
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', 'Pipeline scan failed');
   }
 });
 

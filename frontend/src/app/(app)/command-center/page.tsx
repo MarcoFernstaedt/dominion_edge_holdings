@@ -12,9 +12,14 @@ import { cn, formatDate, formatRelativeDate, daysSince, nowIso, generateId, STAG
 import {
   ChevronRight, ChevronLeft, AlertTriangle, Clock, Star, Plus,
   CheckCircle2, Circle, ArrowRight, TrendingUp, Users, KanbanSquare,
-  CheckSquare, Bell, Zap
+  CheckSquare, Bell, Zap, Activity, Target, Flame, BarChart2,
+  TrendingDown, MessageSquare, UserCheck, Filter
 } from 'lucide-react';
-import type { Task, NextBestAction } from '@/lib/types';
+import type {
+  Task, NextBestAction,
+  PipelinePressureMetrics, AcquisitionScoreboard,
+  DealVelocityEntry, ConversationFunnel, FrequencyProgress,
+} from '@/lib/types';
 import Link from 'next/link';
 
 function AffirmationCard() {
@@ -566,6 +571,421 @@ function PipelineSnapshot() {
   );
 }
 
+// ─── Shared panel helpers ─────────────────────────────────────────────────────
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+
+function PressureBadge({ level }: { level?: string }) {
+  const map: Record<string, { color: string; label: string }> = {
+    active:  { color: '#3FA66B', label: 'Active' },
+    cooling: { color: '#D9A441', label: 'Cooling' },
+    stalled: { color: '#C35B5B', label: 'Stalled' },
+  };
+  const cfg = map[level ?? 'active'] ?? map.active;
+  return (
+    <span className="inline-flex items-center gap-1 text-[10px] font-medium uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: cfg.color + '20', color: cfg.color }}>
+      <span className="w-1 h-1 rounded-full" style={{ background: cfg.color }} />
+      {cfg.label}
+    </span>
+  );
+}
+
+// ─── System 1: Pipeline Pressure Panel ───────────────────────────────────────
+
+function PipelinePressurePanel() {
+  const [metrics, setMetrics] = useState<PipelinePressureMetrics | null>(null);
+  const [scanning, setScanning] = useState(false);
+
+  useEffect(() => {
+    fetch(`${API_BASE}/api/pipeline-pressure`)
+      .then((r) => r.json())
+      .then(setMetrics)
+      .catch(() => {});
+  }, []);
+
+  async function handleScan() {
+    setScanning(true);
+    try {
+      const r = await fetch(`${API_BASE}/api/pipeline-pressure/scan`, { method: 'POST' });
+      const data = await r.json();
+      setMetrics(data);
+    } finally {
+      setScanning(false);
+    }
+  }
+
+  const items = metrics ? [
+    { label: 'Stalled Companies', value: metrics.stalledCompaniesCount, color: '#C35B5B' },
+    { label: 'Stalled Deals',     value: metrics.stalledDealsCount,     color: '#C35B5B' },
+    { label: 'Cooling Contacts',  value: metrics.coolingRelationshipsCount, color: '#D9A441' },
+    { label: 'Stalled Contacts',  value: metrics.stalledContactsCount,  color: '#C35B5B' },
+  ] : [];
+
+  return (
+    <section aria-labelledby="pp-heading">
+      <div className="flex items-center justify-between mb-3">
+        <h2 id="pp-heading" className="text-[10px] font-medium tracking-widest uppercase text-[#A7A29A] flex items-center gap-2">
+          <Activity size={12} className="text-[#D4AF37]" aria-hidden />
+          Pipeline Pressure
+        </h2>
+        <Button variant="ghost" size="sm" onClick={handleScan} disabled={scanning}>
+          {scanning ? 'Scanning…' : 'Run Scan'}
+        </Button>
+      </div>
+      {metrics === null ? (
+        <div className="bg-[#141414] border border-[#2A2A2E] rounded-md p-4 text-xs text-[#A7A29A]">Loading…</div>
+      ) : (
+        <div className="grid grid-cols-2 gap-3">
+          {items.map((item) => (
+            <div key={item.label} className="bg-[#141414] border border-[#2A2A2E] rounded-md p-4">
+              <div className="text-[9px] tracking-widest uppercase text-[#A7A29A] mb-1">{item.label}</div>
+              <div className="text-2xl font-bold font-serif" style={{ color: item.value > 0 ? item.color : '#3FA66B' }}>
+                {item.value}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+// ─── System 2: Relationship Intelligence Panel ────────────────────────────────
+
+function RelationshipIntelligencePanel() {
+  const contacts = useAppStore((s) => s.contacts);
+
+  const highInfluence = contacts
+    .filter((c) => (c.influenceScore ?? 0) >= 7)
+    .sort((a, b) => (b.influenceScore ?? 0) - (a.influenceScore ?? 0))
+    .slice(0, 5);
+
+  const coolingHighInfluence = highInfluence.filter(
+    (c) => c.pipelinePressureLevel === 'cooling' || c.pipelinePressureLevel === 'stalled'
+  );
+
+  return (
+    <section aria-labelledby="ri-heading">
+      <h2 id="ri-heading" className="text-[10px] font-medium tracking-widest uppercase text-[#A7A29A] flex items-center gap-2 mb-3">
+        <Users size={12} className="text-[#D4AF37]" aria-hidden />
+        Relationship Intelligence
+      </h2>
+      {highInfluence.length === 0 ? (
+        <div className="bg-[#141414] border border-[#2A2A2E] rounded-md p-4 text-xs text-[#A7A29A]">
+          No high-influence contacts yet. Set influenceScore on contacts.
+        </div>
+      ) : (
+        <ul className="space-y-2">
+          {highInfluence.map((c) => {
+            const name = [c.firstName, c.lastName].filter(Boolean).join(' ');
+            const isCooling = c.pipelinePressureLevel === 'cooling' || c.pipelinePressureLevel === 'stalled';
+            return (
+              <li key={c.id} className={cn(
+                'bg-[#141414] border rounded px-3 py-2.5 flex items-center justify-between gap-3',
+                isCooling ? 'border-[#D9A44130]' : 'border-[#2A2A2E]'
+              )}>
+                <div className="min-w-0">
+                  <div className="text-sm font-medium text-[#E8E6E3] truncate">{name}</div>
+                  <div className="text-xs text-[#A7A29A] mt-0.5">
+                    {c.relationshipStage ?? 'Unknown stage'} · Influence {c.influenceScore ?? '?'}/10
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  {isCooling && <AlertTriangle size={12} className="text-[#D9A441]" aria-label="Cooling" />}
+                  <PressureBadge level={c.pipelinePressureLevel} />
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      {coolingHighInfluence.length > 0 && (
+        <div className="mt-2 text-xs text-[#D9A441] flex items-center gap-1">
+          <AlertTriangle size={10} aria-hidden />
+          {coolingHighInfluence.length} high-influence contact{coolingHighInfluence.length !== 1 ? 's' : ''} going cold
+        </div>
+      )}
+    </section>
+  );
+}
+
+// ─── System 3: Seller Signals Panel ──────────────────────────────────────────
+
+function SellerSignalsPanel() {
+  const companies = useAppStore((s) => s.companies);
+
+  const highSignal = companies
+    .filter((c) => (c.sellerSignalScore ?? 0) >= 3)
+    .sort((a, b) => (b.sellerSignalScore ?? 0) - (a.sellerSignalScore ?? 0))
+    .slice(0, 6);
+
+  const SIGNAL_LABELS: Record<string, string> = {
+    retirementSignal:     'Retirement',
+    noWebsiteSignal:      'No Website',
+    reviewDeclineSignal:  'Reviews Declining',
+    websiteOutdatedSignal:'Outdated Website',
+    hiringSlowdownSignal: 'Hiring Slowdown',
+    linkedinInactiveSignal:'LinkedIn Inactive',
+  };
+
+  return (
+    <section aria-labelledby="ss-heading">
+      <h2 id="ss-heading" className="text-[10px] font-medium tracking-widest uppercase text-[#A7A29A] flex items-center gap-2 mb-3">
+        <Flame size={12} className="text-[#D4AF37]" aria-hidden />
+        Seller Signals — Likely Sellers ({highSignal.length})
+      </h2>
+      {highSignal.length === 0 ? (
+        <div className="bg-[#141414] border border-[#2A2A2E] rounded-md p-4 text-xs text-[#A7A29A]">
+          No companies with 3+ seller signals yet.
+        </div>
+      ) : (
+        <ul className="space-y-2">
+          {highSignal.map((c) => {
+            const activeSignals = Object.keys(SIGNAL_LABELS).filter((f) => (c as any)[f]);
+            return (
+              <li key={c.id} className="bg-[#141414] border border-[#C35B5B20] rounded px-3 py-2.5">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-sm font-medium text-[#E8E6E3] truncate">{c.name}</span>
+                  <span className="flex-shrink-0 text-xs font-bold text-[#C35B5B]">
+                    {c.sellerSignalScore ?? activeSignals.length}/6 signals
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-1 mt-1.5">
+                  {activeSignals.map((sig) => (
+                    <span key={sig} className="text-[9px] px-1.5 py-0.5 rounded bg-[#C35B5B15] text-[#C35B5B] uppercase tracking-wider">
+                      {SIGNAL_LABELS[sig]}
+                    </span>
+                  ))}
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+// ─── System 5: Acquisition Scoreboard Panel ───────────────────────────────────
+
+function AcquisitionScoreboardPanel() {
+  const [scoreboard, setScoreboard] = useState<AcquisitionScoreboard | null>(null);
+
+  useEffect(() => {
+    fetch(`${API_BASE}/api/scoreboard`)
+      .then((r) => r.json())
+      .then(setScoreboard)
+      .catch(() => {});
+  }, []);
+
+  if (!scoreboard) {
+    return (
+      <section aria-labelledby="acq-sb-heading">
+        <h2 id="acq-sb-heading" className="text-[10px] font-medium tracking-widest uppercase text-[#A7A29A] flex items-center gap-2 mb-3">
+          <BarChart2 size={12} className="text-[#D4AF37]" aria-hidden />
+          Acquisition Scoreboard
+        </h2>
+        <div className="bg-[#141414] border border-[#2A2A2E] rounded-md p-4 text-xs text-[#A7A29A]">Loading…</div>
+      </section>
+    );
+  }
+
+  const metrics = [
+    { label: 'Targets Found',         value: scoreboard.targetsFound },
+    { label: 'Owners Contacted',       value: scoreboard.ownersContacted },
+    { label: 'Conversations Started',  value: scoreboard.conversationsStarted },
+    { label: 'Meetings Held',          value: scoreboard.meetingsHeld },
+    { label: 'Deals Evaluated',        value: scoreboard.dealsEvaluated },
+    { label: 'LOIs Submitted',         value: scoreboard.LOIsSubmitted },
+    { label: 'Deals Closed',           value: scoreboard.dealsClosed },
+  ];
+
+  const replyRate = scoreboard.emailsSentThisWeek > 0
+    ? `${((scoreboard.repliesThisWeek / scoreboard.emailsSentThisWeek) * 100).toFixed(1)}%`
+    : 'N/A';
+
+  return (
+    <section aria-labelledby="acq-sb-heading">
+      <h2 id="acq-sb-heading" className="text-[10px] font-medium tracking-widest uppercase text-[#A7A29A] flex items-center gap-2 mb-3">
+        <BarChart2 size={12} className="text-[#D4AF37]" aria-hidden />
+        Acquisition Scoreboard
+      </h2>
+      <div className="grid grid-cols-4 gap-2 mb-2">
+        {metrics.map((m) => (
+          <div key={m.label} className="bg-[#141414] border border-[#2A2A2E] rounded-md p-3">
+            <div className="text-[9px] tracking-widest uppercase text-[#A7A29A] mb-1 leading-tight">{m.label}</div>
+            <div className="text-xl font-bold font-serif text-[#D4AF37]">{m.value}</div>
+          </div>
+        ))}
+        <div className="bg-[#141414] border border-[#2A2A2E] rounded-md p-3">
+          <div className="text-[9px] tracking-widest uppercase text-[#A7A29A] mb-1 leading-tight">Reply Rate</div>
+          <div className="text-xl font-bold font-serif text-[#D4AF37]">{replyRate}</div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ─── System 7: Deal Velocity Monitor ─────────────────────────────────────────
+
+function DealVelocityPanel() {
+  const [data, setData] = useState<{ deals: DealVelocityEntry[]; slowMovingCount: number } | null>(null);
+
+  useEffect(() => {
+    fetch(`${API_BASE}/api/deal-velocity`)
+      .then((r) => r.json())
+      .then(setData)
+      .catch(() => {});
+  }, []);
+
+  const STAGE_NAMES: Record<string, string> = {
+    discovery: 'Discovery', due_diligence: 'Due Diligence', financing: 'Financing',
+    identified: 'Identified', contacted: 'Contacted', financial_review: 'Financial Review',
+    loi_discussion: 'LOI Discussion', loi_signed: 'LOI Signed', closing: 'Closing',
+  };
+
+  return (
+    <section aria-labelledby="dv-heading">
+      <h2 id="dv-heading" className="text-[10px] font-medium tracking-widest uppercase text-[#A7A29A] flex items-center gap-2 mb-3">
+        <TrendingDown size={12} className="text-[#D4AF37]" aria-hidden />
+        Deal Velocity Monitor
+        {data && data.slowMovingCount > 0 && (
+          <span className="ml-1 px-1.5 py-0.5 rounded text-[9px] bg-[#C35B5B20] text-[#C35B5B] uppercase tracking-wider">
+            {data.slowMovingCount} slow
+          </span>
+        )}
+      </h2>
+      {data === null ? (
+        <div className="bg-[#141414] border border-[#2A2A2E] rounded-md p-4 text-xs text-[#A7A29A]">Loading…</div>
+      ) : data.deals.length === 0 ? (
+        <div className="bg-[#141414] border border-[#2A2A2E] rounded-md p-4 text-xs text-[#A7A29A]">No active deals to track.</div>
+      ) : (
+        <ul className="space-y-2">
+          {data.deals.slice(0, 6).map((d) => {
+            const pct = d.threshold ? Math.min(100, (d.stageDurationDays / d.threshold) * 100) : null;
+            return (
+              <li key={d.dealId} className={cn(
+                'bg-[#141414] border rounded px-3 py-2.5',
+                d.slowMoving ? 'border-[#C35B5B30]' : 'border-[#2A2A2E]'
+              )}>
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <span className="text-sm font-medium text-[#E8E6E3] truncate">{d.companyName}</span>
+                  <div className="flex items-center gap-2 flex-shrink-0 text-xs text-[#A7A29A]">
+                    {d.slowMoving && <AlertTriangle size={11} className="text-[#C35B5B]" aria-label="Slow moving" />}
+                    <span>{STAGE_NAMES[d.stage] ?? d.stage}</span>
+                    <span className={d.slowMoving ? 'text-[#C35B5B]' : 'text-[#A7A29A]'}>
+                      {d.stageDurationDays}d{d.threshold ? ` / ${d.threshold}d` : ''}
+                    </span>
+                  </div>
+                </div>
+                {pct !== null && (
+                  <div className="h-1 rounded-full bg-[#2A2A2E] overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all"
+                      style={{ width: `${pct}%`, background: pct >= 100 ? '#C35B5B' : pct >= 75 ? '#D9A441' : '#3FA66B' }}
+                    />
+                  </div>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+// ─── System 8: Conversation Funnel ───────────────────────────────────────────
+
+function ConversationFunnelPanel() {
+  const [funnel, setFunnel] = useState<ConversationFunnel | null>(null);
+  const [freq, setFreq]     = useState<FrequencyProgress | null>(null);
+
+  useEffect(() => {
+    Promise.all([
+      fetch(`${API_BASE}/api/conversation-funnel`).then((r) => r.json()),
+      fetch(`${API_BASE}/api/frequency-progress`).then((r) => r.json()),
+    ]).then(([f, p]) => { setFunnel(f); setFreq(p); }).catch(() => {});
+  }, []);
+
+  const steps = funnel ? [
+    { label: 'Companies Identified', value: funnel.companiesIdentified },
+    { label: 'Owners Contacted',     value: funnel.ownersContacted },
+    { label: 'Replies Received',     value: funnel.repliesReceived },
+    { label: 'Meetings Scheduled',   value: funnel.meetingsScheduled },
+    { label: 'Deals Progressing',    value: funnel.dealsProgressing },
+  ] : [];
+
+  const maxVal = funnel ? Math.max(funnel.companiesIdentified, 1) : 1;
+
+  return (
+    <section aria-labelledby="cf-heading">
+      <h2 id="cf-heading" className="text-[10px] font-medium tracking-widest uppercase text-[#A7A29A] flex items-center gap-2 mb-3">
+        <MessageSquare size={12} className="text-[#D4AF37]" aria-hidden />
+        Conversation Funnel
+      </h2>
+      {funnel === null ? (
+        <div className="bg-[#141414] border border-[#2A2A2E] rounded-md p-4 text-xs text-[#A7A29A]">Loading…</div>
+      ) : (
+        <div className="bg-[#141414] border border-[#2A2A2E] rounded-md p-4 space-y-3">
+          {steps.map((step, i) => (
+            <div key={step.label}>
+              <div className="flex justify-between text-xs mb-1">
+                <span className="text-[#A7A29A]">{step.label}</span>
+                <span className="font-medium text-[#E8E6E3]">{step.value}</span>
+              </div>
+              <div className="h-1.5 rounded-full bg-[#2A2A2E] overflow-hidden">
+                <div
+                  className="h-full rounded-full"
+                  style={{
+                    width: `${Math.round((step.value / maxVal) * 100)}%`,
+                    background: `hsl(${40 - i * 8}, 75%, 55%)`,
+                  }}
+                />
+              </div>
+            </div>
+          ))}
+          <div className="grid grid-cols-2 gap-2 pt-2 border-t border-[#2A2A2E]">
+            <div className="text-center">
+              <div className="text-[9px] uppercase tracking-wider text-[#A7A29A]">Reply Rate</div>
+              <div className="text-lg font-bold font-serif text-[#D4AF37]">{funnel.replyRate}%</div>
+            </div>
+            <div className="text-center">
+              <div className="text-[9px] uppercase tracking-wider text-[#A7A29A]">Meeting Rate</div>
+              <div className="text-lg font-bold font-serif text-[#D4AF37]">{funnel.meetingRate}%</div>
+            </div>
+          </div>
+          {/* System 6 — Contact Frequency Targets */}
+          {freq && (
+            <div className="pt-2 border-t border-[#2A2A2E] space-y-2">
+              <div className="text-[9px] uppercase tracking-wider text-[#A7A29A] flex items-center gap-1">
+                <UserCheck size={10} aria-hidden /> Weekly Targets
+              </div>
+              {[freq.ownersContactedPerWeek, freq.followUpsPerDay, freq.boardOutreachPerWeek].map((t) => {
+                const pct = Math.min(100, t.target > 0 ? (t.current / t.target) * 100 : 0);
+                const met = t.current >= t.target;
+                return (
+                  <div key={t.label}>
+                    <div className="flex justify-between text-xs mb-0.5">
+                      <span className="text-[#A7A29A] text-[10px]">{t.label}</span>
+                    </div>
+                    <div className="h-1.5 rounded-full bg-[#2A2A2E] overflow-hidden">
+                      <div
+                        className="h-full rounded-full transition-all"
+                        style={{ width: `${pct}%`, background: met ? '#3FA66B' : '#D4AF37' }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
 export default function CommandCenterPage() {
   return (
     <div className="max-w-5xl mx-auto px-6 py-6 space-y-7">
@@ -595,6 +1015,30 @@ export default function CommandCenterPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <TaskPanel />
         <PipelineSnapshot />
+      </div>
+
+      {/* ── Performance Systems ── */}
+      <div>
+        <h2 className="text-[10px] font-medium tracking-widest uppercase text-[#A7A29A] mb-4 flex items-center gap-2">
+          <Activity size={12} className="text-[#D4AF37]" aria-hidden />
+          Performance Systems
+        </h2>
+        {/* Pipeline Pressure + Seller Signals */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          <PipelinePressurePanel />
+          <SellerSignalsPanel />
+        </div>
+        {/* Acquisition Scoreboard — full width */}
+        <div className="mb-6">
+          <AcquisitionScoreboardPanel />
+        </div>
+        {/* Relationship Intelligence + Deal Velocity */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          <RelationshipIntelligencePanel />
+          <DealVelocityPanel />
+        </div>
+        {/* Conversation Funnel — full width */}
+        <ConversationFunnelPanel />
       </div>
     </div>
   );

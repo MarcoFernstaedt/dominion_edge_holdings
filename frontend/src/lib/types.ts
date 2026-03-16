@@ -16,6 +16,9 @@ export type CompanyStatus =
   | 'lost'
   | 'archived';
 
+export type PipelinePressureLevel = 'active' | 'cooling' | 'stalled';
+export type SellerConversationStatus = 'not_contacted' | 'contacted' | 'conversation_started' | 'meeting_scheduled' | 'negotiation';
+
 export interface Company {
   id: ID;
   name: string;
@@ -46,7 +49,18 @@ export interface Company {
   acquisitionScore?: number;
   createdAt: string;
   updatedAt: string;
+  // System 1 — Pipeline Pressure
   lastInteractionAt?: string;
+  pipelinePressureLevel?: PipelinePressureLevel;
+  daysSinceLastInteraction?: number;
+  // System 3 — Seller Signal Detection
+  reviewDeclineSignal?: boolean;
+  websiteOutdatedSignal?: boolean;
+  hiringSlowdownSignal?: boolean;
+  linkedinInactiveSignal?: boolean;
+  sellerSignalScore?: number;
+  // System 8 — Owner Conversation Pipeline
+  sellerConversationStatus?: SellerConversationStatus;
 }
 
 // ─── Contact ──────────────────────────────────────────────────────────────────
@@ -64,6 +78,11 @@ export type ContactType =
   | 'employee_candidate';
 
 export type ContactStatus = 'active' | 'inactive' | 'stale' | 'suppressed';
+
+export type RelationshipStage = 'cold' | 'aware' | 'engaged' | 'relationship' | 'trusted';
+export type RelationshipWarmth = 'cold' | 'cooling' | 'warm' | 'hot';
+export type SellerMotivation = 'retirement' | 'burnout' | 'expansion_capital' | 'family_transition' | 'unknown';
+export type SellerTimeline = 'immediate' | '6_months' | '1_year' | 'unknown';
 
 export interface Contact {
   id: ID;
@@ -83,7 +102,19 @@ export interface Contact {
   notes?: string;
   createdAt: string;
   updatedAt: string;
+  // System 1 — Pipeline Pressure
   lastInteractionAt?: string;
+  pipelinePressureLevel?: PipelinePressureLevel;
+  daysSinceLastInteraction?: number;
+  // System 2 — Relationship Intelligence
+  influenceScore?: number;
+  relationshipWarmth?: RelationshipWarmth;
+  relationshipStage?: RelationshipStage;
+  lastConversationSummary?: string;
+  relationshipNotes?: string;
+  // System 4 — Conversation Intelligence
+  sellerTimeline?: SellerTimeline;
+  sellerMotivation?: SellerMotivation;
 }
 
 // ─── Interaction ──────────────────────────────────────────────────────────────
@@ -116,6 +147,12 @@ export interface Interaction {
   createdAt: string;
   updatedAt: string;
   createdBy?: string;
+  // System 4 — Conversation Intelligence
+  conversationSummary?: string;
+  sellerMotivation?: SellerMotivation;
+  sellerTimeline?: SellerTimeline;
+  sellerConcerns?: string;
+  nextConversationGoal?: string;
 }
 
 // ─── Deal / Pipeline ─────────────────────────────────────────────────────────
@@ -157,6 +194,67 @@ export interface Deal {
   lastStageChangedAt?: string;
   createdAt: string;
   updatedAt: string;
+  // System 1 — Pipeline Pressure
+  lastInteractionAt?: string;
+  pipelinePressureLevel?: PipelinePressureLevel;
+  daysSinceLastInteraction?: number;
+  // System 7 — Deal Velocity
+  stageEnteredAt?: string;
+  stageDurationDays?: number;
+}
+
+// ─── Performance Systems ─────────────────────────────────────────────────────
+
+export interface PipelinePressureMetrics {
+  stalledCompaniesCount: number;
+  stalledDealsCount: number;
+  stalledContactsCount: number;
+  coolingRelationshipsCount: number;
+}
+
+export interface AcquisitionScoreboard {
+  targetsFound: number;
+  ownersContacted: number;
+  conversationsStarted: number;
+  meetingsHeld: number;
+  dealsEvaluated: number;
+  LOIsSubmitted: number;
+  dealsClosed: number;
+  emailsSentThisWeek: number;
+  repliesThisWeek: number;
+  updatedAt: string;
+}
+
+export interface DealVelocityEntry {
+  dealId: string;
+  companyName: string;
+  stage: string;
+  stageDurationDays: number;
+  threshold: number | null;
+  slowMoving: boolean;
+}
+
+export interface ConversationFunnel {
+  companiesIdentified: number;
+  ownersContacted: number;
+  repliesReceived: number;
+  meetingsScheduled: number;
+  dealsProgressing: number;
+  emailsSent: number;
+  replyRate: number;
+  meetingRate: number;
+}
+
+export interface FrequencyTarget {
+  current: number;
+  target: number;
+  label: string;
+}
+
+export interface FrequencyProgress {
+  ownersContactedPerWeek: FrequencyTarget;
+  followUpsPerDay: FrequencyTarget;
+  boardOutreachPerWeek: FrequencyTarget;
 }
 
 // ─── Underwriting ─────────────────────────────────────────────────────────────

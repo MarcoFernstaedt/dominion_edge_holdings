@@ -9,11 +9,12 @@
  *   detectStalledDeals, generateDocument, refreshDashboardMetrics
  */
 
-import CacheService from './CacheService.js';
-import AuditLogService from './AuditLogService.js';
-import NotificationService from './NotificationService.js';
-import AutomationRuleEngine from './AutomationRuleEngine.js';
-import TaskService from './TaskService.js';
+import CacheService            from './CacheService.js';
+import AuditLogService         from './AuditLogService.js';
+import NotificationService     from './NotificationService.js';
+import AutomationRuleEngine    from './AutomationRuleEngine.js';
+import TaskService             from './TaskService.js';
+import PipelinePressureService from './PipelinePressureService.js';
 
 // ─── Job registry ─────────────────────────────────────────────────────────────
 class BackgroundJobRunnerClass {
@@ -169,6 +170,37 @@ class BackgroundJobRunnerClass {
             uid: () => crypto.randomUUID(),
             nowIso: () => new Date().toISOString(),
           });
+        }
+      },
+    });
+
+    // dailyPipelineScan — every 6 hours (System 1)
+    this.register({
+      id: 'dailyPipelineScan',
+      name: 'Daily Pipeline Pressure Scan',
+      intervalMs: 6 * 60 * 60 * 1000,
+      fn: async () => {
+        PipelinePressureService.updatePressureLevels(store);
+        const stalled = PipelinePressureService.scanForStalledEntities(store);
+        const created = PipelinePressureService.createFollowUpTasks(
+          stalled,
+          store,
+          () => crypto.randomUUID(),
+          () => new Date().toISOString(),
+        );
+        if (created.length > 0) {
+          console.log(`[PipelinePressure] Created ${created.length} follow-up tasks for stalled entities`);
+        }
+        // Notify if significant stall count
+        const metrics = PipelinePressureService.getDashboardMetrics(store);
+        if (metrics.stalledDealsCount > 0) {
+          store.notifications = store.notifications || [];
+          store.notifications.push(
+            NotificationService.dealStalledNotification(
+              { id: 'pipeline-scan', companyName: `${metrics.stalledDealsCount} deals` },
+              Math.round(21)
+            )
+          );
         }
       },
     });

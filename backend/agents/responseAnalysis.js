@@ -13,6 +13,32 @@
 
 import AIService, { AIServiceError } from '../services/AIService.js';
 
+// ─── Seller motivation heuristic (System 4 — Conversation Intelligence) ──────
+function extractMotivationSignals(text) {
+  const lower = text.toLowerCase();
+
+  const RETIREMENT       = ['retire', 'retirement', 'stepping down', 'age', 'too old', 'slow down', 'pass it on'];
+  const BURNOUT          = ['burned out', 'exhausted', 'tired of', 'overwhelmed', 'stressed', 'done with it', 'worn out'];
+  const EXPANSION        = ['grow', 'expansion', 'capital', 'scale', 'invest', 'opportunity', 'next level'];
+  const FAMILY           = ['family', 'kids', 'children', 'son', 'daughter', 'health', 'illness', 'divorce'];
+  const IMMEDIATE        = ['asap', 'immediately', 'right away', 'this year', 'soon as possible', 'urgent'];
+  const SIX_MONTHS       = ['6 months', 'six months', 'this summer', 'by end of year', 'next few months'];
+  const ONE_YEAR         = ['next year', '12 months', 'a year', 'year or two', 'eventually'];
+
+  let sellerMotivation = 'unknown';
+  if      (RETIREMENT.some((k) => lower.includes(k)))  sellerMotivation = 'retirement';
+  else if (BURNOUT.some((k) => lower.includes(k)))     sellerMotivation = 'burnout';
+  else if (EXPANSION.some((k) => lower.includes(k)))   sellerMotivation = 'expansion_capital';
+  else if (FAMILY.some((k) => lower.includes(k)))      sellerMotivation = 'family_transition';
+
+  let sellerTimeline = 'unknown';
+  if      (IMMEDIATE.some((k) => lower.includes(k)))   sellerTimeline = 'immediate';
+  else if (SIX_MONTHS.some((k) => lower.includes(k)))  sellerTimeline = '6_months';
+  else if (ONE_YEAR.some((k) => lower.includes(k)))    sellerTimeline = '1_year';
+
+  return { sellerMotivation, sellerTimeline };
+}
+
 // ─── Keyword heuristic classifier (deterministic fallback) ────────────────────
 function classifyByKeywords(text) {
   const lower = text.toLowerCase();
@@ -48,7 +74,13 @@ Mapping rules:
 - needs_followup → followup_later
 - unsubscribe → remove_from_list
 - not_interested | already_listed → close_lead
-- other → none`;
+- other → none
+
+Also extract Conversation Intelligence (System 4):
+- sellerMotivation: retirement | burnout | expansion_capital | family_transition | unknown
+- sellerTimeline: immediate | 6_months | 1_year | unknown
+- sellerConcerns: brief text of any concerns mentioned, or null
+- nextConversationGoal: what the next conversation should accomplish, or null`;
 
 export async function ResponseAnalysisAgent({ emailBody, senderName, senderEmail, companyName, threadContext = '', entityId, costFlags }) {
   const userMessage = `Analyze this inbound email and return valid JSON only.
@@ -75,6 +107,12 @@ Return ONLY this JSON shape (no other text):
     "phone": "<string or null>",
     "bestTime": "<string or null>",
     "preferredMethod": "<string or null>"
+  },
+  "conversationIntelligence": {
+    "sellerMotivation": "<retirement|burnout|expansion_capital|family_transition|unknown>",
+    "sellerTimeline": "<immediate|6_months|1_year|unknown>",
+    "sellerConcerns": "<string or null>",
+    "nextConversationGoal": "<string or null>"
   }
 }`;
 
@@ -89,7 +127,8 @@ Return ONLY this JSON shape (no other text):
     return result.content;
   } catch (err) {
     // Keyword heuristic fallback — always works, no AI needed
-    const heuristic = classifyByKeywords(emailBody);
+    const heuristic   = classifyByKeywords(emailBody);
+    const motivation  = extractMotivationSignals(emailBody);
     return {
       agentName:          'ResponseAnalysisAgent',
       analysisSummary:    'AI unavailable. Classified using keyword heuristics.',
@@ -100,6 +139,12 @@ Return ONLY this JSON shape (no other text):
       ...heuristic,
       followUpDate:       null,
       extractedInfo:      { name: senderName || null, phone: null, bestTime: null, preferredMethod: null },
+      conversationIntelligence: {
+        sellerMotivation:     motivation.sellerMotivation,
+        sellerTimeline:       motivation.sellerTimeline,
+        sellerConcerns:       null,
+        nextConversationGoal: null,
+      },
     };
   }
 }

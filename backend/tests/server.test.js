@@ -320,7 +320,7 @@ describe('Deals CRUD', () => {
     expect(res.status).toBe(201);
     expect(res.body.companyName).toBe('Acme Pest Control');
     expect(res.body.status).toBe('active');
-    expect(res.body.stage).toBe('sourcing');
+    expect(res.body.stage).toBe('identified');
     dealId = res.body.id;
   });
 
