@@ -51,6 +51,9 @@ import DealFeedIngestionJob   from './jobs/DealFeedIngestionJob.js';
 import RelationshipService    from './services/RelationshipService.js';
 import RelationshipFollowUpJob from './jobs/RelationshipFollowUpJob.js';
 
+// ─── Conversation KPI System ──────────────────────────────────────────────────
+import ConversationMetricsService from './services/ConversationMetricsService.js';
+
 dotenv.config();
 
 // ─── Environment validation ───────────────────────────────────────────────────
@@ -214,6 +217,9 @@ const store = {
   // Relationship Management Engine
   relationships:             [],
   relationshipInteractions:  [],
+  // Conversation KPI System
+  relationshipConversations: [],
+  conversationTargets:       [],
   _metrics: {},
   settings: {
     fromName: '',
@@ -3485,6 +3491,185 @@ app.get('/api/relationships/execution-counts', (req, res) => {
   }
 });
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// CONVERSATION KPI SYSTEM
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const ConversationSchema = z.object({
+  entityType:          z.enum(['seller', 'board_member', 'investor']),
+  entityId:            z.string().uuid().optional().or(z.literal('')),
+  entityName:          z.string().min(1).max(200).trim(),
+  company:             z.string().max(200).trim().optional(),
+  conversationType:    z.enum(['phone', 'zoom', 'meeting', 'email_thread']),
+  conversationSummary: z.string().max(2000).trim().optional(),
+  date:                z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+});
+
+const ConversationPatchSchema = ConversationSchema.omit({ entityType: true, entityId: true }).partial();
+
+const ConversationTargetSchema = z.object({
+  entityType:   z.enum(['seller', 'board_member', 'investor']),
+  weeklyTarget: z.number().int().min(0).max(100),
+});
+
+// ─── GET /api/conversations/kpi ───────────────────────────────────────────────
+app.get('/api/conversations/kpi', (req, res) => {
+  try {
+    const weekStart = req.query.weekStart ? String(req.query.weekStart) : undefined;
+    res.json(ConversationMetricsService.getKPIStatus(weekStart));
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', err.message);
+  }
+});
+
+// ─── GET /api/conversations/weekly-report ─────────────────────────────────────
+app.get('/api/conversations/weekly-report', (req, res) => {
+  try {
+    const weekStart = req.query.weekStart ? String(req.query.weekStart) : undefined;
+    res.json(ConversationMetricsService.getWeeklyReport(weekStart));
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', err.message);
+  }
+});
+
+// ─── GET /api/conversations/trends ────────────────────────────────────────────
+app.get('/api/conversations/trends', (req, res) => {
+  try {
+    const weeksBack = req.query.weeks ? Math.min(52, parseInt(req.query.weeks, 10)) : 8;
+    res.json({ trends: ConversationMetricsService.calculateConversationTrends(weeksBack) });
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', err.message);
+  }
+});
+
+// ─── GET /api/conversations/pipeline-health ───────────────────────────────────
+app.get('/api/conversations/pipeline-health', (req, res) => {
+  try {
+    res.json({ alerts: ConversationMetricsService.getPipelineHealthAlerts() });
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', err.message);
+  }
+});
+
+// ─── GET /api/conversations/targets ───────────────────────────────────────────
+app.get('/api/conversations/targets', (req, res) => {
+  try {
+    res.json({ targets: ConversationMetricsService.getTargets() });
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', err.message);
+  }
+});
+
+// ─── PATCH /api/conversations/targets ─────────────────────────────────────────
+app.patch('/api/conversations/targets', validate(ConversationTargetSchema), (req, res) => {
+  try {
+    const { entityType, weeklyTarget } = req.validated;
+    const updated = ConversationMetricsService.setTarget(entityType, weeklyTarget);
+    res.json({ targets: updated });
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', err.message);
+  }
+});
+
+// ─── GET /api/conversations — list ────────────────────────────────────────────
+app.get('/api/conversations', (req, res) => {
+  try {
+    const { entityType, conversationType, search, dateFrom, dateTo, sortDir, page, pageSize } = req.query;
+    res.json(ConversationMetricsService.listConversations({
+      entityType:       entityType       ? String(entityType)       : undefined,
+      conversationType: conversationType ? String(conversationType) : undefined,
+      search:           search           ? String(search).slice(0, 200) : undefined,
+      dateFrom:         dateFrom         ? String(dateFrom)         : undefined,
+      dateTo:           dateTo           ? String(dateTo)           : undefined,
+      sortDir:          sortDir          ? String(sortDir)          : 'desc',
+      page:             page             ? parseInt(page, 10)       : 1,
+      pageSize:         pageSize         ? parseInt(pageSize, 10)   : 50,
+    }));
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', err.message);
+  }
+});
+
+// ─── POST /api/conversations — record a conversation ──────────────────────────
+app.post('/api/conversations', validate(ConversationSchema), (req, res) => {
+  try {
+    const conversation = ConversationMetricsService.recordConversation(req.validated);
+
+    // Fire pipeline-health check automation after each new conversation
+    const alerts = ConversationMetricsService.getPipelineHealthAlerts();
+    for (const alert of alerts.filter((a) => a.severity === 'critical')) {
+      const n = NotificationService.createNotification({
+        type:     'system',
+        title:    alert.title,
+        message:  alert.message,
+        priority: 'high',
+      });
+      store.notifications = [n, ...(store.notifications || [])].slice(0, 100);
+    }
+
+    res.status(201).json({ conversation });
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', err.message);
+  }
+});
+
+// ─── PATCH /api/conversations/:id ─────────────────────────────────────────────
+app.patch('/api/conversations/:id', validate(ConversationPatchSchema), (req, res) => {
+  try {
+    const updated = ConversationMetricsService.updateConversation(req.params.id, req.validated);
+    if (!updated) return errorResponse(res, 404, 'NOT_FOUND', 'Conversation not found');
+    res.json({ conversation: updated });
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', err.message);
+  }
+});
+
+// ─── DELETE /api/conversations/:id ────────────────────────────────────────────
+app.delete('/api/conversations/:id', (req, res) => {
+  try {
+    const deleted = ConversationMetricsService.deleteConversation(req.params.id);
+    if (!deleted) return errorResponse(res, 404, 'NOT_FOUND', 'Conversation not found');
+    res.json({ deleted: true });
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', err.message);
+  }
+});
+
+// ─── GET /api/conversations/agent-context ─────────────────────────────────────
+app.get('/api/conversations/agent-context', (req, res) => {
+  try {
+    res.json(ConversationMetricsService.getAgentContext());
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', err.message);
+  }
+});
+
+// ─── Pipeline-health automation rule ──────────────────────────────────────────
+AutomationRuleEngine.register({
+  id: 'conversation_pipeline_health_daily',
+  description: 'Daily check: fire notifications for pipeline health alert conditions',
+  trigger: 'daily_check',
+  condition: () => true,
+  action: (_, { notificationService, store: s }) => {
+    const alerts = ConversationMetricsService.getPipelineHealthAlerts();
+    for (const alert of alerts) {
+      const existing = (s.notifications || []).find(
+        (n) => n.title === alert.title && !n.read
+      );
+      if (existing) continue; // already have an unread notification for this alert
+      const n = notificationService.createNotification({
+        type:     'system',
+        title:    alert.title,
+        message:  `${alert.message} ${alert.action}`,
+        priority: alert.severity === 'critical' ? 'high' : 'medium',
+      });
+      s.notifications = [n, ...(s.notifications || [])].slice(0, 100);
+    }
+    return { alertsChecked: alerts.length };
+  },
+  enabled: true,
+});
+
 // ─── 404 ──────────────────────────────────────────────────────────────────────
 app.use((req, res) => {
   errorResponse(res, 404, 'NOT_FOUND', `Route not found: ${req.method} ${req.path}`);
@@ -3522,6 +3707,9 @@ DealFeedService.init(store);
 
 // ─── Relationship Management Engine init ──────────────────────────────────────
 RelationshipService.init(store);
+
+// ─── Conversation KPI System init ─────────────────────────────────────────────
+ConversationMetricsService.init(store);
 
 // Initialize new platform services
 SourceAdapterRegistryService.init(store, store.settings);

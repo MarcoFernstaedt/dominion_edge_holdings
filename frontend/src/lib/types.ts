@@ -1403,3 +1403,85 @@ export interface RelationshipFilters {
   page?: number;
   pageSize?: number;
 }
+
+// ─── Conversation KPI System ──────────────────────────────────────────────────
+
+export type ConversationEntityType = 'seller' | 'board_member' | 'investor';
+export type ConversationType = 'phone' | 'zoom' | 'meeting' | 'email_thread';
+export type KPIStatus = 'on_target' | 'at_risk' | 'below_target';
+
+export interface RelationshipConversation {
+  id: ID;
+  entityType: ConversationEntityType;
+  entityId: string;
+  entityName: string;
+  company: string;
+  conversationType: ConversationType;
+  conversationSummary: string;
+  date: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ConversationKPIItem {
+  entityType: ConversationEntityType;
+  count: number;
+  target: number;
+  pct: number;
+  status: KPIStatus;
+}
+
+export interface ConversationKPIResult {
+  weekStart: string;
+  items: ConversationKPIItem[];
+  overallStatus: KPIStatus;
+}
+
+export interface ConversationTrendWeek {
+  weekStart: string;
+  seller: number;
+  board_member: number;
+  investor: number;
+}
+
+export interface ConversationPipelineAlert {
+  id: string;
+  severity: 'critical' | 'warning';
+  title: string;
+  message: string;
+  type: ConversationEntityType;
+  action: string;
+}
+
+export interface ConversationWeeklyReport {
+  weekStart: string;
+  kpi: ConversationKPIResult;
+  monthly: { month: string; seller: number; board_member: number; investor: number; total: number };
+  alerts: ConversationPipelineAlert[];
+  conversions: { toOpportunities: number; toDeals: number };
+}
+
+export interface ConversationTargets {
+  seller: number;
+  board_member: number;
+  investor: number;
+}
+
+export interface ConversationPage {
+  conversations: RelationshipConversation[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+export interface ConversationFilters {
+  entityType?: ConversationEntityType;
+  conversationType?: ConversationType;
+  search?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  sortDir?: 'asc' | 'desc';
+  page?: number;
+  pageSize?: number;
+}

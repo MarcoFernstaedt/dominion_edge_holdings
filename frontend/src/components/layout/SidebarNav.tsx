@@ -27,6 +27,7 @@ import {
   BookOpen,
   Store,
   UserCheck,
+  MessageCircle,
 } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 
@@ -56,6 +57,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'playbook', label: 'Playbook', href: '/playbook', icon: BookOpen },
   { id: 'deal-feed',     label: 'Deal Feed',     href: '/deal-feed',     icon: Store      },
   { id: 'relationships', label: 'Relationships', href: '/relationships', icon: UserCheck   },
+  { id: 'conversations', label: 'Conversations', href: '/conversations', icon: MessageCircle },
   { id: 'reports', label: 'Reports', href: '/reports', icon: BarChart3 },
   { id: 'settings', label: 'Settings', href: '/settings', icon: Settings },
 ];
@@ -92,6 +94,7 @@ export function SidebarNav({ collapsed, onToggle, isMobile = false }: SidebarNav
     if (item.id === 'playbook')   return pathname.startsWith('/playbook');
     if (item.id === 'deal-feed')     return pathname.startsWith('/deal-feed');
     if (item.id === 'relationships') return pathname.startsWith('/relationships');
+    if (item.id === 'conversations') return pathname.startsWith('/conversations');
     return pathname === item.href;
   }
 

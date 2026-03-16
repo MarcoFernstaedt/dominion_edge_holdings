@@ -511,3 +511,69 @@ export const relationshipsApi = {
       '/api/relationships/execution-counts'
     ),
 };
+
+// ─── Conversation KPI System ──────────────────────────────────────────────────
+
+import type {
+  ConversationKPIResult,
+  ConversationWeeklyReport,
+  ConversationPipelineAlert,
+  ConversationTargets,
+  ConversationPage,
+  ConversationFilters,
+  RelationshipConversation,
+  ConversationTrendWeek,
+} from './types';
+
+export const conversationsApi = {
+  getKPI: (weekStart?: string) =>
+    api.get<ConversationKPIResult>(
+      `/api/conversations/kpi${weekStart ? `?weekStart=${weekStart}` : ''}`
+    ),
+
+  getWeeklyReport: (weekStart?: string) =>
+    api.get<ConversationWeeklyReport>(
+      `/api/conversations/weekly-report${weekStart ? `?weekStart=${weekStart}` : ''}`
+    ),
+
+  getTrends: (weeks = 8) =>
+    api.get<{ trends: ConversationTrendWeek[] }>(`/api/conversations/trends?weeks=${weeks}`),
+
+  getPipelineHealth: () =>
+    api.get<{ alerts: ConversationPipelineAlert[] }>('/api/conversations/pipeline-health'),
+
+  getTargets: () =>
+    api.get<{ targets: ConversationTargets }>('/api/conversations/targets'),
+
+  setTarget: (entityType: string, weeklyTarget: number) =>
+    api.patch<{ targets: ConversationTargets }>('/api/conversations/targets', { entityType, weeklyTarget }),
+
+  list: (filters?: ConversationFilters) => {
+    const params = new URLSearchParams();
+    if (filters) {
+      const { entityType, conversationType, search, dateFrom, dateTo, sortDir, page, pageSize } = filters;
+      if (entityType)       params.set('entityType',       entityType);
+      if (conversationType) params.set('conversationType', conversationType);
+      if (search)           params.set('search',           search);
+      if (dateFrom)         params.set('dateFrom',         dateFrom);
+      if (dateTo)           params.set('dateTo',           dateTo);
+      if (sortDir)          params.set('sortDir',          sortDir);
+      if (page     != null) params.set('page',             String(page));
+      if (pageSize != null) params.set('pageSize',         String(pageSize));
+    }
+    const qs = params.toString();
+    return api.get<ConversationPage>(`/api/conversations${qs ? `?${qs}` : ''}`);
+  },
+
+  record: (data: unknown) =>
+    api.post<{ conversation: RelationshipConversation }>('/api/conversations', data),
+
+  update: (id: string, data: unknown) =>
+    api.patch<{ conversation: RelationshipConversation }>(`/api/conversations/${id}`, data),
+
+  delete: (id: string) =>
+    api.delete(`/api/conversations/${id}`),
+
+  getAgentContext: () =>
+    api.get<unknown>('/api/conversations/agent-context'),
+};
