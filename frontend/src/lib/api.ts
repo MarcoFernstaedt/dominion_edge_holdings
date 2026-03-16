@@ -348,3 +348,21 @@ export const executionApi = {
   getDealMomentum:   () => api.get<{ momentum: unknown[]; stalled: unknown[]; cooling: unknown[] }>('/api/execution/deal-momentum'),
   getAlerts:         () => api.get<{ alerts: unknown[] }>('/api/execution/alerts'),
 };
+
+// ─── Playbook Engine ──────────────────────────────────────────────────────────
+
+export const playbookApi = {
+  getSummary:    () => api.get<unknown>('/api/playbook/summary'),
+  getStages:     () => api.get<{ stages: unknown[] }>('/api/playbook/stages'),
+  getCurrent:    () => api.get<unknown>('/api/playbook/current'),
+  getStage:      (id: string) => api.get<unknown>(`/api/playbook/stages/${id}`),
+  getNextTasks:  (limit?: number) =>
+    api.get<{ tasks: unknown[] }>(`/api/playbook/next-tasks${limit ? `?limit=${limit}` : ''}`),
+  getToday:      () => api.get<unknown>('/api/playbook/today'),
+  completeTask:  (taskId: string, notes?: string) =>
+    api.post<unknown>(`/api/playbook/tasks/${taskId}/complete`, { notes }),
+  updateTaskStatus: (taskId: string, status: string, notes?: string) =>
+    api.patch<unknown>(`/api/playbook/tasks/${taskId}/status`, { status, notes }),
+  sync:          () => api.post<{ synced: number; message: string }>('/api/playbook/sync', {}),
+  getProgress:   () => api.get<{ progress: unknown[] }>('/api/playbook/progress'),
+};

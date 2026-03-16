@@ -1108,6 +1108,101 @@ export interface ExecutionSummary {
   alerts: ExecutionAlert[];
 }
 
+// ─── Playbook Engine ──────────────────────────────────────────────────────────
+
+export type PlaybookTaskStatus = 'not_started' | 'in_progress' | 'completed' | 'skipped';
+export type PlaybookCompletionType = 'manual' | 'automatic' | 'hybrid';
+export type PlaybookCompletionMode = 'tasks' | 'metrics' | 'hybrid';
+
+export interface PlaybookStage {
+  id: ID;
+  stageOrder: number;
+  stageName: string;
+  description: string;
+  completionMode: PlaybookCompletionMode;
+  metricRequirements?: Record<string, number>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PlaybookTask {
+  id: ID;
+  stageId: ID;
+  taskTitle: string;
+  taskDescription: string;
+  taskCategory: string;
+  taskOrder: number;
+  estimatedEffortMinutes: number;
+  completionType: PlaybookCompletionType;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PlaybookProgress {
+  id: ID;
+  taskId: ID;
+  status: PlaybookTaskStatus;
+  completedAt: string | null;
+  notes: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MetricRequirementCheck {
+  label: string;
+  actual: number;
+  required: number;
+  met: boolean;
+}
+
+export interface StageCompletion {
+  complete: boolean;
+  taskPct: number;
+  completed: number;
+  tasks: number;
+  metricsMet: {
+    allMet: boolean;
+    requirements: MetricRequirementCheck[];
+  };
+}
+
+export interface PlaybookTaskWithProgress {
+  task: PlaybookTask;
+  status: PlaybookTaskStatus;
+  completedAt: string | null;
+  notes: string | null;
+  stage?: PlaybookStage;
+}
+
+export interface DailyAction {
+  source: 'playbook' | 'execution' | 'momentum' | 'stage';
+  priority: 'critical' | 'high' | 'medium' | 'low';
+  title: string;
+  description: string;
+  taskId: ID | null;
+  stageId: ID | null;
+  stageName: string | null;
+  dealId?: ID;
+  effortMin?: number;
+}
+
+export interface DailyActionPlan {
+  stageName: string;
+  stageId: ID;
+  actions: DailyAction[];
+  generatedAt: string;
+}
+
+export interface PlaybookSummary {
+  currentStage: PlaybookStage;
+  stagesCompleted: number;
+  totalStages: number;
+  completion: StageCompletion;
+  allComplete: boolean;
+  nextTasks: PlaybookTaskWithProgress[];
+  overallProgress: number;
+}
+
 export interface AppSettings {
   reducedMotion: boolean;
   highContrast: boolean;
