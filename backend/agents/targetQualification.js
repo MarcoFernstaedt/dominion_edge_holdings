@@ -1,48 +1,43 @@
 /**
  * TargetQualificationAgent
  *
- * Quickly qualifies or disqualifies a company as an acquisition target
- * based on available signals. Used during initial research phase before
- * outreach begins.
+ * Score acquisition attractiveness; identify risks and signals.
+ * Model: Claude Haiku (target_qualification task)
  */
 
-import { runAgent, extractJSON } from './index.js';
+import AIService from '../services/AIService.js';
 
 const SYSTEM_PROMPT = `You are the Target Qualification Agent for Dominion Edge Holdings.
 
-You quickly assess if a company is worth pursuing as an acquisition target. You look for positive signals (retirement-age owner, stable revenue, B2B, no broker yet) and disqualifying signals (consumer retail, franchise, PE-backed, too large, declining industry).
+Pass signals: Owner 55+, no succession plan, stable/growing revenue, B2B customers, essential services
+Fail signals: PE/VC backed, franchise, declining industry, consumer retail, revenue <$500K or >$25M, <3 years old
+Conditional: some pass criteria but missing key info
 
-Your output drives whether to invest outreach effort or move on. Be decisive.
+Be decisive. Return structured JSON only.`;
 
-Qualification criteria:
-PASS signals: Owner 55+, no succession plan visible, stable/growing revenue, B2B customers, essential services, proprietor-style business
-FAIL signals: PE/VC backed, franchise, declining industry, consumer retail, highly regulated, revenue <$500K or >$25M, less than 3 years old
-CONDITIONAL signals: Some pass criteria but missing key info, needs a call to verify
-
-Return structured JSON only.`;
-
-export async function TargetQualificationAgent({ company, researchNotes, linkedinData, websiteSignals, model }) {
+export async function TargetQualificationAgent({ company, researchNotes, linkedinData, websiteSignals, entityId, costFlags }) {
   const userMessage = `Qualify this acquisition target.
 
-Company name: ${company?.name || 'Unknown'}
-Industry: ${company?.industry || 'Unknown'}
+Company: ${company?.name || 'Unknown'}, ${company?.industry || 'Unknown industry'}
 Location: ${company?.city || ''} ${company?.state || ''}
 Years in business: ${company?.yearsInBusiness || 'Unknown'}
-Estimated revenue: $${company?.estimatedRevenueLow ? company.estimatedRevenueLow.toLocaleString() : 'Unknown'} - $${company?.estimatedRevenueHigh ? company.estimatedRevenueHigh.toLocaleString() : 'Unknown'}
-Owner name: ${company?.ownerName || 'Unknown'}
-Website: ${company?.website || 'None'}
-No website signal: ${company?.noWebsiteSignal || false}
+Revenue range: $${company?.estimatedRevenueLow?.toLocaleString() || '?'} - $${company?.estimatedRevenueHigh?.toLocaleString() || '?'}
+Owner: ${company?.ownerName || 'Unknown'}
 Retirement signal: ${company?.retirementSignal || false}
-
-Research notes: ${researchNotes || 'None'}
-LinkedIn signals: ${linkedinData || 'None'}
+No website signal: ${company?.noWebsiteSignal || false}
+Notes: ${company?.notes || 'None'}
+Research: ${researchNotes || 'None'}
+LinkedIn: ${linkedinData || 'None'}
 Website signals: ${websiteSignals || 'None'}
-Company notes: ${company?.notes || 'None'}
 
-Return ONLY valid JSON:
+Return ONLY this JSON:
 {
+  "agentName": "TargetQualificationAgent",
+  "analysisSummary": "<one sentence verdict>",
+  "actionsProposed": ["<action>", ...],
+  "confidenceScore": <number 0-1>,
   "qualification": "<pass|conditional|fail>",
-  "confidenceLevel": <number 0-100>,
+  "overallScore": <number 0-100>,
   "passSignals": ["<signal>", ...],
   "failSignals": ["<signal>", ...],
   "unknownFactors": ["<factor>", ...],
@@ -50,17 +45,16 @@ Return ONLY valid JSON:
   "successionRisk": "<high|medium|low|unknown>",
   "brokerRisk": "<likely listed|possibly listed|probably not listed|unknown>",
   "outreachRecommendation": "<outreach_now|research_more|skip|monitor>",
-  "suggestedOutreachAngle": "<one sentence personalized angle>",
-  "disqualifyingFactors": ["<factor>", ...]
+  "suggestedOutreachAngle": "<one sentence>"
 }`;
 
-  const response = await runAgent({
+  const result = await AIService.run('target_qualification', { companyId: company?.id, industry: company?.industry }, {
+    entityId: entityId || company?.id || `qual_${Date.now()}`,
+    entityType: 'company',
     systemPrompt: SYSTEM_PROMPT,
     userMessage,
-    maxTokens: 768,
-    model,
+    costFlags,
   });
 
-  const text = response.content.find((b) => b.type === 'text')?.text ?? '{}';
-  return extractJSON(text);
+  return result.content;
 }

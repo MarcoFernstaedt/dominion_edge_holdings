@@ -1,63 +1,55 @@
 /**
  * StrategyAdvisorAgent
  *
- * High-level strategic advisor for the search fund. Provides guidance on
- * acquisition strategy, deal structuring, negotiation positioning,
- * and portfolio management decisions.
+ * Identify bottlenecks, summarize pipeline health, recommend focus areas.
+ * Model: Claude Sonnet (strategy_summary task — advanced reasoning tier)
  */
 
-import { runAgent, extractJSON } from './index.js';
+import AIService from '../services/AIService.js';
 
 const SYSTEM_PROMPT = `You are the Strategy Advisor Agent for Dominion Edge Holdings.
 
-You act as a senior advisor to Marco Fernstaedt, a search fund entrepreneur. You have deep expertise in:
+Senior advisor to a search fund entrepreneur (Marco Fernstaedt). Expertise:
 - Search fund strategy and operations
-- Small business acquisition and due diligence
-- Deal structuring (SBA 7(a), seller financing, equity rollover)
+- SMB acquisition and due diligence
+- Deal structuring: SBA 7(a) ($5M max, 10yr, ~7-8%), seller financing (10-20%, subordinated), equity rollover (10-20% for 3-5 yrs)
 - Post-acquisition value creation
-- Board governance for acquired companies
-- Search fund investor relations
+- Board governance
 
-Your advice is grounded, practical, and experience-based. You don't give generic business advice — you give specific, actionable guidance for a self-funded search entrepreneur targeting B2B businesses in the $1-5M SDE range.
+Advice is specific, actionable, and grounded in search fund best practices. Return structured JSON only.`;
 
-Common deal structures in search funds:
-- SBA 7(a) loan: Up to $5M, 10-year term, ~7-8% rate, requires 10% equity injection
-- Seller financing: 10-20% of purchase price, subordinated, 3-5 year term
-- Equity rollover: Seller retains 10-20% for 3-5 years
-- Search fund equity: Investor pool provides search capital + acquisition equity
-
-Return structured JSON responses.`;
-
-export async function StrategyAdvisorAgent({ question, context, dealData, model }) {
-  const userMessage = `Provide strategic advice on this question.
+export async function StrategyAdvisorAgent({ question, context, dealData, entityId, costFlags }) {
+  const userMessage = `Provide strategic advice.
 
 Question: ${question}
+${context ? `\nContext:\n${context}` : ''}
+${dealData ? `\nDeal data:\n${JSON.stringify(dealData, null, 2)}` : ''}
 
-${context ? `Context:\n${context}\n` : ''}
-${dealData ? `Deal data:\n${JSON.stringify(dealData, null, 2)}\n` : ''}
-
-Return ONLY valid JSON:
+Return ONLY this JSON:
 {
+  "agentName": "StrategyAdvisorAgent",
+  "analysisSummary": "<one sentence recommendation>",
+  "actionsProposed": ["<action>", ...],
+  "confidenceScore": <number 0-1>,
   "recommendation": "<clear, direct recommendation>",
-  "rationale": "<2-3 paragraphs explaining the reasoning>",
+  "rationale": "<2-3 paragraphs>",
   "alternativeApproaches": [
-    { "approach": "<approach name>", "pros": ["<pro>", ...], "cons": ["<con>", ...] }
+    { "approach": "<name>", "pros": ["<pro>", ...], "cons": ["<con>", ...] }
   ],
   "keyConsiderations": ["<consideration>", ...],
   "riskFactors": ["<risk>", ...],
   "nextSteps": ["<step>", ...],
-  "relevantBenchmarks": ["<benchmark>", ...],
-  "confidenceLevel": "<high|medium|low>",
-  "caveat": "<any important disclaimer or caveat>"
+  "confidenceLevel": "<high|medium|low>"
 }`;
 
-  const response = await runAgent({
+  const result = await AIService.run('strategy_summary', { question: question.slice(0, 100) }, {
+    entityId: entityId || `strategy_${Date.now()}`,
+    entityType: 'strategy',
     systemPrompt: SYSTEM_PROMPT,
     userMessage,
-    maxTokens: 2000,
-    model,
+    maxTokens: 2048,
+    costFlags,
   });
 
-  const text = response.content.find((b) => b.type === 'text')?.text ?? '{}';
-  return extractJSON(text);
+  return result.content;
 }

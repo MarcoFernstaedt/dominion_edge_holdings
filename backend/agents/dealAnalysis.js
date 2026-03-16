@@ -1,48 +1,54 @@
 /**
  * DealAnalysisAgent
  *
- * Performs structured deal analysis: financial screening, risk scoring,
- * LOI readiness assessment, and investment thesis generation.
+ * Evaluate DSCR, compare underwriting scenarios, generate deal memo.
+ * Model: Claude Sonnet (deal_analysis task — advanced reasoning tier)
  */
 
-import { runAgent, extractJSON } from './index.js';
+import AIService from '../services/AIService.js';
 
 const SYSTEM_PROMPT = `You are the Deal Analysis Agent for Dominion Edge Holdings.
 
-You analyze potential acquisition targets for a search fund. The acquisition criteria:
-- Revenue: $2M - $20M
-- SDE/EBITDA: $500K - $5M
-- EBITDA margins: 15%+ preferred
-- Business age: 5+ years
-- Customer concentration: No single customer > 30% revenue
-- Owner dependency: Manageable with clear transition plan
-- Industry: B2B services, industrial services, business services, specialty distribution
-- Avoid: Consumer-facing retail, restaurants, real estate dependent, highly regulated (healthcare billing-heavy, financial), pure tech
+Analyze acquisition opportunities for a search fund. Criteria:
+- Revenue $2M-$20M, SDE $500K-$5M, EBITDA margins 15%+
+- Business age 5+ years, no customer > 30% revenue
+- B2B services, industrial services, specialty distribution
+- Avoid: consumer retail, franchises, PE-backed, declining industries
 
-Valuation benchmarks:
-- Service businesses: 3-5x SDE
-- Industrial/specialty: 4-6x EBITDA
-- Software/recurring revenue: 6-10x ARR (premium)
+Valuation benchmarks: service 3-5x SDE, industrial 4-6x EBITDA
 
-Return structured JSON analysis only.`;
+Return structured JSON only.`;
 
-export async function DealAnalysisAgent({ company, financials, notes, model }) {
+export async function DealAnalysisAgent({ company, financials = {}, notes, entityId, costFlags }) {
+  const { revenue, sde, askingPrice, ebitda, ebitdaMargin } = financials;
+
+  // Deterministic pre-calculation before AI call
+  const impliedMultiple = sde && askingPrice ? (askingPrice / sde).toFixed(2) : null;
+  const calcEbitdaMargin = revenue && ebitda ? ((ebitda / revenue) * 100).toFixed(1) : ebitdaMargin ?? null;
+
   const userMessage = `Analyze this acquisition opportunity.
 
-Company: ${company?.name || 'Unknown'}
-Industry: ${company?.industry || 'Unknown'}
-City/State: ${company?.city || ''}, ${company?.state || ''}
+Company: ${company?.name || 'Unknown'}, ${company?.industry || 'Unknown industry'}
+Location: ${company?.city || ''} ${company?.state || ''}
 Years in business: ${company?.yearsInBusiness || 'Unknown'}
-Notes: ${notes || company?.notes || 'None'}
+Retirement signal: ${company?.retirementSignal || false}
 
 Financials:
-- Estimated Revenue: $${financials?.revenue?.toLocaleString() || 'Unknown'}
-- Estimated SDE: $${financials?.sde?.toLocaleString() || 'Unknown'}
-- Asking Price: $${financials?.askingPrice?.toLocaleString() || 'Unknown'}
-- Implied Multiple: ${financials?.sde && financials?.askingPrice ? (financials.askingPrice / financials.sde).toFixed(1) + 'x SDE' : 'Unknown'}
+- Revenue: $${revenue?.toLocaleString() || 'Unknown'}
+- SDE: $${sde?.toLocaleString() || 'Unknown'}
+- EBITDA: $${ebitda?.toLocaleString() || 'Unknown'}
+- EBITDA margin: ${calcEbitdaMargin ? calcEbitdaMargin + '%' : 'Unknown'}
+- Asking price: $${askingPrice?.toLocaleString() || 'Unknown'}
+- Implied SDE multiple: ${impliedMultiple ? impliedMultiple + 'x' : 'Unknown'}
 
-Return ONLY valid JSON:
+Notes: ${notes || company?.notes || 'None'}
+
+Return ONLY this JSON:
 {
+  "agentName": "DealAnalysisAgent",
+  "analysisSummary": "<2-3 sentence deal summary>",
+  "actionsProposed": ["<action>", ...],
+  "confidenceScore": <number 0-1>,
   "qualificationStatus": "<pass|conditional|fail>",
   "overallScore": <number 0-100>,
   "financialScreen": {
@@ -51,24 +57,23 @@ Return ONLY valid JSON:
     "multipleReasonable": <boolean>,
     "marginAssessment": "<strong|acceptable|weak|unknown>"
   },
-  "riskFactors": [
-    { "factor": "<risk>", "severity": "<low|medium|high|critical>", "notes": "<detail>" }
-  ],
+  "riskFactors": [{ "factor": "<risk>", "severity": "<low|medium|high|critical>", "notes": "<detail>" }],
   "strengthFactors": ["<strength>", ...],
-  "investmentThesis": "<2-3 sentence thesis if this is a pass/conditional>",
+  "investmentThesis": "<2-3 sentence thesis>",
   "recommendedNextStep": "<specific next action>",
   "loiReadiness": "<ready|more_diligence_needed|not_ready>",
-  "suggestedAskingPriceRange": { "low": <number>, "high": <number> },
+  "suggestedPriceRange": { "low": <number>, "high": <number> },
   "keyDiligenceQuestions": ["<question>", ...]
 }`;
 
-  const response = await runAgent({
+  const result = await AIService.run('deal_analysis', { companyId: company?.id, revenue, sde, askingPrice }, {
+    entityId: entityId || company?.id || `deal_${Date.now()}`,
+    entityType: 'deal',
     systemPrompt: SYSTEM_PROMPT,
     userMessage,
-    maxTokens: 1500,
-    model,
+    maxTokens: 2048,
+    costFlags,
   });
 
-  const text = response.content.find((b) => b.type === 'text')?.text ?? '{}';
-  return extractJSON(text);
+  return result.content;
 }

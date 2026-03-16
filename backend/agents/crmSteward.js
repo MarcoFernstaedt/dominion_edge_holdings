@@ -1,62 +1,62 @@
 /**
  * CRMStewardAgent
  *
- * Analyzes CRM data quality, flags stale contacts, identifies data gaps,
- * suggests enrichment, and recommends re-engagement actions.
+ * Detect duplicates, stale leads, suggest follow-ups.
+ * Model: Claude Haiku (crm_health task)
  */
 
-import { runAgent, extractJSON } from './index.js';
+import AIService from '../services/AIService.js';
 
 const SYSTEM_PROMPT = `You are the CRM Steward Agent for Dominion Edge Holdings.
 
-You maintain data quality and relationship hygiene in the CRM system. Your job is to:
-1. Identify stale contacts (no interaction in 30/60/90 days)
-2. Flag missing critical data (no email, no phone, unknown status)
-3. Identify companies stuck in a stage too long
-4. Suggest re-engagement strategies for warm leads
-5. Recommend contacts to archive or remove
+Maintain data quality and relationship hygiene. Stale contact thresholds:
+- Active pipeline: touch every 2 weeks
+- Warm leads: every 4-6 weeks
+- Targets: every 8-12 weeks
 
-Context: This is a search fund CRM. Active pipeline contacts should be touched at least every 2 weeks. Warm leads every 4-6 weeks. Targets every 8-12 weeks.
+Return structured JSON only.`;
 
-Return structured JSON recommendations only.`;
+export async function CRMStewardAgent({ companies = [], contacts = [], interactions = [], entityId, costFlags }) {
+  // Deterministic pre-processing
+  const now = Date.now();
 
-export async function CRMStewardAgent({ companies, contacts, interactions, model }) {
-  const now = new Date();
+  const staleContacts = contacts
+    .filter((c) => {
+      const last = interactions
+        .filter((i) => i.contactId === c.id || i.companyId === c.companyId)
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0];
+      const days = last ? (now - new Date(last.createdAt).getTime()) / 86400000 : 999;
+      return days > 30;
+    })
+    .slice(0, 10);
 
-  // Pre-compute staleness client-side to keep Claude prompt concise
-  const staleContacts = (contacts || []).filter((c) => {
-    const lastInteraction = (interactions || [])
-      .filter((i) => i.contactId === c.id || i.companyId === c.companyId)
-      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0];
-    if (!lastInteraction) return true;
-    const daysSince = (now - new Date(lastInteraction.createdAt)) / 86400000;
-    return daysSince > 30;
-  });
+  const missingContactInfo = companies
+    .filter((c) => !c.email && !c.phone && c.status !== 'archived' && c.status !== 'lost')
+    .length;
 
-  const missingData = (companies || []).filter(
-    (c) => !c.email && !c.phone && c.status !== 'archived' && c.status !== 'lost'
-  );
+  const statusCounts = companies.reduce((acc, c) => {
+    acc[c.status] = (acc[c.status] || 0) + 1;
+    return acc;
+  }, {});
 
-  const userMessage = `Analyze this CRM data and provide stewardship recommendations.
+  const userMessage = `Analyze CRM data and provide stewardship recommendations.
 
-Total companies: ${(companies || []).length}
-Total contacts: ${(contacts || []).length}
-Total interactions: ${(interactions || []).length}
+Companies: ${companies.length} total, ${missingContactInfo} missing contact info
+Contacts: ${contacts.length} total, ${staleContacts.length} stale (30+ days)
+Interactions: ${interactions.length} total
 
-Stale contacts (30+ days no activity): ${staleContacts.length}
-Sample stale contacts:
-${JSON.stringify(staleContacts.slice(0, 5).map((c) => ({ name: `${c.firstName} ${c.lastName}`, company: c.companyId, type: c.contactType })), null, 2)}
+Status distribution:
+${JSON.stringify(statusCounts, null, 2)}
 
-Companies missing contact info: ${missingData.length}
+Stale contacts sample:
+${JSON.stringify(staleContacts.map((c) => ({ id: c.id, name: `${c.firstName} ${c.lastName}`, type: c.contactType })), null, 2)}
 
-Companies by status:
-${JSON.stringify(
-  (companies || []).reduce((acc, c) => { acc[c.status] = (acc[c.status] || 0) + 1; return acc; }, {}),
-  null, 2
-)}
-
-Return ONLY valid JSON:
+Return ONLY this JSON:
 {
+  "agentName": "CRMStewardAgent",
+  "analysisSummary": "<one sentence on CRM health>",
+  "actionsProposed": ["<action>", ...],
+  "confidenceScore": <number 0-1>,
   "healthScore": <number 0-100>,
   "criticalActions": ["<action>", ...],
   "staleReEngagementList": [
@@ -66,17 +66,16 @@ Return ONLY valid JSON:
     { "entityId": "<id>", "entityType": "<company|contact>", "issue": "<description>", "severity": "<low|medium|high>" }
   ],
   "pipelineHealthInsights": ["<insight>", ...],
-  "recommendedArchives": ["<entityId>", ...],
   "weeklyFocusAreas": ["<area>", ...]
 }`;
 
-  const response = await runAgent({
+  const result = await AIService.run('crm_health', { companyCount: companies.length, staleCount: staleContacts.length }, {
+    entityId: entityId || `crm_health_${new Date().toISOString().slice(0, 10)}`,
+    entityType: 'crm',
     systemPrompt: SYSTEM_PROMPT,
     userMessage,
-    maxTokens: 1500,
-    model,
+    costFlags,
   });
 
-  const text = response.content.find((b) => b.type === 'text')?.text ?? '{}';
-  return extractJSON(text);
+  return result.content;
 }

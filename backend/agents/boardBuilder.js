@@ -1,48 +1,48 @@
 /**
  * BoardBuilderAgent
  *
- * Analyzes board candidate profiles and recommends composition strategy,
- * gap analysis, and prioritized outreach order for board recruitment.
+ * Identify and rank board candidates; draft outreach.
+ * Model: Claude Haiku (board_analysis task)
  */
 
-import { runAgent, extractJSON } from './index.js';
+import AIService from '../services/AIService.js';
 
 const SYSTEM_PROMPT = `You are the Board Builder Agent for Dominion Edge Holdings.
 
-You help a search fund entrepreneur build an effective advisory board and board of directors for a small business acquisition. The ideal board for a search fund acquisition includes:
+Build an advisory board for a search fund acquisition. Ideal composition:
+- Operating Executives (1-2): SMB operating experience
+- Industry Experts (1-2): Deep domain knowledge
+- Financial Sponsors (1-2): Search fund investors or family office
+- Functional Experts (1-2): CFO, Legal, or Sales
+- Independent Directors (1-2): Governance and credibility
 
-- Operating Executives (1-2): CEOs or COOs with SMB operating experience
-- Industry Experts (1-2): Deep domain knowledge in the target industry
-- Financial Sponsors (1-2): Search fund investors, private equity, or family office partners
-- Functional Experts (1-2): CFO, Legal, or Sales expertise as needed
-- Independent Directors (1-2): Governance, credibility, and network value
+Evaluation criteria: industry fit, search fund familiarity, network, availability, compensation expectations.
 
-Key evaluation criteria:
-- Relevant industry experience
-- Search fund / SMB acquisition familiarity
-- Network in the acquisition target's industry
-- Time availability and engagement commitment
-- Compensation expectations (equity vs cash)
+Return structured JSON only.`;
 
-Return structured JSON analysis only.`;
+export async function BoardBuilderAgent({ candidates = [], currentSeats = [], targetIndustry, dealContext, entityId, costFlags }) {
+  const userMessage = `Analyze board candidates and provide recommendations.
 
-export async function BoardBuilderAgent({ candidates, currentSeats, targetIndustry, dealContext, model }) {
-  const userMessage = `Analyze these board candidates and provide recommendations.
-
-Target acquisition industry: ${targetIndustry || 'General SMB'}
+Target industry: ${targetIndustry || 'General SMB'}
 Deal context: ${dealContext || 'Search fund acquisition of profitable SMB'}
+Current seats filled: ${currentSeats.length}
+Candidates: ${candidates.length}
 
-Current board seats filled:
-${JSON.stringify(currentSeats || [], null, 2)}
+Current seats:
+${JSON.stringify(currentSeats.slice(0, 10), null, 2)}
 
-Candidates under consideration:
-${JSON.stringify(candidates || [], null, 2)}
+Candidates:
+${JSON.stringify(candidates.slice(0, 20), null, 2)}
 
-Return ONLY valid JSON:
+Return ONLY this JSON:
 {
+  "agentName": "BoardBuilderAgent",
+  "analysisSummary": "<one sentence on board status>",
+  "actionsProposed": ["<action>", ...],
+  "confidenceScore": <number 0-1>,
   "gapAnalysis": {
-    "missingRoles": ["<role 1>", ...],
-    "coveredRoles": ["<role 1>", ...],
+    "missingRoles": ["<role>", ...],
+    "coveredRoles": ["<role>", ...],
     "strengthAreas": ["<strength>", ...],
     "weaknessAreas": ["<weakness>", ...]
   },
@@ -52,23 +52,21 @@ Return ONLY valid JSON:
       "candidateName": "<name>",
       "recommendedRole": "<role>",
       "fitScore": <number 0-100>,
-      "strengths": ["<strength>", ...],
-      "concerns": ["<concern>", ...],
       "outreachPriority": <number 1-10>,
-      "suggestedAngle": "<one sentence pitch for initial outreach>"
+      "suggestedAngle": "<one sentence pitch>"
     }
   ],
-  "boardCompositionRecommendation": "<paragraph on ideal final board composition>",
-  "nextOutreachTargets": ["<candidateId1>", "<candidateId2>", "<candidateId3>"]
+  "boardCompositionRecommendation": "<paragraph>",
+  "nextOutreachTargets": ["<candidateId>", ...]
 }`;
 
-  const response = await runAgent({
+  const result = await AIService.run('board_analysis', { candidateCount: candidates.length, targetIndustry }, {
+    entityId: entityId || `board_${Date.now()}`,
+    entityType: 'board',
     systemPrompt: SYSTEM_PROMPT,
     userMessage,
-    maxTokens: 1500,
-    model,
+    costFlags,
   });
 
-  const text = response.content.find((b) => b.type === 'text')?.text ?? '{}';
-  return extractJSON(text);
+  return result.content;
 }

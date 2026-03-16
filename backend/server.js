@@ -7,18 +7,18 @@ import Anthropic from '@anthropic-ai/sdk';
 import dotenv from 'dotenv';
 import crypto from 'crypto';
 import { z } from 'zod';
-import {
-  ResponseAnalysisAgent,
-  CalendarSchedulingAgent,
-  DailyOperationsAgent,
-  BoardBuilderAgent,
-  OutreachGenerationAgent,
-  DealAnalysisAgent,
-  CRMStewardAgent,
-  LeadDiscoveryAgent,
-  TargetQualificationAgent,
-  StrategyAdvisorAgent,
-} from './agents/index.js';
+
+// ─── Services ─────────────────────────────────────────────────────────────────
+import AgentOrchestrator   from './services/AgentOrchestrator.js';
+import AutomationRuleEngine from './services/AutomationRuleEngine.js';
+import BackgroundJobRunner  from './services/BackgroundJobRunner.js';
+import CacheService         from './services/CacheService.js';
+import AuditLogService      from './services/AuditLogService.js';
+import AIService            from './services/AIService.js';
+import DealService          from './services/DealService.js';
+import CRMService           from './services/CRMService.js';
+import TaskService          from './services/TaskService.js';
+import NotificationService  from './services/NotificationService.js';
 
 dotenv.config();
 
@@ -149,6 +149,9 @@ const store = {
   documents: [],
   emailThreads: [],
   outreachTemplates: [],
+  meetings: [],
+  notifications: [],
+  _metrics: {},
   settings: {
     fromName: '',
     fromEmail: '',
@@ -156,7 +159,7 @@ const store = {
     smtpPort: 587,
     smtpUser: '',
     emailMode: 'smtp_only',
-    primaryModel: 'claude-sonnet-4-20250514',
+    primaryModel: 'claude-haiku-4-5-20251001',
     reducedMotion: false,
     highContrast: false,
     keyboardShortcutsEnabled: true,
@@ -164,7 +167,21 @@ const store = {
     aiDraftingEnabled: true,
     aiReplyEnabled: true,
     aiBriefingEnabled: true,
+    enableAIOutreachDrafts: true,
+    enableAIReplySuggestions: true,
+    enableDealAnalysis: true,
+    enableStrategyInsights: true,
   },
+};
+
+// ─── Shared service context (injected into rules / jobs) ─────────────────────
+const serviceCtx = {
+  store,
+  taskService:          TaskService,
+  notificationService:  NotificationService,
+  orchestrator:         AgentOrchestrator,
+  uid:                  () => crypto.randomUUID(),
+  nowIso:               () => new Date().toISOString(),
 };
 
 // ─── Utility helpers ──────────────────────────────────────────────────────────
@@ -1517,161 +1534,200 @@ const StrategyAdvisorSchema = z.object({
   model: AgentModelSchema,
 });
 
-// POST /api/agents/analyze-response
-app.post('/api/agents/analyze-response', validate(ResponseAnalysisSchema), async (req, res) => {
+// ─── Agent execution helper (all routes via AgentOrchestrator) ───────────────
+async function runAgent(agentName, input, req, res) {
   try {
-    const result = await ResponseAnalysisAgent(req.validated);
+    const result = await AgentOrchestrator.run(agentName, { ...input, costFlags: store.settings });
     res.json(result);
   } catch (err) {
-    console.error('[agents/analyze-response]', err.message);
-    errorResponse(res, 503, 'AI_UNAVAILABLE', 'Agent temporarily unavailable');
+    const code = err.code === 'FEATURE_DISABLED' ? 'FEATURE_DISABLED' : 'AI_UNAVAILABLE';
+    const status = err.code === 'FEATURE_DISABLED' ? 402 : 503;
+    console.error(`[agents/${agentName}]`, err.message);
+    errorResponse(res, status, code, err.message);
   }
-});
+}
+
+// POST /api/agents/analyze-response
+app.post('/api/agents/analyze-response', validate(ResponseAnalysisSchema), (req, res) =>
+  runAgent('ResponseAnalysisAgent', req.validated, req, res));
 
 // POST /api/agents/schedule-meeting
-app.post('/api/agents/schedule-meeting', validate(CalendarSchedulingSchema), async (req, res) => {
-  try {
-    const result = await CalendarSchedulingAgent(req.validated);
-    res.json(result);
-  } catch (err) {
-    console.error('[agents/schedule-meeting]', err.message);
-    errorResponse(res, 503, 'AI_UNAVAILABLE', 'Agent temporarily unavailable');
-  }
-});
+app.post('/api/agents/schedule-meeting', validate(CalendarSchedulingSchema), (req, res) =>
+  runAgent('CalendarSchedulingAgent', req.validated, req, res));
 
 // POST /api/agents/daily-briefing
-app.post('/api/agents/daily-briefing', validate(DailyOperationsSchema), async (req, res) => {
-  try {
-    const { model, date } = req.validated;
-    const result = await DailyOperationsAgent({
-      pipeline: store.deals,
-      tasks: store.tasks,
-      meetings: store.meetings,
-      date,
-      model,
-    });
-    res.json(result);
-  } catch (err) {
-    console.error('[agents/daily-briefing]', err.message);
-    errorResponse(res, 503, 'AI_UNAVAILABLE', 'Agent temporarily unavailable');
-  }
-});
+app.post('/api/agents/daily-briefing', validate(DailyOperationsSchema), (req, res) =>
+  runAgent('DailyOperationsAgent', {
+    pipeline: store.deals, tasks: store.tasks, meetings: store.meetings, date: req.validated.date,
+  }, req, res));
 
 // POST /api/agents/board-analysis
-app.post('/api/agents/board-analysis', validate(BoardBuilderSchema), async (req, res) => {
-  try {
-    const { targetIndustry, dealContext, model } = req.validated;
-    const result = await BoardBuilderAgent({
-      candidates: store.boardCandidates,
-      currentSeats: store.boardSeats,
-      targetIndustry,
-      dealContext,
-      model,
-    });
-    res.json(result);
-  } catch (err) {
-    console.error('[agents/board-analysis]', err.message);
-    errorResponse(res, 503, 'AI_UNAVAILABLE', 'Agent temporarily unavailable');
-  }
-});
+app.post('/api/agents/board-analysis', validate(BoardBuilderSchema), (req, res) =>
+  runAgent('BoardBuilderAgent', {
+    candidates: store.boardCandidates, currentSeats: store.boardSeats,
+    targetIndustry: req.validated.targetIndustry, dealContext: req.validated.dealContext,
+  }, req, res));
 
 // POST /api/agents/generate-outreach
-app.post('/api/agents/generate-outreach', validate(OutreachGenerationSchema), async (req, res) => {
-  try {
-    const result = await OutreachGenerationAgent(req.validated);
-    res.json(result);
-  } catch (err) {
-    console.error('[agents/generate-outreach]', err.message);
-    errorResponse(res, 503, 'AI_UNAVAILABLE', 'Agent temporarily unavailable');
-  }
-});
+app.post('/api/agents/generate-outreach', validate(OutreachGenerationSchema), (req, res) =>
+  runAgent('OutreachGenerationAgent', req.validated, req, res));
 
 // POST /api/agents/analyze-deal
-app.post('/api/agents/analyze-deal', validate(DealAnalysisSchema), async (req, res) => {
-  try {
-    const { companyId, financials, notes, model } = req.validated;
-    const company = companyId ? findById(store.companies, companyId) : null;
-    const result = await DealAnalysisAgent({ company, financials, notes, model });
-    res.json(result);
-  } catch (err) {
-    console.error('[agents/analyze-deal]', err.message);
-    errorResponse(res, 503, 'AI_UNAVAILABLE', 'Agent temporarily unavailable');
-  }
+app.post('/api/agents/analyze-deal', validate(DealAnalysisSchema), (req, res) => {
+  const { companyId, financials, notes } = req.validated;
+  const company = companyId ? findById(store.companies, companyId) : null;
+  return runAgent('DealAnalysisAgent', { company, financials, notes }, req, res);
 });
 
 // POST /api/agents/crm-health
-app.post('/api/agents/crm-health', validate(z.object({ model: AgentModelSchema })), async (req, res) => {
-  try {
-    const result = await CRMStewardAgent({
-      companies: store.companies,
-      contacts: store.contacts,
-      interactions: store.interactions,
-      model: req.validated.model,
-    });
-    res.json(result);
-  } catch (err) {
-    console.error('[agents/crm-health]', err.message);
-    errorResponse(res, 503, 'AI_UNAVAILABLE', 'Agent temporarily unavailable');
-  }
-});
+app.post('/api/agents/crm-health', validate(z.object({ model: AgentModelSchema })), (req, res) =>
+  runAgent('CRMStewardAgent', {
+    companies: store.companies, contacts: store.contacts, interactions: store.interactions,
+  }, req, res));
 
 // POST /api/agents/lead-discovery
-app.post('/api/agents/lead-discovery', validate(LeadDiscoverySchema), async (req, res) => {
-  try {
-    const result = await LeadDiscoveryAgent({
-      ...req.validated,
-      currentPipelineCount: store.deals.filter((d) => d.status === 'active').length,
-    });
-    res.json(result);
-  } catch (err) {
-    console.error('[agents/lead-discovery]', err.message);
-    errorResponse(res, 503, 'AI_UNAVAILABLE', 'Agent temporarily unavailable');
-  }
-});
+app.post('/api/agents/lead-discovery', validate(LeadDiscoverySchema), (req, res) =>
+  runAgent('LeadDiscoveryAgent', {
+    ...req.validated,
+    currentPipelineCount: store.deals.filter((d) => d.status === 'active').length,
+  }, req, res));
 
 // POST /api/agents/qualify-target
-app.post('/api/agents/qualify-target', validate(TargetQualificationSchema), async (req, res) => {
-  try {
-    const { companyId, researchNotes, linkedinData, websiteSignals, model } = req.validated;
-    const company = companyId ? findById(store.companies, companyId) : null;
-    const result = await TargetQualificationAgent({ company, researchNotes, linkedinData, websiteSignals, model });
-    res.json(result);
-  } catch (err) {
-    console.error('[agents/qualify-target]', err.message);
-    errorResponse(res, 503, 'AI_UNAVAILABLE', 'Agent temporarily unavailable');
-  }
+app.post('/api/agents/qualify-target', validate(TargetQualificationSchema), (req, res) => {
+  const { companyId, researchNotes, linkedinData, websiteSignals } = req.validated;
+  const company = companyId ? findById(store.companies, companyId) : null;
+  return runAgent('TargetQualificationAgent', { company, researchNotes, linkedinData, websiteSignals }, req, res);
 });
 
 // POST /api/agents/strategy-advice
-app.post('/api/agents/strategy-advice', validate(StrategyAdvisorSchema), async (req, res) => {
+app.post('/api/agents/strategy-advice', validate(StrategyAdvisorSchema), (req, res) => {
+  const { question, context, dealId } = req.validated;
+  const deal = dealId ? findById(store.deals, dealId) : null;
+  const dealData = deal ? { ...deal, company: findById(store.companies, deal.companyId) } : null;
+  return runAgent('StrategyAdvisorAgent', { question, context, dealData }, req, res);
+});
+
+// GET /api/agents — list all agents with model routing
+app.get('/api/agents', (_req, res) => {
+  res.json({
+    agents: AgentOrchestrator.listAgents(),
+    modelRoutes: AIService.listRoutes(),
+  });
+});
+
+// ─── Service API routes ───────────────────────────────────────────────────────
+
+// GET /api/services/deal/stages — deterministic stage list
+app.get('/api/services/deal/stages', (_req, res) => {
+  res.json({ stages: DealService.DEAL_STAGES });
+});
+
+// POST /api/services/deal/dscr — deterministic DSCR calculation
+app.post('/api/services/deal/dscr', validate(z.object({
+  netOperatingIncome: z.number(),
+  annualDebtService:  z.number().positive(),
+})), (req, res) => {
+  const { netOperatingIncome, annualDebtService } = req.validated;
+  const dscr = DealService.calculateDSCR(netOperatingIncome, annualDebtService);
+  res.json({ dscr, meetsThreshold: dscr >= 1.25, threshold: 1.25 });
+});
+
+// POST /api/services/deal/loan-payment — deterministic SBA payment calc
+app.post('/api/services/deal/loan-payment', validate(z.object({
+  principal:   z.number().positive(),
+  annualRate:  z.number().min(0).max(1),
+  termYears:   z.number().int().min(1).max(30),
+})), (req, res) => {
+  const { principal, annualRate, termYears } = req.validated;
+  res.json({
+    monthlyPayment: DealService.monthlyLoanPayment(principal, annualRate, termYears),
+    annualDebtService: DealService.annualDebtService(principal, annualRate, termYears),
+    totalCost: +(DealService.monthlyLoanPayment(principal, annualRate, termYears) * termYears * 12).toFixed(2),
+  });
+});
+
+// POST /api/services/deal/valuation — deterministic valuation range
+app.post('/api/services/deal/valuation', validate(z.object({
+  sde:          z.number().min(0).optional(),
+  ebitda:       z.number().min(0).optional(),
+  industryType: z.enum(['service', 'industrial', 'distribution', 'software', 'default']).optional(),
+})), (req, res) => {
+  const { sde, ebitda, industryType } = req.validated;
+  res.json(DealService.estimateValuationRange(sde, ebitda, industryType));
+});
+
+// GET /api/services/crm/duplicates — deterministic duplicate detection
+app.get('/api/services/crm/duplicates', (_req, res) => {
   try {
-    const { question, context, dealId, model } = req.validated;
-    const deal = dealId ? findById(store.deals, dealId) : null;
-    const dealData = deal ? { ...deal, company: findById(store.companies, deal.companyId) } : null;
-    const result = await StrategyAdvisorAgent({ question, context, dealData, model });
-    res.json(result);
+    const duplicates = CRMService.findDuplicates(store.contacts);
+    res.json({ duplicates, count: duplicates.length });
   } catch (err) {
-    console.error('[agents/strategy-advice]', err.message);
-    errorResponse(res, 503, 'AI_UNAVAILABLE', 'Agent temporarily unavailable');
+    errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to detect duplicates');
   }
 });
 
-// GET /api/agents — list available agents
-app.get('/api/agents', (_req, res) => {
-  res.json({
-    agents: [
-      { id: 'analyze-response', name: 'ResponseAnalysisAgent', description: 'Classify inbound email replies and extract structured signals', endpoint: 'POST /api/agents/analyze-response' },
-      { id: 'schedule-meeting', name: 'CalendarSchedulingAgent', description: 'Propose optimal meeting time slots', endpoint: 'POST /api/agents/schedule-meeting' },
-      { id: 'daily-briefing', name: 'DailyOperationsAgent', description: 'Generate daily operational briefing', endpoint: 'POST /api/agents/daily-briefing' },
-      { id: 'board-analysis', name: 'BoardBuilderAgent', description: 'Analyze board candidates and recommend composition', endpoint: 'POST /api/agents/board-analysis' },
-      { id: 'generate-outreach', name: 'OutreachGenerationAgent', description: 'Generate personalized outreach emails', endpoint: 'POST /api/agents/generate-outreach' },
-      { id: 'analyze-deal', name: 'DealAnalysisAgent', description: 'Structured deal analysis and investment thesis', endpoint: 'POST /api/agents/analyze-deal' },
-      { id: 'crm-health', name: 'CRMStewardAgent', description: 'CRM data quality and relationship hygiene', endpoint: 'POST /api/agents/crm-health' },
-      { id: 'lead-discovery', name: 'LeadDiscoveryAgent', description: 'Lead sourcing strategy and target parameters', endpoint: 'POST /api/agents/lead-discovery' },
-      { id: 'qualify-target', name: 'TargetQualificationAgent', description: 'Quickly qualify or disqualify acquisition targets', endpoint: 'POST /api/agents/qualify-target' },
-      { id: 'strategy-advice', name: 'StrategyAdvisorAgent', description: 'Strategic advice on acquisition and deal structuring', endpoint: 'POST /api/agents/strategy-advice' },
-    ],
+// GET /api/services/tasks/overdue — deterministic overdue detection
+app.get('/api/services/tasks/overdue', (_req, res) => {
+  res.json({ overdue: TaskService.detectOverdue(store.tasks) });
+});
+
+// ─── Automation routes ────────────────────────────────────────────────────────
+
+// GET /api/automation/rules
+app.get('/api/automation/rules', (_req, res) => {
+  res.json({ rules: AutomationRuleEngine.listRules() });
+});
+
+// PATCH /api/automation/rules/:id
+app.patch('/api/automation/rules/:id', validate(z.object({ enabled: z.boolean() })), (req, res) => {
+  AutomationRuleEngine.setEnabled(req.params.id, req.validated.enabled);
+  const rules = AutomationRuleEngine.listRules();
+  const rule  = rules.find((r) => r.id === req.params.id);
+  if (!rule) return errorResponse(res, 404, 'NOT_FOUND', 'Rule not found');
+  res.json(rule);
+});
+
+// GET /api/automation/jobs
+app.get('/api/automation/jobs', (_req, res) => {
+  res.json({ jobs: BackgroundJobRunner.status() });
+});
+
+// POST /api/automation/jobs/:id/trigger
+app.post('/api/automation/jobs/:id/trigger', async (req, res) => {
+  try {
+    await BackgroundJobRunner.trigger(req.params.id);
+    res.json({ triggered: true, jobId: req.params.id });
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', `Failed to trigger job: ${err.message}`);
+  }
+});
+
+// ─── Audit log routes ─────────────────────────────────────────────────────────
+
+// GET /api/audit — query audit log
+app.get('/api/audit', (req, res) => {
+  const { entityId, entityType, event, limit, offset } = req.query;
+  const entries = AuditLogService.query({
+    entityId,
+    entityType,
+    event,
+    limit:  Math.min(Number(limit)  || 50, 200),
+    offset: Number(offset) || 0,
   });
+  res.json({ entries, total: AuditLogService.count() });
+});
+
+// ─── Cache diagnostic routes ──────────────────────────────────────────────────
+
+// GET /api/cache/stats
+app.get('/api/cache/stats', (_req, res) => {
+  res.json({ entries: CacheService.size() });
+});
+
+// DELETE /api/cache — invalidate by prefix
+app.delete('/api/cache', validate(z.object({ prefix: z.string().min(1).max(100) })), (req, res) => {
+  CacheService.invalidate(req.validated.prefix);
+  res.json({ invalidated: true, prefix: req.validated.prefix });
 });
 
 // ─── 404 ──────────────────────────────────────────────────────────────────────
@@ -1691,9 +1747,10 @@ app.use((err, req, res, _next) => {
 
 // ─── Start server ─────────────────────────────────────────────────────────────
 if (process.env.NODE_ENV !== 'test') {
+  BackgroundJobRunner.init(store, AgentOrchestrator);
   app.listen(PORT, () => {
     console.log(`DEH backend running on port ${PORT} [${NODE_ENV}]`);
   });
 }
 
-export { app };
+export { app, store };
