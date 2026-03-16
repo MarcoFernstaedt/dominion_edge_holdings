@@ -69,7 +69,7 @@ export function Modal({ open, onClose, title, description, children, size = 'md'
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="modal-title"
@@ -83,21 +83,22 @@ export function Modal({ open, onClose, title, description, children, size = 'md'
         aria-hidden="true"
       />
 
-      {/* Panel */}
+      {/* Panel — full-width sheet on mobile, centered card on sm+ */}
       <div
         className={cn(
-          'relative w-full rounded-lg border border-[#2A2A2E] bg-[#141414] shadow-2xl',
+          'relative w-full rounded-t-xl sm:rounded-lg border border-[#2A2A2E] bg-[#141414] shadow-2xl',
+          'max-h-[90dvh] flex flex-col',
           'animate-slide-up',
           sizeClasses[size],
           className
         )}
       >
         {/* Header */}
-        <div className="flex items-start justify-between p-5 border-b border-[#2A2A2E]">
-          <div>
+        <div className="flex items-start justify-between px-5 pt-5 pb-4 border-b border-[#2A2A2E] flex-shrink-0">
+          <div className="min-w-0 flex-1">
             <h2
               id="modal-title"
-              className="text-base font-semibold text-[#E8E6E3]"
+              className="text-base font-semibold text-[#E8E6E3] truncate"
             >
               {title}
             </h2>
@@ -121,8 +122,8 @@ export function Modal({ open, onClose, title, description, children, size = 'md'
           </button>
         </div>
 
-        {/* Content */}
-        <div className="p-5">{children}</div>
+        {/* Content — scrollable */}
+        <div className="p-5 overflow-y-auto flex-1">{children}</div>
       </div>
     </div>
   );

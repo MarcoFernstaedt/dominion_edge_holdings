@@ -19,6 +19,7 @@ import type {
   EmailThread,
   OutreachTemplate,
   Notification,
+  Meeting,
   ID,
 } from './types';
 import { CHECKLIST_PHASES } from '@/data/checklistData';
@@ -197,6 +198,17 @@ export const useAppStore = create<AppState>()(
           ),
         })),
 
+      // ── Meetings ────────────────────────────────────────────────────────────
+      meetings: [] as Meeting[],
+      addMeeting: (meeting: Meeting) =>
+        set((s) => ({ meetings: [meeting, ...s.meetings] })),
+      updateMeeting: (id: ID, updates: Partial<Meeting>) =>
+        set((s) => ({
+          meetings: s.meetings.map((m) => m.id === id ? { ...m, ...updates } : m),
+        })),
+      deleteMeeting: (id: ID) =>
+        set((s) => ({ meetings: s.meetings.filter((m) => m.id !== id) })),
+
       // ── Notifications ──────────────────────────────────────────────────────
       notifications: [],
       addNotification: (n: Notification) =>
@@ -237,6 +249,7 @@ export const useAppStore = create<AppState>()(
         documents: state.documents,
         emailThreads: state.emailThreads,
         outreachTemplates: state.outreachTemplates,
+        meetings: state.meetings,
         settings: state.settings,
         currentAffirmationIndex: state.currentAffirmationIndex,
       }),

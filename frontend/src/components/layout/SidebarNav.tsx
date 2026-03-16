@@ -16,8 +16,10 @@ import {
   Building2,
   BarChart3,
   Settings,
+  CalendarDays,
   ChevronLeft,
   ChevronRight,
+  X,
 } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 
@@ -26,7 +28,6 @@ interface NavItem {
   label: string;
   href: string;
   icon: React.ComponentType<{ size?: number; className?: string; 'aria-hidden'?: boolean }>;
-  badge?: number;
 }
 
 const NAV_ITEMS: NavItem[] = [
@@ -39,6 +40,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'underwriting', label: 'Underwriting', href: '/underwriting', icon: Calculator },
   { id: 'board', label: 'Board', href: '/board', icon: Briefcase },
   { id: 'documents', label: 'Documents', href: '/documents', icon: FileText },
+  { id: 'meetings', label: 'Meetings', href: '/meetings', icon: CalendarDays },
   { id: 'post-acquisition', label: 'Post-Acquisition', href: '/post-acquisition', icon: Building2 },
   { id: 'reports', label: 'Reports', href: '/reports', icon: BarChart3 },
   { id: 'settings', label: 'Settings', href: '/settings', icon: Settings },
@@ -47,9 +49,10 @@ const NAV_ITEMS: NavItem[] = [
 interface SidebarNavProps {
   collapsed: boolean;
   onToggle: () => void;
+  isMobile?: boolean;
 }
 
-export function SidebarNav({ collapsed, onToggle }: SidebarNavProps) {
+export function SidebarNav({ collapsed, onToggle, isMobile = false }: SidebarNavProps) {
   const pathname = usePathname();
   const checklistPhases = useAppStore((s) => s.checklistPhases);
   const deals = useAppStore((s) => s.deals);
@@ -57,7 +60,6 @@ export function SidebarNav({ collapsed, onToggle }: SidebarNavProps) {
   const totalItems = checklistPhases.flatMap((p) => p.items).length;
   const completedItems = checklistPhases.flatMap((p) => p.items).filter((i) => i.isComplete).length;
   const progressPct = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
-
   const activeDealCount = deals.filter((d) => d.status === 'active').length;
 
   function isActive(item: NavItem): boolean {
@@ -67,27 +69,27 @@ export function SidebarNav({ collapsed, onToggle }: SidebarNavProps) {
     if (item.id === 'underwriting') return pathname.startsWith('/underwriting');
     if (item.id === 'documents') return pathname.startsWith('/documents');
     if (item.id === 'outreach') return pathname.startsWith('/outreach');
+    if (item.id === 'meetings') return pathname.startsWith('/meetings');
     if (item.id === 'post-acquisition') return pathname.startsWith('/post-acquisition');
     return pathname === item.href;
   }
 
-  const badges: Record<string, number> = {
-    pipeline: activeDealCount > 0 ? activeDealCount : 0,
-  };
+  const showLabel = isMobile || !collapsed;
 
   return (
     <nav
       aria-label="Main navigation"
       className={cn(
-        'flex flex-col h-full bg-[#141414] border-r border-[#2A2A2E] transition-all duration-200',
-        collapsed ? 'w-[60px]' : 'w-[220px]'
+        'flex flex-col h-full bg-[#141414] border-r border-[#2A2A2E]',
+        !isMobile && 'transition-all duration-200',
+        collapsed && !isMobile ? 'w-[60px]' : 'w-[240px] sm:w-[220px]'
       )}
     >
-      {/* Brand */}
+      {/* Brand header */}
       <div
         className={cn(
-          'flex items-center gap-3 border-b border-[#2A2A2E]',
-          collapsed ? 'px-4 py-4 justify-center' : 'px-4 py-4'
+          'flex items-center gap-3 border-b border-[#2A2A2E] flex-shrink-0',
+          collapsed && !isMobile ? 'px-4 py-4 justify-center' : 'px-4 py-4'
         )}
       >
         <div
@@ -97,9 +99,9 @@ export function SidebarNav({ collapsed, onToggle }: SidebarNavProps) {
         >
           D
         </div>
-        {!collapsed && (
-          <div>
-            <div className="text-[11px] font-bold tracking-[0.1em] text-[#D4AF37] leading-tight">
+        {showLabel && (
+          <div className="flex-1 min-w-0">
+            <div className="text-[11px] font-bold tracking-[0.1em] text-[#D4AF37] leading-tight truncate">
               DOMINION EDGE
             </div>
             <div className="text-[9px] tracking-[0.15em] text-[#A7A29A] uppercase leading-tight">
@@ -107,45 +109,50 @@ export function SidebarNav({ collapsed, onToggle }: SidebarNavProps) {
             </div>
           </div>
         )}
+        {/* Mobile close button */}
+        {isMobile && (
+          <button
+            onClick={onToggle}
+            className="ml-auto text-[#A7A29A] hover:text-[#E8E6E3] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37] rounded p-1"
+            aria-label="Close navigation"
+          >
+            <X size={16} aria-hidden />
+          </button>
+        )}
       </div>
 
-      {/* Nav Items */}
+      {/* Nav items */}
       <ul className="flex-1 py-2 overflow-y-auto overflow-x-hidden" role="list">
         {NAV_ITEMS.map((item) => {
           const active = isActive(item);
-          const badge = badges[item.id];
           const Icon = item.icon;
+          const showBadge = item.id === 'pipeline' && activeDealCount > 0;
 
           return (
             <li key={item.id}>
               <Link
                 href={item.href}
                 className={cn(
-                  'flex items-center gap-3 px-4 py-2.5 text-sm font-medium transition-colors duration-150',
+                  'flex items-center gap-3 py-2.5 text-sm font-medium transition-colors duration-150',
                   'relative border-l-2',
                   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#D4AF37]',
+                  showLabel ? 'px-4' : 'px-0 justify-center',
                   active
                     ? 'border-[#D4AF37] text-[#D4AF37] bg-[#D4AF3710]'
-                    : 'border-transparent text-[#A7A29A] hover:text-[#E8E6E3] hover:bg-[#1B1B1D]',
-                  collapsed && 'justify-center px-0'
+                    : 'border-transparent text-[#A7A29A] hover:text-[#E8E6E3] hover:bg-[#1B1B1D]'
                 )}
                 aria-current={active ? 'page' : undefined}
-                title={collapsed ? item.label : undefined}
+                title={!showLabel ? item.label : undefined}
+                onClick={isMobile ? onToggle : undefined}
               >
-                <Icon
-                  size={16}
-                  aria-hidden
-                  className="flex-shrink-0"
-                />
-                {!collapsed && (
-                  <span className="truncate">{item.label}</span>
-                )}
-                {!collapsed && badge != null && badge > 0 && (
+                <Icon size={16} aria-hidden className="flex-shrink-0" />
+                {showLabel && <span className="truncate flex-1">{item.label}</span>}
+                {showLabel && showBadge && (
                   <span
-                    className="ml-auto flex-shrink-0 h-4 min-w-[16px] px-1 rounded-full text-[9px] font-bold bg-[#D4AF37] text-black flex items-center justify-center"
-                    aria-label={`${badge} items`}
+                    className="flex-shrink-0 h-4 min-w-[16px] px-1 rounded-full text-[9px] font-bold bg-[#D4AF37] text-black flex items-center justify-center"
+                    aria-label={`${activeDealCount} active deals`}
                   >
-                    {badge}
+                    {activeDealCount}
                   </span>
                 )}
               </Link>
@@ -154,9 +161,9 @@ export function SidebarNav({ collapsed, onToggle }: SidebarNavProps) {
         })}
       </ul>
 
-      {/* Progress footer */}
-      {!collapsed && (
-        <div className="px-4 py-3 border-t border-[#2A2A2E]">
+      {/* Progress footer (desktop expanded only) */}
+      {showLabel && !isMobile && (
+        <div className="px-4 py-3 border-t border-[#2A2A2E] flex-shrink-0">
           <div className="text-[9px] tracking-widest uppercase text-[#A7A29A] mb-1.5">
             Checklist Progress
           </div>
@@ -179,19 +186,27 @@ export function SidebarNav({ collapsed, onToggle }: SidebarNavProps) {
         </div>
       )}
 
-      {/* Toggle */}
-      <button
-        onClick={onToggle}
-        className={cn(
-          'flex items-center justify-center border-t border-[#2A2A2E] py-3 px-4',
-          'text-[#A7A29A] hover:text-[#E8E6E3] hover:bg-[#1B1B1D] transition-colors duration-150',
-          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#D4AF37]'
-        )}
-        aria-label={collapsed ? 'Expand navigation' : 'Collapse navigation'}
-      >
-        {collapsed ? <ChevronRight size={14} aria-hidden /> : <ChevronLeft size={14} aria-hidden />}
-        {!collapsed && <span className="text-xs ml-2">Collapse</span>}
-      </button>
+      {/* Toggle (desktop only) */}
+      {!isMobile && (
+        <button
+          onClick={onToggle}
+          className={cn(
+            'flex items-center justify-center border-t border-[#2A2A2E] py-3 px-4 flex-shrink-0',
+            'text-[#A7A29A] hover:text-[#E8E6E3] hover:bg-[#1B1B1D] transition-colors duration-150',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#D4AF37]'
+          )}
+          aria-label={collapsed ? 'Expand navigation' : 'Collapse navigation'}
+        >
+          {collapsed
+            ? <ChevronRight size={14} aria-hidden />
+            : (
+              <>
+                <ChevronLeft size={14} aria-hidden />
+                <span className="text-xs ml-2">Collapse</span>
+              </>
+            )}
+        </button>
+      )}
     </nav>
   );
 }

@@ -1,0 +1,227 @@
+/**
+ * Typed API client for the DEH backend.
+ * All requests go through this module — never fetch() directly in components.
+ */
+
+const API_BASE =
+  typeof window !== 'undefined'
+    ? (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001')
+    : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001');
+
+export class ApiError extends Error {
+  constructor(
+    public readonly status: number,
+    public readonly code: string,
+    message: string,
+    public readonly requestId?: string
+  ) {
+    super(message);
+    this.name = 'ApiError';
+  }
+
+  get isNotFound() {
+    return this.status === 404;
+  }
+
+  get isValidationError() {
+    return this.status === 400;
+  }
+
+  get isRateLimited() {
+    return this.status === 429;
+  }
+
+  get isServerError() {
+    return this.status >= 500;
+  }
+}
+
+async function request<T>(
+  path: string,
+  options: RequestInit = {}
+): Promise<T> {
+  const url = `${API_BASE}${path}`;
+
+  const res = await fetch(url, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  });
+
+  if (!res.ok) {
+    let code = 'UNKNOWN_ERROR';
+    let message = `Request failed: ${res.status}`;
+    let requestId: string | undefined;
+
+    try {
+      const body = await res.json();
+      code = body?.error?.code ?? code;
+      message = body?.error?.message ?? message;
+      requestId = body?.error?.requestId;
+    } catch {
+      // Non-JSON error body — use defaults
+    }
+
+    throw new ApiError(res.status, code, message, requestId);
+  }
+
+  // 204 No Content
+  if (res.status === 204) return undefined as T;
+
+  return res.json() as Promise<T>;
+}
+
+// ─── Generic helpers ──────────────────────────────────────────────────────────
+export const api = {
+  get: <T>(path: string) => request<T>(path, { method: 'GET' }),
+  post: <T>(path: string, body: unknown) =>
+    request<T>(path, { method: 'POST', body: JSON.stringify(body) }),
+  patch: <T>(path: string, body: unknown) =>
+    request<T>(path, { method: 'PATCH', body: JSON.stringify(body) }),
+  delete: (path: string) => request<void>(path, { method: 'DELETE' }),
+};
+
+// ─── Dashboard ────────────────────────────────────────────────────────────────
+export interface DashboardMetrics {
+  overdueTasks: number;
+  activeDeals: number;
+  outboundWeek: number;
+  confirmedBoard: number;
+  progressPct: number;
+  completedItems: number;
+  totalItems: number;
+  needsReply: number;
+}
+
+export const dashboardApi = {
+  getMetrics: () => api.get<DashboardMetrics>('/api/dashboard/metrics'),
+  getNextActions: () => api.get<unknown[]>('/api/dashboard/next-actions'),
+  getBriefing: () => api.get<{ briefing: string | null }>('/api/dashboard/briefing'),
+};
+
+// ─── Companies ────────────────────────────────────────────────────────────────
+export const companiesApi = {
+  list: (params?: { status?: string; search?: string; industry?: string }) => {
+    const qs = new URLSearchParams(params as Record<string, string>).toString();
+    return api.get<unknown[]>(`/api/companies${qs ? `?${qs}` : ''}`);
+  },
+  get: (id: string) => api.get<unknown>(`/api/companies/${id}`),
+  create: (data: unknown) => api.post<unknown>('/api/companies', data),
+  update: (id: string, data: unknown) => api.patch<unknown>(`/api/companies/${id}`, data),
+  delete: (id: string) => api.delete(`/api/companies/${id}`),
+};
+
+// ─── Contacts ─────────────────────────────────────────────────────────────────
+export const contactsApi = {
+  list: (params?: { companyId?: string; type?: string }) => {
+    const qs = new URLSearchParams(params as Record<string, string>).toString();
+    return api.get<unknown[]>(`/api/contacts${qs ? `?${qs}` : ''}`);
+  },
+  get: (id: string) => api.get<unknown>(`/api/contacts/${id}`),
+  create: (data: unknown) => api.post<unknown>('/api/contacts', data),
+  update: (id: string, data: unknown) => api.patch<unknown>(`/api/contacts/${id}`, data),
+};
+
+// ─── Interactions ─────────────────────────────────────────────────────────────
+export const interactionsApi = {
+  create: (data: unknown) => api.post<unknown>('/api/interactions', data),
+  list: (params?: { companyId?: string; contactId?: string; dealId?: string }) => {
+    const qs = new URLSearchParams(params as Record<string, string>).toString();
+    return api.get<unknown[]>(`/api/interactions${qs ? `?${qs}` : ''}`);
+  },
+};
+
+// ─── Deals ────────────────────────────────────────────────────────────────────
+export const dealsApi = {
+  list: (params?: { status?: string; stage?: string }) => {
+    const qs = new URLSearchParams(params as Record<string, string>).toString();
+    return api.get<unknown[]>(`/api/deals${qs ? `?${qs}` : ''}`);
+  },
+  get: (id: string) => api.get<unknown>(`/api/deals/${id}`),
+  create: (data: unknown) => api.post<unknown>('/api/deals', data),
+  update: (id: string, data: unknown) => api.patch<unknown>(`/api/deals/${id}`, data),
+};
+
+// ─── Underwriting ─────────────────────────────────────────────────────────────
+export interface UnderwritingResult {
+  grossSDE: number;
+  normalizedSDE: number;
+  downPayment: number;
+  seniorDebtAmount: number;
+  sellerNoteAmount: number;
+  monthlyDebtService: number;
+  annualDebtService: number;
+  dscr: number;
+  postDebtCashFlow: number;
+  multiple: number;
+  riskFlags: Array<{ type: string; message: string }>;
+}
+
+export const underwritingApi = {
+  calculate: (data: unknown) => api.post<UnderwritingResult>('/api/underwriting/calculate', data),
+  saveScenario: (data: unknown) => api.post<unknown>('/api/underwriting/scenarios', data),
+  listScenarios: (dealId?: string) =>
+    api.get<unknown[]>(`/api/underwriting/scenarios${dealId ? `?dealId=${dealId}` : ''}`),
+  deleteScenario: (id: string) => api.delete(`/api/underwriting/scenarios/${id}`),
+};
+
+// ─── Board ────────────────────────────────────────────────────────────────────
+export const boardApi = {
+  getSeats: () => api.get<unknown[]>('/api/board/seats'),
+  getCandidates: () => api.get<unknown[]>('/api/board/candidates'),
+  createCandidate: (data: unknown) => api.post<unknown>('/api/board/candidates', data),
+  updateCandidate: (id: string, data: unknown) => api.patch<unknown>(`/api/board/candidates/${id}`, data),
+  getCapTable: () => api.get<unknown[]>('/api/board/cap-table'),
+  addCapTableEntry: (data: unknown) => api.post<unknown>('/api/board/cap-table', data),
+  deleteCapTableEntry: (id: string) => api.delete(`/api/board/cap-table/${id}`),
+};
+
+// ─── Tasks ────────────────────────────────────────────────────────────────────
+export const tasksApi = {
+  list: (params?: { status?: string; priority?: string }) => {
+    const qs = new URLSearchParams(params as Record<string, string>).toString();
+    return api.get<unknown[]>(`/api/tasks${qs ? `?${qs}` : ''}`);
+  },
+  create: (data: unknown) => api.post<unknown>('/api/tasks', data),
+  update: (id: string, data: unknown) => api.patch<unknown>(`/api/tasks/${id}`, data),
+  delete: (id: string) => api.delete(`/api/tasks/${id}`),
+};
+
+// ─── Documents ────────────────────────────────────────────────────────────────
+export const documentsApi = {
+  list: (params?: { entityId?: string; documentType?: string }) => {
+    const qs = new URLSearchParams(params as Record<string, string>).toString();
+    return api.get<unknown[]>(`/api/documents${qs ? `?${qs}` : ''}`);
+  },
+  create: (data: unknown) => api.post<unknown>('/api/documents', data),
+  get: (id: string) => api.get<unknown>(`/api/documents/${id}`),
+};
+
+// ─── Outreach ─────────────────────────────────────────────────────────────────
+export const outreachApi = {
+  generateDraft: (data: {
+    templateType: string;
+    companyName?: string;
+    ownerName?: string;
+    context?: string;
+  }) => api.post<{ subject: string; body: string }>('/api/outreach/generate', data),
+  getReplySuggestion: (data: {
+    threadSubject?: string;
+    lastMessage: string;
+    senderName?: string;
+    companyName?: string;
+  }) => api.post<{ subject: string; body: string }>('/api/ai/reply-suggestion', data),
+};
+
+// ─── Settings ─────────────────────────────────────────────────────────────────
+export const settingsApi = {
+  get: () => api.get<unknown>('/api/settings'),
+  update: (data: unknown) => api.patch<unknown>('/api/settings', data),
+};
+
+// ─── Reports ─────────────────────────────────────────────────────────────────
+export const reportsApi = {
+  getSummary: () => api.get<unknown>('/api/reports/summary'),
+};

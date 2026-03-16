@@ -403,6 +403,76 @@ export interface OutreachTemplate {
   updatedAt: string;
 }
 
+// ─── Meeting ──────────────────────────────────────────────────────────────────
+
+export type MeetingType =
+  | 'seller_discovery'
+  | 'seller_followup'
+  | 'board_intro'
+  | 'banker_intro'
+  | 'attorney_intro'
+  | 'cpa_intro'
+  | 'capital_intro'
+  | 'diligence_review'
+  | 'post_acquisition_transition'
+  | 'internal_planning';
+
+export type MeetingStatus =
+  | 'draft'
+  | 'proposed'
+  | 'awaiting_confirmation'
+  | 'confirmed'
+  | 'scheduled'
+  | 'completed'
+  | 'cancelled'
+  | 'rescheduled'
+  | 'no_show';
+
+export type MeetingLocationType = 'phone' | 'google_meet' | 'zoom' | 'in_person' | 'other';
+
+export interface ProposedSlot {
+  slotId: string;
+  startsAt: string;
+  endsAt: string;
+  timezone: string;
+  score: number;
+  reason: string;
+  isAvailable: boolean;
+  createdAt: string;
+}
+
+export interface Meeting {
+  id: ID;
+  meetingType: MeetingType;
+  title: string;
+  status: MeetingStatus;
+  source: string;
+  timezone?: string;
+  startsAt: string;
+  endsAt: string;
+  durationMinutes: number;
+  locationType?: MeetingLocationType;
+  locationValue?: string;
+  linkedEntityType?: string;
+  linkedEntityId?: ID;
+  linkedDealId?: ID;
+  linkedCompanyId?: ID;
+  linkedContactIds: ID[];
+  proposedSlots: ProposedSlot[];
+  selectedSlot?: ProposedSlot;
+  agenda?: string;
+  meetingNotes?: string;
+  summary?: string;
+  calendarProviderEventId?: string;
+  externalConfirmationStatus?: 'not_needed' | 'pending' | 'confirmed' | 'declined';
+  followUpTaskCreated: boolean;
+  prepTaskCreated: boolean;
+  createdAt: string;
+  updatedAt: string;
+  completedAt?: string;
+  cancelledAt?: string;
+}
+
 // ─── Affirmation ──────────────────────────────────────────────────────────────
 
 export interface Affirmation {
@@ -505,6 +575,12 @@ export interface AppState {
   emailThreads: EmailThread[];
   addEmailThread: (thread: EmailThread) => void;
   updateEmailThread: (id: ID, updates: Partial<EmailThread>) => void;
+
+  // Meetings
+  meetings: Meeting[];
+  addMeeting: (meeting: Meeting) => void;
+  updateMeeting: (id: ID, updates: Partial<Meeting>) => void;
+  deleteMeeting: (id: ID) => void;
 
   // Outreach Templates
   outreachTemplates: OutreachTemplate[];
