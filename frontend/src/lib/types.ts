@@ -1325,3 +1325,81 @@ export interface DealFeedImportResult {
   listing: DealFeedListing;
   alreadyImported: boolean;
 }
+
+// ─── Relationship Management Engine ──────────────────────────────────────────
+
+export type RelationshipEntityType = 'seller' | 'board_member' | 'investor';
+
+export type RelationshipStatus =
+  | 'new'
+  | 'warming'
+  | 'active'
+  | 'long_term'
+  | 'closed'
+  | 'not_interested';
+
+export type InterestLevel = 'low' | 'medium' | 'high' | 'ready';
+
+export type RelationshipInteractionType = 'call' | 'email' | 'meeting' | 'note';
+
+export interface Relationship {
+  id: ID;
+  entityType: RelationshipEntityType;
+  entityId: string;
+  name: string;
+  company: string;
+  relationshipStatus: RelationshipStatus;
+  interestLevel: InterestLevel;
+  lastContactDate: string | null;
+  nextFollowUpDate: string;
+  followUpFrequencyDays: number;
+  notes: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RelationshipInteraction {
+  id: ID;
+  relationshipId: ID;
+  interactionType: RelationshipInteractionType;
+  interactionSummary: string;
+  createdAt: string;
+}
+
+export interface RelationshipDashboard {
+  overdueSellers: Relationship[];
+  overdueBoardMembers: Relationship[];
+  overdueInvestors: Relationship[];
+  overdueTotal: number;
+  upcoming: Relationship[];
+  summary: {
+    total: number;
+    sellers: number;
+    boardMembers: number;
+    investors: number;
+    active: number;
+    longTerm: number;
+    new: number;
+    highInterest: number;
+  };
+}
+
+export interface RelationshipPage {
+  relationships: Relationship[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+export interface RelationshipFilters {
+  entityType?: RelationshipEntityType;
+  relationshipStatus?: RelationshipStatus;
+  interestLevel?: InterestLevel;
+  overdue?: boolean;
+  search?: string;
+  sortBy?: 'nextFollowUpDate' | 'lastContactDate' | 'createdAt' | 'name';
+  sortDir?: 'asc' | 'desc';
+  page?: number;
+  pageSize?: number;
+}

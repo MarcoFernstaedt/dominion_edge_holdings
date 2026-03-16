@@ -433,3 +433,81 @@ export const dealFeedApi = {
   rescore: (id: string) =>
     api.post<{ score: number; breakdown: unknown[] }>(`/api/deal-feed/${id}/score`, {}),
 };
+
+// ─── Relationship Management Engine ──────────────────────────────────────────
+
+import type {
+  RelationshipPage,
+  RelationshipDashboard,
+  Relationship,
+  RelationshipInteraction,
+  RelationshipFilters,
+} from './types';
+
+export const relationshipsApi = {
+  getDashboard: () =>
+    api.get<RelationshipDashboard>('/api/relationships/dashboard'),
+
+  list: (filters?: RelationshipFilters) => {
+    const params = new URLSearchParams();
+    if (filters) {
+      const { entityType, relationshipStatus, interestLevel, overdue, search, sortBy, sortDir, page, pageSize } = filters;
+      if (entityType)         params.set('entityType',         entityType);
+      if (relationshipStatus) params.set('relationshipStatus', relationshipStatus);
+      if (interestLevel)      params.set('interestLevel',      interestLevel);
+      if (overdue != null)    params.set('overdue',            String(overdue));
+      if (search)             params.set('search',             search);
+      if (sortBy)             params.set('sortBy',             sortBy);
+      if (sortDir)            params.set('sortDir',            sortDir);
+      if (page     != null)   params.set('page',               String(page));
+      if (pageSize != null)   params.set('pageSize',           String(pageSize));
+    }
+    const qs = params.toString();
+    return api.get<RelationshipPage>(`/api/relationships${qs ? `?${qs}` : ''}`);
+  },
+
+  get: (id: string) =>
+    api.get<{ relationship: Relationship; interactions: RelationshipInteraction[]; interactionTotal: number }>(
+      `/api/relationships/${id}`
+    ),
+
+  create: (data: unknown) =>
+    api.post<{ relationship: Relationship }>('/api/relationships', data),
+
+  update: (id: string, data: unknown) =>
+    api.patch<{ relationship: Relationship }>(`/api/relationships/${id}`, data),
+
+  delete: (id: string) =>
+    api.delete(`/api/relationships/${id}`),
+
+  getInteractions: (id: string, limit = 50, offset = 0) =>
+    api.get<{ interactions: RelationshipInteraction[]; total: number }>(
+      `/api/relationships/${id}/interactions?limit=${limit}&offset=${offset}`
+    ),
+
+  logInteraction: (id: string, data: { interactionType: string; interactionSummary?: string }) =>
+    api.post<{ interaction: RelationshipInteraction; relationship: Relationship }>(
+      `/api/relationships/${id}/interactions`,
+      data
+    ),
+
+  updateInterestLevel: (id: string, interestLevel: string) =>
+    api.patch<{ relationship: Relationship }>(
+      `/api/relationships/${id}/interest-level`,
+      { interestLevel }
+    ),
+
+  scheduleFollowUp: (id: string, daysFromNow: number) =>
+    api.post<{ relationship: Relationship }>(
+      `/api/relationships/${id}/schedule-followup`,
+      { daysFromNow }
+    ),
+
+  generateTasks: () =>
+    api.post<{ tasksCreated: number }>('/api/relationships/generate-tasks', {}),
+
+  getExecutionCounts: () =>
+    api.get<{ ownersContactedThisWeek: number; boardOutreachThisWeek: number; investorConversationsThisWeek: number }>(
+      '/api/relationships/execution-counts'
+    ),
+};

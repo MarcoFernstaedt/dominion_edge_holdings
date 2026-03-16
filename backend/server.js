@@ -47,6 +47,10 @@ import DealFeedService        from './services/DealFeedService.js';
 import DealFeedScoringService from './services/DealFeedScoringService.js';
 import DealFeedIngestionJob   from './jobs/DealFeedIngestionJob.js';
 
+// ─── Relationship Management Engine ──────────────────────────────────────────
+import RelationshipService    from './services/RelationshipService.js';
+import RelationshipFollowUpJob from './jobs/RelationshipFollowUpJob.js';
+
 dotenv.config();
 
 // ─── Environment validation ───────────────────────────────────────────────────
@@ -207,6 +211,9 @@ const store = {
   // Deal Feed Marketplace
   dealFeedListings: [],
   savedListings:    [],
+  // Relationship Management Engine
+  relationships:             [],
+  relationshipInteractions:  [],
   _metrics: {},
   settings: {
     fromName: '',
@@ -3295,6 +3302,189 @@ app.post('/api/deal-feed/:id/score', (req, res) => {
   }
 });
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// RELATIONSHIP MANAGEMENT ENGINE
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ─── Zod schemas ──────────────────────────────────────────────────────────────
+const RelationshipSchema = z.object({
+  entityType:            z.enum(['seller', 'board_member', 'investor']),
+  entityId:              z.string().uuid().optional().or(z.literal('')),
+  name:                  z.string().min(1).max(200).trim(),
+  company:               z.string().max(200).trim().optional(),
+  relationshipStatus:    z.enum(['new', 'warming', 'active', 'long_term', 'closed', 'not_interested']).optional(),
+  interestLevel:         z.enum(['low', 'medium', 'high', 'ready']).optional(),
+  lastContactDate:       z.string().datetime().optional().or(z.literal('')),
+  nextFollowUpDate:      z.string().optional(),
+  followUpFrequencyDays: z.number().int().min(1).max(365).optional(),
+  notes:                 z.string().max(2000).trim().optional(),
+});
+
+const RelationshipPatchSchema = RelationshipSchema.partial();
+
+const RelationshipInteractionSchema = z.object({
+  interactionType:    z.enum(['call', 'email', 'meeting', 'note']),
+  interactionSummary: z.string().max(2000).trim().optional(),
+});
+
+const ScheduleFollowUpSchema = z.object({
+  daysFromNow: z.number().int().min(1).max(365),
+});
+
+// ─── GET /api/relationships/dashboard ─────────────────────────────────────────
+app.get('/api/relationships/dashboard', (req, res) => {
+  try {
+    res.json(RelationshipService.getDashboardData());
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', err.message);
+  }
+});
+
+// ─── GET /api/relationships — list ────────────────────────────────────────────
+app.get('/api/relationships', (req, res) => {
+  try {
+    const {
+      entityType, relationshipStatus, interestLevel, overdue,
+      search, sortBy, sortDir, page, pageSize,
+    } = req.query;
+
+    const result = RelationshipService.listRelationships({
+      entityType:         entityType         ? String(entityType)         : undefined,
+      relationshipStatus: relationshipStatus ? String(relationshipStatus) : undefined,
+      interestLevel:      interestLevel      ? String(interestLevel)      : undefined,
+      overdue:            overdue === 'true'  ? true                      : undefined,
+      search:             search             ? String(search).slice(0, 200) : undefined,
+      sortBy:             sortBy             ? String(sortBy)             : 'nextFollowUpDate',
+      sortDir:            sortDir            ? String(sortDir)            : 'asc',
+      page:               page               ? parseInt(page, 10)        : 1,
+      pageSize:           pageSize           ? parseInt(pageSize, 10)    : 50,
+    });
+    res.json(result);
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', err.message);
+  }
+});
+
+// ─── GET /api/relationships/:id ───────────────────────────────────────────────
+app.get('/api/relationships/:id', (req, res) => {
+  try {
+    const rel = RelationshipService.getRelationship(req.params.id);
+    if (!rel) return errorResponse(res, 404, 'NOT_FOUND', 'Relationship not found');
+    const { interactions, total: interactionTotal } = RelationshipService.getInteractions(rel.id, { limit: 20 });
+    res.json({ relationship: rel, interactions, interactionTotal });
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', err.message);
+  }
+});
+
+// ─── POST /api/relationships ──────────────────────────────────────────────────
+app.post('/api/relationships', validate(RelationshipSchema), (req, res) => {
+  try {
+    const rel = RelationshipService.createRelationship(req.validated);
+    res.status(201).json({ relationship: rel });
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', err.message);
+  }
+});
+
+// ─── PATCH /api/relationships/:id ─────────────────────────────────────────────
+app.patch('/api/relationships/:id', validate(RelationshipPatchSchema), (req, res) => {
+  try {
+    const updated = RelationshipService.updateRelationship(req.params.id, req.validated);
+    if (!updated) return errorResponse(res, 404, 'NOT_FOUND', 'Relationship not found');
+    res.json({ relationship: updated });
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', err.message);
+  }
+});
+
+// ─── DELETE /api/relationships/:id ────────────────────────────────────────────
+app.delete('/api/relationships/:id', (req, res) => {
+  try {
+    const deleted = RelationshipService.deleteRelationship(req.params.id);
+    if (!deleted) return errorResponse(res, 404, 'NOT_FOUND', 'Relationship not found');
+    res.json({ deleted: true });
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', err.message);
+  }
+});
+
+// ─── GET /api/relationships/:id/interactions ──────────────────────────────────
+app.get('/api/relationships/:id/interactions', (req, res) => {
+  try {
+    const rel = RelationshipService.getRelationship(req.params.id);
+    if (!rel) return errorResponse(res, 404, 'NOT_FOUND', 'Relationship not found');
+    const limit  = req.query.limit  ? parseInt(req.query.limit, 10)  : 50;
+    const offset = req.query.offset ? parseInt(req.query.offset, 10) : 0;
+    res.json(RelationshipService.getInteractions(req.params.id, { limit, offset }));
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', err.message);
+  }
+});
+
+// ─── POST /api/relationships/:id/interactions ─────────────────────────────────
+app.post('/api/relationships/:id/interactions', validate(RelationshipInteractionSchema), (req, res) => {
+  try {
+    const interaction = RelationshipService.logInteraction(req.params.id, req.validated);
+    if (!interaction) return errorResponse(res, 404, 'NOT_FOUND', 'Relationship not found');
+
+    // Auto-calculate status after interaction
+    const updated = RelationshipService.calculateRelationshipStatus(req.params.id);
+
+    // Fire automation: seller interaction → playbook sync + deal momentum
+    const rel = RelationshipService.getRelationship(req.params.id);
+    if (rel?.entityType === 'seller') {
+      AutomationRuleEngine.fire('interaction_logged', { relationship: rel, interaction }, serviceCtx);
+    }
+
+    res.status(201).json({ interaction, relationship: updated });
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', err.message);
+  }
+});
+
+// ─── PATCH /api/relationships/:id/interest-level ──────────────────────────────
+app.patch('/api/relationships/:id/interest-level', (req, res) => {
+  try {
+    const { interestLevel } = req.body || {};
+    const updated = RelationshipService.updateInterestLevel(req.params.id, interestLevel);
+    if (!updated) return errorResponse(res, 400, 'VALIDATION_ERROR', 'Invalid interestLevel or relationship not found');
+    res.json({ relationship: updated });
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', err.message);
+  }
+});
+
+// ─── POST /api/relationships/:id/schedule-followup ────────────────────────────
+app.post('/api/relationships/:id/schedule-followup', validate(ScheduleFollowUpSchema), (req, res) => {
+  try {
+    const updated = RelationshipService.scheduleNextFollowUp(req.params.id, req.validated.daysFromNow);
+    if (!updated) return errorResponse(res, 404, 'NOT_FOUND', 'Relationship not found');
+    res.json({ relationship: updated });
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', err.message);
+  }
+});
+
+// ─── POST /api/relationships/generate-tasks — manual trigger ──────────────────
+app.post('/api/relationships/generate-tasks', (req, res) => {
+  try {
+    const created = RelationshipService.generateFollowUpTasks(store, uid, nowIso());
+    res.json({ tasksCreated: created });
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', err.message);
+  }
+});
+
+// ─── GET /api/relationships/execution-counts ──────────────────────────────────
+app.get('/api/relationships/execution-counts', (req, res) => {
+  try {
+    res.json(RelationshipService.getExecutionCounts());
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', err.message);
+  }
+});
+
 // ─── 404 ──────────────────────────────────────────────────────────────────────
 app.use((req, res) => {
   errorResponse(res, 404, 'NOT_FOUND', `Route not found: ${req.method} ${req.path}`);
@@ -3329,6 +3519,9 @@ PlaybookService.init(store);
 
 // ─── Deal Feed init ───────────────────────────────────────────────────────────
 DealFeedService.init(store);
+
+// ─── Relationship Management Engine init ──────────────────────────────────────
+RelationshipService.init(store);
 
 // Initialize new platform services
 SourceAdapterRegistryService.init(store, store.settings);
@@ -3685,6 +3878,13 @@ if (process.env.NODE_ENV !== 'test') {
     fn: async () => {
       DealFeedScoringService.rescoreAll(store.dealFeedListings || []);
     },
+  });
+
+  BackgroundJobRunner.register({
+    id: 'relationshipFollowUp',
+    name: RelationshipFollowUpJob.name,
+    intervalMs: RelationshipFollowUpJob.intervalMs,
+    fn: async (ctx) => RelationshipFollowUpJob.run(ctx),
   });
 
   BackgroundJobRunner.register({
