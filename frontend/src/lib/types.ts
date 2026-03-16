@@ -964,6 +964,150 @@ export interface CapitalSummary {
   equityRemaining: number;
 }
 
+// ─── Execution Tracker ────────────────────────────────────────────────────────
+
+export type MomentumRiskLevel = 'healthy' | 'warming' | 'cooling' | 'stalled';
+
+export interface ExecutionDailyStat {
+  id: ID;
+  date: string;
+  ownersCalled: number;
+  ownersEmailed: number;
+  ownersLinkedIn: number;
+  ownersTotalContacted: number;
+  ownerConversations: number;
+  meetingsScheduled: number;
+  loisSent: number;
+  investorConversations: number;
+  boardOutreach: number;
+  boardMeetings: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ExecutionWeeklyStat {
+  id: ID;
+  weekStartDate: string;
+  ownersContacted: number;
+  ownerConversations: number;
+  meetingsScheduled: number;
+  investorConversations: number;
+  boardMeetings: number;
+  loisSent: number;
+  companiesAdded: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ExecutionMonthlyStat {
+  id: ID;
+  month: string;
+  ownersContacted: number;
+  ownerConversations: number;
+  meetingsScheduled: number;
+  investorConversations: number;
+  boardMeetings: number;
+  loisSent: number;
+  dealsOpened: number;
+  dealsClosed: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface QlaTarget {
+  id: ID;
+  targetType: string;
+  targetValue: number;
+  period: string;
+}
+
+export interface QlaTargets {
+  daily_owner_calls: number;
+  weekly_owner_contacts: number;
+  weekly_investor_calls: number;
+  monthly_lois: number;
+  pipeline_companies: number;
+  pipeline_owners_contacted: number;
+  pipeline_conversations: number;
+  pipeline_opportunities: number;
+  pipeline_lois: number;
+  pipeline_closed: number;
+  board_target_min: number;
+  board_target_max: number;
+  investor_identified_min: number;
+}
+
+export interface AcquisitionPipelineStat {
+  id: ID;
+  totalCompanies: number;
+  ownersContacted: number;
+  ownerConversations: number;
+  seriousOpportunities: number;
+  loisSent: number;
+  loisAccepted: number;
+  dealsClosed: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BoardRecruitmentStat {
+  id: ID;
+  candidatesIdentified: number;
+  candidatesContacted: number;
+  callsScheduled: number;
+  boardMembersSecured: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface InvestorPipelineStat {
+  id: ID;
+  investorsIdentified: number;
+  investorsContacted: number;
+  investorMeetings: number;
+  softCommitments: number;
+  hardCommitments: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DealMomentumStat {
+  id: ID;
+  dealId: ID;
+  dealName: string;
+  companyName: string;
+  stage: string;
+  lastOwnerContactDate: string | null;
+  lastMeetingDate: string | null;
+  lastFinancialReviewDate: string | null;
+  lastFollowUpDate: string | null;
+  daysSinceLastContact: number | null;
+  daysSinceLastMeeting: number | null;
+  momentumScore: number;
+  riskLevel: MomentumRiskLevel;
+  nextActionRequired: string;
+  interactionCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ExecutionAlert {
+  level: 'warning' | 'critical';
+  message: string;
+}
+
+export interface ExecutionSummary {
+  targets: QlaTargets;
+  today: ExecutionDailyStat;
+  week: ExecutionWeeklyStat;
+  month: ExecutionMonthlyStat;
+  pipeline: AcquisitionPipelineStat;
+  board: BoardRecruitmentStat;
+  investors: InvestorPipelineStat;
+  momentum: DealMomentumStat[];
+  alerts: ExecutionAlert[];
+}
+
 export interface AppSettings {
   reducedMotion: boolean;
   highContrast: boolean;

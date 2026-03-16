@@ -23,6 +23,7 @@ import {
   X,
   Radar,
   TrendingUp,
+  Activity,
 } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 
@@ -48,6 +49,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'agents', label: 'AI Agents', href: '/agents', icon: Bot },
   { id: 'post-acquisition', label: 'Post-Acquisition', href: '/post-acquisition', icon: Building2 },
   { id: 'capital-raising', label: 'Capital Raising', href: '/capital-raising', icon: TrendingUp },
+  { id: 'execution', label: 'Execution', href: '/execution', icon: Activity },
   { id: 'reports', label: 'Reports', href: '/reports', icon: BarChart3 },
   { id: 'settings', label: 'Settings', href: '/settings', icon: Settings },
 ];
@@ -80,6 +82,7 @@ export function SidebarNav({ collapsed, onToggle, isMobile = false }: SidebarNav
     if (item.id === 'agents') return pathname.startsWith('/agents');
     if (item.id === 'post-acquisition') return pathname.startsWith('/post-acquisition');
     if (item.id === 'capital-raising') return pathname.startsWith('/capital-raising');
+    if (item.id === 'execution') return pathname.startsWith('/execution');
     return pathname === item.href;
   }
 

@@ -36,6 +36,9 @@ import FirmMessagingService  from './services/FirmMessagingService.js';
 import PitchDeckService      from './services/PitchDeckService.js';
 import InvestorOutreachAgent from './agents/investorOutreach.js';
 
+// ─── Execution Tracker ────────────────────────────────────────────────────────
+import ExecutionTrackerService from './services/ExecutionTrackerService.js';
+
 dotenv.config();
 
 // ─── Environment validation ───────────────────────────────────────────────────
@@ -183,6 +186,12 @@ const store = {
   investorMemos:  [],
   firmMessaging:  [],
   pitchDecks:     [],
+  // Execution Tracker
+  executionDailyStats:   [],
+  executionWeeklyStats:  [],
+  executionMonthlyStats: [],
+  qlaTargets:            [],
+  dealMomentumStats:     [],
   _metrics: {},
   settings: {
     fromName: '',
@@ -2736,6 +2745,195 @@ app.get('/api/capital-raising/dashboard', (req, res) => {
   }
 });
 
+// ─── Execution Tracker ───────────────────────────────────────────────────────
+
+// GET /api/execution/summary — full execution snapshot (dashboard widget)
+app.get('/api/execution/summary', (req, res) => {
+  try {
+    res.json(ExecutionTrackerService.getExecutionSummary());
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', err.message);
+  }
+});
+
+// GET /api/execution/pipeline-health
+app.get('/api/execution/pipeline-health', (req, res) => {
+  try {
+    res.json(ExecutionTrackerService.getPipelineHealth());
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', err.message);
+  }
+});
+
+// GET /api/execution/targets
+app.get('/api/execution/targets', (req, res) => {
+  try {
+    res.json({ targets: ExecutionTrackerService.getTargets() });
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', err.message);
+  }
+});
+
+// PATCH /api/execution/targets — update a single target
+app.patch('/api/execution/targets', (req, res) => {
+  try {
+    const { targetType, targetValue, period } = req.body;
+    if (!targetType || targetValue === undefined) {
+      return errorResponse(res, 400, 'VALIDATION_ERROR', 'targetType and targetValue required');
+    }
+    const targets = ExecutionTrackerService.setTarget(targetType, Number(targetValue), period);
+    res.json({ targets });
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', err.message);
+  }
+});
+
+// GET /api/execution/target-completion
+app.get('/api/execution/target-completion', (req, res) => {
+  try {
+    res.json(ExecutionTrackerService.checkTargetCompletion());
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', err.message);
+  }
+});
+
+// GET /api/execution/daily — today's stats (computed + manual)
+app.get('/api/execution/daily', (req, res) => {
+  try {
+    const date = req.query.date || undefined;
+    const stat = date
+      ? ExecutionTrackerService.getDailyStats(date)
+      : ExecutionTrackerService.getTodayStats();
+    const targets = ExecutionTrackerService.getTargets();
+    res.json({ stat, targets });
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', err.message);
+  }
+});
+
+// GET /api/execution/daily/history
+app.get('/api/execution/daily/history', (req, res) => {
+  try {
+    const limit = Math.min(Number(req.query.limit) || 30, 90);
+    res.json({ stats: ExecutionTrackerService.getDailyStatsList(limit) });
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', err.message);
+  }
+});
+
+// POST /api/execution/daily — manual daily activity entry
+app.post('/api/execution/daily', (req, res) => {
+  try {
+    const stat = ExecutionTrackerService.recordDailyActivity(req.body);
+    res.json(stat);
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', err.message);
+  }
+});
+
+// GET /api/execution/weekly
+app.get('/api/execution/weekly', (req, res) => {
+  try {
+    const weekStart = req.query.weekStart || undefined;
+    const stat    = ExecutionTrackerService.getWeeklyStats(weekStart);
+    const targets = ExecutionTrackerService.getTargets();
+    res.json({ stat, targets });
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', err.message);
+  }
+});
+
+// POST /api/execution/weekly — manual override
+app.post('/api/execution/weekly', (req, res) => {
+  try {
+    const { weekStart, ...patch } = req.body;
+    const stat = ExecutionTrackerService.updateWeeklyStats(patch, weekStart);
+    res.json(stat);
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', err.message);
+  }
+});
+
+// GET /api/execution/monthly
+app.get('/api/execution/monthly', (req, res) => {
+  try {
+    const month   = req.query.month || undefined;
+    const stat    = ExecutionTrackerService.getMonthlyStats(month);
+    const targets = ExecutionTrackerService.getTargets();
+    res.json({ stat, targets });
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', err.message);
+  }
+});
+
+// POST /api/execution/monthly — manual override
+app.post('/api/execution/monthly', (req, res) => {
+  try {
+    const { month, ...patch } = req.body;
+    const stat = ExecutionTrackerService.updateMonthlyStats(patch, month);
+    res.json(stat);
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', err.message);
+  }
+});
+
+// GET /api/execution/pipeline
+app.get('/api/execution/pipeline', (req, res) => {
+  try {
+    const pipeline = ExecutionTrackerService.calculatePipelineStats();
+    const targets  = ExecutionTrackerService.getTargets();
+    res.json({ pipeline, targets });
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', err.message);
+  }
+});
+
+// GET /api/execution/board
+app.get('/api/execution/board', (req, res) => {
+  try {
+    const board   = ExecutionTrackerService.calculateBoardStats();
+    const targets = ExecutionTrackerService.getTargets();
+    res.json({ board, targets });
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', err.message);
+  }
+});
+
+// GET /api/execution/investors
+app.get('/api/execution/investors', (req, res) => {
+  try {
+    const investors = ExecutionTrackerService.calculateInvestorStats();
+    const targets   = ExecutionTrackerService.getTargets();
+    res.json({ investors, targets });
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', err.message);
+  }
+});
+
+// GET /api/execution/deal-momentum
+app.get('/api/execution/deal-momentum', (req, res) => {
+  try {
+    const momentum = ExecutionTrackerService.calculateMomentumStats();
+    res.json({
+      momentum,
+      stalled: momentum.filter((m) => m.riskLevel === 'stalled'),
+      cooling: momentum.filter((m) => m.riskLevel === 'cooling'),
+    });
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', err.message);
+  }
+});
+
+// GET /api/execution/alerts
+app.get('/api/execution/alerts', (req, res) => {
+  try {
+    const summary = ExecutionTrackerService.getExecutionSummary();
+    res.json({ alerts: summary.alerts });
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', err.message);
+  }
+});
+
 // ─── 404 ──────────────────────────────────────────────────────────────────────
 app.use((req, res) => {
   errorResponse(res, 404, 'NOT_FOUND', `Route not found: ${req.method} ${req.path}`);
@@ -2761,6 +2959,9 @@ CapitalStackService.init(store);
 InvestorMemoService.init(store, AIService);
 FirmMessagingService.init(store, AIService);
 PitchDeckService.init(store, AIService);
+
+// ─── Execution Tracker init ───────────────────────────────────────────────────
+ExecutionTrackerService.init(store);
 
 // Initialize new platform services
 SourceAdapterRegistryService.init(store, store.settings);
@@ -2831,6 +3032,55 @@ AutomationRuleEngine.register({
       s.notifications = [n, ...(s.notifications || [])].slice(0, 50);
     }
     return { updated: !!updated };
+  },
+  enabled: true,
+});
+
+// ─── Execution Tracker Automation Rules ──────────────────────────────────────
+
+AutomationRuleEngine.register({
+  id: 'execution_stalled_deal_notify',
+  description: 'When a deal is marked stalled → notify operator with momentum context',
+  trigger: 'deal_stalled',
+  condition: (ctx) => !!ctx.deal?.id,
+  action: (ctx, { notificationService, store: s, nowIso }) => {
+    const momentum = ExecutionTrackerService.calculateMomentumStats();
+    const dealMom  = momentum.find((m) => m.dealId === ctx.deal.id);
+    const msg = dealMom
+      ? `${ctx.deal.companyName || ctx.deal.name} — ${dealMom.daysSinceLastContact ?? '?'} days since last contact. Score: ${dealMom.momentumScore}/100. Action: ${dealMom.nextActionRequired}`
+      : `${ctx.deal.companyName || ctx.deal.name} has stalled. Re-engage the owner immediately.`;
+    const n = notificationService.createNotification({
+      type:       'deal_alert',
+      title:      `Stalled deal: ${ctx.deal.companyName || ctx.deal.name}`,
+      message:    msg,
+      priority:   'high',
+      entityType: 'deal',
+      entityId:   ctx.deal.id,
+    });
+    s.notifications = [n, ...(s.notifications || [])].slice(0, 50);
+    return { notified: true };
+  },
+  enabled: true,
+});
+
+AutomationRuleEngine.register({
+  id: 'execution_daily_alert_check',
+  description: 'Daily check — fire alerts if execution metrics are below threshold',
+  trigger: 'daily_tick',
+  condition: () => true,
+  action: (_, { notificationService, store: s }) => {
+    const summary = ExecutionTrackerService.getExecutionSummary();
+    const critical = summary.alerts.filter((a) => a.level === 'critical');
+    for (const alert of critical) {
+      const n = notificationService.createNotification({
+        type:     'system',
+        title:    'Execution Alert',
+        message:  alert.message,
+        priority: 'high',
+      });
+      s.notifications = [n, ...(s.notifications || [])].slice(0, 50);
+    }
+    return { alertsFired: critical.length };
   },
   enabled: true,
 });
@@ -2985,6 +3235,22 @@ if (process.env.NODE_ENV !== 'test') {
         try {
           await MeetingPreparationService.buildPrepPacket(m.id, false);
         } catch { /* skip */ }
+      }
+    },
+  });
+
+  BackgroundJobRunner.register({
+    id: 'executionMomentumCheck',
+    name: 'Deal Momentum Alert Check',
+    intervalMs: 4 * 60 * 60 * 1000, // every 4 hours
+    fn: async () => {
+      const momentum = ExecutionTrackerService.calculateMomentumStats();
+      const stalled  = momentum.filter((m) => m.riskLevel === 'stalled');
+      for (const m of stalled) {
+        const deal = store.deals.find((d) => d.id === m.dealId);
+        if (deal) {
+          AutomationRuleEngine.fire('deal_stalled', { deal }, serviceCtx);
+        }
       }
     },
   });

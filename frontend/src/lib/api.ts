@@ -310,3 +310,41 @@ export const capitalRaisingApi = {
   // Dashboard
   getDashboard: () => api.get<{ pipeline: unknown; capital: unknown }>('/api/capital-raising/dashboard'),
 };
+
+// ─── Execution Tracker ────────────────────────────────────────────────────────
+
+export const executionApi = {
+  getSummary:          () => api.get<unknown>('/api/execution/summary'),
+  getPipelineHealth:   () => api.get<unknown>('/api/execution/pipeline-health'),
+  getTargets:          () => api.get<{ targets: unknown }>('/api/execution/targets'),
+  updateTarget: (targetType: string, targetValue: number, period?: string) =>
+    api.patch<{ targets: unknown }>('/api/execution/targets', { targetType, targetValue, period }),
+  getTargetCompletion: () => api.get<unknown>('/api/execution/target-completion'),
+
+  // Daily
+  getDaily:     (date?: string) =>
+    api.get<{ stat: unknown; targets: unknown }>(`/api/execution/daily${date ? `?date=${date}` : ''}`),
+  getDailyHistory: (limit?: number) =>
+    api.get<{ stats: unknown[] }>(`/api/execution/daily/history${limit ? `?limit=${limit}` : ''}`),
+  recordDaily:  (data: Record<string, number>) =>
+    api.post<unknown>('/api/execution/daily', data),
+
+  // Weekly
+  getWeekly:    (weekStart?: string) =>
+    api.get<{ stat: unknown; targets: unknown }>(`/api/execution/weekly${weekStart ? `?weekStart=${weekStart}` : ''}`),
+  updateWeekly: (data: Record<string, unknown>) =>
+    api.post<unknown>('/api/execution/weekly', data),
+
+  // Monthly
+  getMonthly:   (month?: string) =>
+    api.get<{ stat: unknown; targets: unknown }>(`/api/execution/monthly${month ? `?month=${month}` : ''}`),
+  updateMonthly: (data: Record<string, unknown>) =>
+    api.post<unknown>('/api/execution/monthly', data),
+
+  // Pipeline / Board / Investors / Momentum
+  getPipeline:       () => api.get<{ pipeline: unknown; targets: unknown }>('/api/execution/pipeline'),
+  getBoard:          () => api.get<{ board: unknown; targets: unknown }>('/api/execution/board'),
+  getInvestors:      () => api.get<{ investors: unknown; targets: unknown }>('/api/execution/investors'),
+  getDealMomentum:   () => api.get<{ momentum: unknown[]; stalled: unknown[]; cooling: unknown[] }>('/api/execution/deal-momentum'),
+  getAlerts:         () => api.get<{ alerts: unknown[] }>('/api/execution/alerts'),
+};
