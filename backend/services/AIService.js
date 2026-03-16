@@ -29,6 +29,8 @@
 
 import Anthropic from '@anthropic-ai/sdk';
 import CacheService from './CacheService.js';
+import IntegrationRegistry from './IntegrationRegistry.js';
+import { withRetry } from '../utils/retry.js';
 
 // ─── Model routing table ──────────────────────────────────────────────────────
 const MODEL_ROUTES = {
@@ -141,7 +143,13 @@ export async function run(taskType, input, options = {}) {
     userMessage,
   } = options;
 
-  // 1. Cost-control gate
+  // 1a. Integration guard — check AI integration is enabled and configured
+  const integrationGuard = IntegrationRegistry.guard('ai');
+  if (!integrationGuard.ok) {
+    throw new AIServiceError(integrationGuard.degradedMessage, 'AI_INTEGRATION_UNAVAILABLE');
+  }
+
+  // 1b. Cost-control gate
   checkCostFlag(taskType, costFlags);
 
   const model = resolveModel(taskType, overrideModel);
@@ -153,22 +161,32 @@ export async function run(taskType, input, options = {}) {
   if (!skipCache) {
     const cached = CacheService.get(cacheKey);
     if (cached) {
+      IntegrationRegistry.recordSuccess('ai'); // cache hit still counts as healthy
       return { content: cached.content, model: cached.model, cached: true, cacheKey };
     }
   }
 
-  // 3. Call the model (priority 3/4 in execution hierarchy)
+  // 3. Call the model (priority 3/4) with retry
   let rawText;
   try {
     const client = getClient();
-    const response = await client.messages.create({
-      model,
-      max_tokens: maxTokens,
-      system: systemPrompt,
-      messages: [{ role: 'user', content: userMessage }],
+    rawText = await withRetry(async () => {
+      const response = await client.messages.create({
+        model,
+        max_tokens: maxTokens,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: userMessage }],
+      });
+      return response.content.find((b) => b.type === 'text')?.text ?? '';
+    }, {
+      maxRetries:  3,
+      baseDelayMs: 1000,
+      shouldRetry: (err) => !err.message?.includes('401') && !err.message?.includes('403'),
+      onRetry:     (attempt, err, delay) => console.warn(`[AIService] retry ${attempt} in ${delay}ms — ${err.message}`),
     });
-    rawText = response.content.find((b) => b.type === 'text')?.text ?? '';
+    IntegrationRegistry.recordSuccess('ai');
   } catch (err) {
+    IntegrationRegistry.recordError('ai', err.message);
     // Attempt fallback to GPT-4o-mini if OpenAI key is available
     if (process.env.OPENAI_API_KEY) {
       rawText = await _callOpenAIFallback(taskType, userMessage, systemPrompt);

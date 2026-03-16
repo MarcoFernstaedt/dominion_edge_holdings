@@ -6,6 +6,52 @@
  */
 
 import AIService from '../services/AIService.js';
+import DealService from '../services/DealService.js';
+
+// ─── Numeric-only fallback (deterministic, no AI) ────────────────────────────
+function numericFallback(company, financials) {
+  const { revenue, sde, askingPrice, ebitda } = financials || {};
+  const range       = DealService.estimateValuationRange(sde, ebitda, 'service');
+  const sbaCheck    = DealService.checkSBAEligibility({ revenue, askingPrice, yearsInBusiness: company?.yearsInBusiness });
+  const dscr        = sde && askingPrice
+    ? DealService.calculateDSCR(sde * 0.85, DealService.annualDebtService(askingPrice * 0.9, 0.075, 10))
+    : null;
+  const multiple    = sde && askingPrice ? +(askingPrice / sde).toFixed(2) : null;
+
+  const revenueInRange = revenue ? revenue >= 2_000_000 && revenue <= 20_000_000 : null;
+  const sdeInRange     = sde     ? sde     >= 500_000   && sde     <= 5_000_000  : null;
+  const multipleOk     = multiple ? multiple >= 2.5 && multiple <= 7.0 : null;
+
+  return {
+    agentName:          'DealAnalysisAgent',
+    analysisSummary:    'AI unavailable. Showing deterministic financial calculations only.',
+    actionsProposed:    ['review_financials_manually'],
+    confidenceScore:    0.5,
+    fallbackUsed:       true,
+    fallbackMethod:     'numeric_calculations',
+    message:            'AI features are disabled. Showing numeric calculations only.',
+    qualificationStatus: revenueInRange && sdeInRange && multipleOk ? 'conditional' : 'conditional',
+    financialScreen: {
+      revenueInRange,
+      sdeInRange,
+      multipleReasonable: multipleOk,
+      marginAssessment:   'unknown',
+    },
+    calculatedMetrics: {
+      impliedMultiple:   multiple,
+      estimatedDSCR:     dscr,
+      valuationRangeLow:  range.low,
+      valuationRangeHigh: range.high,
+      sbaEligible:        sbaCheck.eligible,
+      sbaFlags:           sbaCheck.flags,
+    },
+    riskFactors:        [],
+    strengthFactors:    [],
+    investmentThesis:   null,
+    recommendedNextStep: 'Review financials manually and verify with accountant.',
+    loiReadiness:       'more_diligence_needed',
+  };
+}
 
 const SYSTEM_PROMPT = `You are the Deal Analysis Agent for Dominion Edge Holdings.
 
@@ -66,14 +112,17 @@ Return ONLY this JSON:
   "keyDiligenceQuestions": ["<question>", ...]
 }`;
 
-  const result = await AIService.run('deal_analysis', { companyId: company?.id, revenue, sde, askingPrice }, {
-    entityId: entityId || company?.id || `deal_${Date.now()}`,
-    entityType: 'deal',
-    systemPrompt: SYSTEM_PROMPT,
-    userMessage,
-    maxTokens: 2048,
-    costFlags,
-  });
-
-  return result.content;
+  try {
+    const result = await AIService.run('deal_analysis', { companyId: company?.id, revenue, sde, askingPrice }, {
+      entityId:  entityId || company?.id || `deal_${Date.now()}`,
+      entityType: 'deal',
+      systemPrompt: SYSTEM_PROMPT,
+      userMessage,
+      maxTokens:  2048,
+      costFlags,
+    });
+    return result.content;
+  } catch (err) {
+    return numericFallback(company, financials);
+  }
 }

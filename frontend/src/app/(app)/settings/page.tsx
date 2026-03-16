@@ -1,9 +1,10 @@
 'use client';
 
+import Link from 'next/link';
 import { useAppStore } from '@/lib/store';
 import { Button } from '@/components/ui/Button';
 import { Input, Select } from '@/components/ui/Input';
-import { Settings, Eye, Zap, Mail, Brain } from 'lucide-react';
+import { Settings, Eye, Zap, Mail, Brain, Plug, ChevronRight } from 'lucide-react';
 
 export default function SettingsPage() {
   const settings = useAppStore((s) => s.settings);
@@ -18,6 +19,21 @@ export default function SettingsPage() {
         <h1 className="font-serif text-3xl font-semibold text-[#E8E6E3]">Settings</h1>
         <p className="text-sm text-[#A7A29A] mt-1">Platform configuration · AI, email, accessibility, appearance</p>
       </header>
+
+      {/* Integrations shortcut */}
+      <Link
+        href="/settings/integrations"
+        className="flex items-center justify-between gap-4 px-5 py-4 bg-[#141414] border border-[#2A2A2E] rounded-lg hover:border-[#D4AF37] transition-colors group"
+      >
+        <div className="flex items-center gap-3">
+          <Plug size={16} className="text-[#D4AF37]" aria-hidden />
+          <div>
+            <div className="text-sm font-medium text-[#E8E6E3] group-hover:text-[#D4AF37] transition-colors">Integrations</div>
+            <div className="text-xs text-[#A7A29A]">Configure Apollo, AI provider, email, and calendar</div>
+          </div>
+        </div>
+        <ChevronRight size={14} className="text-[#A7A29A] group-hover:text-[#D4AF37] transition-colors" aria-hidden />
+      </Link>
 
       {/* Accessibility */}
       <section aria-labelledby="accessibility-settings">

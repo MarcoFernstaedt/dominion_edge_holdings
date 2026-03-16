@@ -9,16 +9,18 @@ import crypto from 'crypto';
 import { z } from 'zod';
 
 // ─── Services ─────────────────────────────────────────────────────────────────
-import AgentOrchestrator   from './services/AgentOrchestrator.js';
-import AutomationRuleEngine from './services/AutomationRuleEngine.js';
-import BackgroundJobRunner  from './services/BackgroundJobRunner.js';
-import CacheService         from './services/CacheService.js';
-import AuditLogService      from './services/AuditLogService.js';
-import AIService            from './services/AIService.js';
-import DealService          from './services/DealService.js';
-import CRMService           from './services/CRMService.js';
-import TaskService          from './services/TaskService.js';
-import NotificationService  from './services/NotificationService.js';
+import AgentOrchestrator       from './services/AgentOrchestrator.js';
+import AutomationRuleEngine    from './services/AutomationRuleEngine.js';
+import BackgroundJobRunner     from './services/BackgroundJobRunner.js';
+import CacheService            from './services/CacheService.js';
+import AuditLogService         from './services/AuditLogService.js';
+import AIService               from './services/AIService.js';
+import DealService             from './services/DealService.js';
+import CRMService              from './services/CRMService.js';
+import TaskService             from './services/TaskService.js';
+import NotificationService     from './services/NotificationService.js';
+import IntegrationRegistry     from './services/IntegrationRegistry.js';
+import IntegrationHealthService from './services/IntegrationHealthService.js';
 
 dotenv.config();
 
@@ -1215,6 +1217,7 @@ app.patch('/api/settings', validate(SettingsPatchSchema), (req, res) => {
     // Credentials must never be accepted from API clients
     const { smtpPassword, ...safeUpdates } = req.validated;
     store.settings = { ...store.settings, ...safeUpdates };
+    IntegrationRegistry.syncFromSettings(store.settings);
     const { smtpPassword: _, ...safeSettings } = store.settings;
     res.json(safeSettings);
   } catch (err) {
@@ -1730,6 +1733,90 @@ app.delete('/api/cache', validate(z.object({ prefix: z.string().min(1).max(100) 
   res.json({ invalidated: true, prefix: req.validated.prefix });
 });
 
+// ─── Integration routes ───────────────────────────────────────────────────────
+
+// GET /api/integrations — all integration config (sanitized) + status
+app.get('/api/integrations', (_req, res) => {
+  res.json({
+    config: IntegrationRegistry.getAllConfig(),
+    status: IntegrationRegistry.getAllStatus(),
+  });
+});
+
+// GET /api/integrations/:name — single integration
+app.get('/api/integrations/:name', (req, res) => {
+  const { name } = req.params;
+  const config = IntegrationRegistry.getConfig(name);
+  if (!config) return errorResponse(res, 404, 'NOT_FOUND', `Unknown integration: ${name}`);
+  const status = IntegrationRegistry.getStatus(name);
+  const safeConfig = { ...config, apiKey: config.apiKey ? '***' : null, credentials: config.credentials ? '***' : null };
+  res.json({ name, config: safeConfig, status });
+});
+
+const IntegrationPatchSchema = z.object({
+  enabled:           z.boolean().optional(),
+  apolloApiKey:      z.string().max(200).optional(),
+  calendarProvider:  z.enum(['google', 'outlook', 'none']).optional(),
+  calendarEnabled:   z.boolean().optional(),
+}).strict();
+
+// PATCH /api/integrations/:name — update integration settings
+app.patch('/api/integrations/:name', validate(IntegrationPatchSchema), (req, res) => {
+  const { name } = req.params;
+  const config = IntegrationRegistry.getConfig(name);
+  if (!config) return errorResponse(res, 404, 'NOT_FOUND', `Unknown integration: ${name}`);
+
+  // Merge into store.settings so IntegrationRegistry.syncFromSettings() picks it up
+  const patch = req.validated;
+  if (patch.enabled !== undefined) {
+    if (name === 'apollo')   store.settings.apolloEnabled   = patch.enabled;
+    if (name === 'calendar') store.settings.calendarEnabled = patch.enabled;
+    if (name === 'ai')       store.settings.aiDraftingEnabled = patch.enabled;
+    if (name === 'email')    { /* email on/off managed via smtp settings */ }
+  }
+  if (patch.apolloApiKey)     store.settings.apolloApiKey      = patch.apolloApiKey;
+  if (patch.calendarProvider) store.settings.calendarProvider  = patch.calendarProvider;
+
+  IntegrationRegistry.syncFromSettings(store.settings);
+  AuditLogService.log(AuditLogService.AUDIT_EVENTS.SETTINGS_UPDATED, 'integration', name, { patch: Object.keys(patch) });
+
+  res.json({
+    name,
+    status: IntegrationRegistry.getStatus(name),
+    message: `Integration "${name}" updated.`,
+  });
+});
+
+// POST /api/integrations/:name/test — run health check for single integration
+app.post('/api/integrations/:name/test', async (req, res) => {
+  const { name } = req.params;
+  const checkers = {
+    apollo:   IntegrationHealthService.checkApolloConnection,
+    ai:       IntegrationHealthService.checkAIConnection,
+    calendar: IntegrationHealthService.checkCalendarConnection,
+    email:    IntegrationHealthService.checkEmailConnection,
+  };
+  const checker = checkers[name];
+  if (!checker) return errorResponse(res, 404, 'NOT_FOUND', `Unknown integration: ${name}`);
+
+  try {
+    const result = await checker();
+    res.json(result);
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', `Health check failed: ${err.message}`);
+  }
+});
+
+// POST /api/integrations/health/check-all — run all health checks
+app.post('/api/integrations/health/check-all', async (req, res) => {
+  try {
+    const results = await IntegrationHealthService.checkAll();
+    res.json({ results, checkedAt: new Date().toISOString() });
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', 'Health checks failed');
+  }
+});
+
 // ─── 404 ──────────────────────────────────────────────────────────────────────
 app.use((req, res) => {
   errorResponse(res, 404, 'NOT_FOUND', `Route not found: ${req.method} ${req.path}`);
@@ -1746,6 +1833,9 @@ app.use((err, req, res, _next) => {
 });
 
 // ─── Start server ─────────────────────────────────────────────────────────────
+// Sync IntegrationRegistry with settings (runs in all environments)
+IntegrationRegistry.syncFromSettings(store.settings);
+
 if (process.env.NODE_ENV !== 'test') {
   BackgroundJobRunner.init(store, AgentOrchestrator);
   app.listen(PORT, () => {
