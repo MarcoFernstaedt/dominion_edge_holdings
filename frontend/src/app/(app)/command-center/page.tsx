@@ -16,6 +16,7 @@ import {
   TrendingDown, MessageSquare, UserCheck, Filter, Radar, BookOpen,
 } from 'lucide-react';
 import { sourcingRadarApi, meetingPrepApi, dealProbabilityApi } from '@/lib/api';
+import { ConversationKPIWidget } from '@/components/modules/ConversationKPIWidget';
 import type {
   Task, NextBestAction,
   PipelinePressureMetrics, AcquisitionScoreboard,
@@ -1258,8 +1259,11 @@ export default function CommandCenterPage() {
           <RelationshipIntelligencePanel />
           <DealVelocityPanel />
         </div>
-        {/* Conversation Funnel — full width */}
-        <ConversationFunnelPanel />
+        {/* Conversation Funnel + Relationship KPIs — side by side */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <ConversationFunnelPanel />
+          <ConversationKPIWidget />
+        </div>
       </div>
 
       {/* ── New Systems: Sourcing Radar, Meeting Prep, Deal Probability ── */}

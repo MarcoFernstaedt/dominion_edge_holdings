@@ -28,6 +28,7 @@ import {
   Store,
   UserCheck,
   MessageCircle,
+  Zap,
 } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 
@@ -54,6 +55,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'post-acquisition', label: 'Post-Acquisition', href: '/post-acquisition', icon: Building2 },
   { id: 'capital-raising', label: 'Capital Raising', href: '/capital-raising', icon: TrendingUp },
   { id: 'execution', label: 'Execution', href: '/execution', icon: Activity },
+  { id: 'deal-momentum', label: 'Deal Momentum', href: '/execution/deal-momentum', icon: Zap },
   { id: 'playbook', label: 'Playbook', href: '/playbook', icon: BookOpen },
   { id: 'deal-feed',     label: 'Deal Feed',     href: '/deal-feed',     icon: Store      },
   { id: 'relationships', label: 'Relationships', href: '/relationships', icon: UserCheck   },
@@ -95,6 +97,7 @@ export function SidebarNav({ collapsed, onToggle, isMobile = false }: SidebarNav
     if (item.id === 'deal-feed')     return pathname.startsWith('/deal-feed');
     if (item.id === 'relationships') return pathname.startsWith('/relationships');
     if (item.id === 'conversations') return pathname.startsWith('/conversations');
+    if (item.id === 'deal-momentum') return pathname.startsWith('/execution/deal-momentum');
     return pathname === item.href;
   }
 

@@ -7,6 +7,7 @@
 /* ─── Base ─────────────────────────────────────────────────────────────────── */
 
 :root {
+  /* ── Core palette ─────────────────────────────────────────────────────────── */
   --obsidian: #0B0B0C;
   --charcoal-deep: #141414;
   --charcoal-panel: #1B1B1D;
@@ -20,6 +21,17 @@
   --warning: #D9A441;
   --danger: #C35B5B;
   --info: #4D7EA8;
+
+  /* ── Design token aliases (used by newer modules) ─────────────────────────── */
+  --color-bg:             #0B0B0C;
+  --color-surface:        #141414;
+  --color-surface-raised: #1B1B1D;
+  --color-border:         #2A2A2E;
+  --color-text-primary:   #E8E6E3;
+  --color-text-secondary: #C4C1BB;
+  --color-text-muted:     #A7A29A;
+  --color-accent:         #D4AF37;
+  --color-accent-deep:    #B89220;
 }
 
 * {
@@ -104,6 +116,11 @@ h1, h2, h3 {
 }
 
 /* ─── Utility classes ──────────────────────────────────────────────────────── */
+
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
 
 .shimmer {
   background: linear-gradient(
