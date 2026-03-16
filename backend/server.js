@@ -7,6 +7,18 @@ import Anthropic from '@anthropic-ai/sdk';
 import dotenv from 'dotenv';
 import crypto from 'crypto';
 import { z } from 'zod';
+import {
+  ResponseAnalysisAgent,
+  CalendarSchedulingAgent,
+  DailyOperationsAgent,
+  BoardBuilderAgent,
+  OutreachGenerationAgent,
+  DealAnalysisAgent,
+  CRMStewardAgent,
+  LeadDiscoveryAgent,
+  TargetQualificationAgent,
+  StrategyAdvisorAgent,
+} from './agents/index.js';
 
 dotenv.config();
 
@@ -96,6 +108,7 @@ app.use('/api/chat', aiLimiter);
 app.use('/api/outreach/generate', aiLimiter);
 app.use('/api/ai', aiLimiter);
 app.use('/api/dashboard/briefing', aiLimiter);
+app.use('/api/agents', aiLimiter);
 
 // ─── Structured error response ────────────────────────────────────────────────
 /**
@@ -1423,6 +1436,242 @@ Return a numbered list of agenda items only. Be specific and actionable.`,
     console.error('[meetings/generate-agenda]', err.message);
     errorResponse(res, 503, 'AI_UNAVAILABLE', 'AI service temporarily unavailable');
   }
+});
+
+// ─── Agent routes ─────────────────────────────────────────────────────────────
+const AgentModelSchema = z.string().regex(/^claude-(opus|sonnet|haiku|instant)-[0-9][-\w]*$/).optional();
+
+const ResponseAnalysisSchema = z.object({
+  emailBody: z.string().min(1).max(20000).trim(),
+  senderName: z.string().max(200).trim().optional(),
+  senderEmail: z.string().email().optional().or(z.literal('')),
+  companyName: z.string().max(200).trim().optional(),
+  threadContext: z.string().max(5000).trim().optional(),
+  model: AgentModelSchema,
+});
+
+const CalendarSchedulingSchema = z.object({
+  meetingType: z.enum(['seller_discovery', 'seller_followup', 'board_intro', 'banker_intro',
+    'attorney_intro', 'cpa_intro', 'capital_intro', 'diligence_review',
+    'post_acquisition_transition', 'internal_planning']),
+  durationMinutes: z.number().int().min(15).max(180).optional(),
+  contactName: z.string().max(200).trim().optional(),
+  contactTimezone: z.string().max(50).trim().optional(),
+  preferredDays: z.array(z.string()).max(7).optional(),
+  preferredTimes: z.array(z.string()).max(5).optional(),
+  model: AgentModelSchema,
+});
+
+const DailyOperationsSchema = z.object({
+  date: z.string().datetime().optional(),
+  model: AgentModelSchema,
+});
+
+const BoardBuilderSchema = z.object({
+  targetIndustry: z.string().max(200).trim().optional(),
+  dealContext: z.string().max(2000).trim().optional(),
+  model: AgentModelSchema,
+});
+
+const OutreachGenerationSchema = z.object({
+  contactType: z.enum(['seller', 'board_candidate', 'banker', 'attorney', 'cpa',
+    'capital_partner', 'operator', 'networking_contact', 'vendor']).optional(),
+  contactName: z.string().max(200).trim().optional(),
+  companyName: z.string().max(200).trim().optional(),
+  industry: z.string().max(100).trim().optional(),
+  context: z.string().max(2000).trim().optional(),
+  templateType: z.string().max(100).trim().optional(),
+  customInstructions: z.string().max(1000).trim().optional(),
+  model: AgentModelSchema,
+});
+
+const DealAnalysisSchema = z.object({
+  companyId: z.string().uuid().optional(),
+  financials: z.object({
+    revenue: z.number().min(0).optional(),
+    sde: z.number().min(0).optional(),
+    askingPrice: z.number().min(0).optional(),
+  }).optional(),
+  notes: z.string().max(5000).trim().optional(),
+  model: AgentModelSchema,
+});
+
+const LeadDiscoverySchema = z.object({
+  targetIndustry: z.string().max(200).trim().optional(),
+  targetGeography: z.string().max(200).trim().optional(),
+  model: AgentModelSchema,
+});
+
+const TargetQualificationSchema = z.object({
+  companyId: z.string().uuid().optional(),
+  researchNotes: z.string().max(5000).trim().optional(),
+  linkedinData: z.string().max(2000).trim().optional(),
+  websiteSignals: z.string().max(2000).trim().optional(),
+  model: AgentModelSchema,
+});
+
+const StrategyAdvisorSchema = z.object({
+  question: z.string().min(10).max(2000).trim(),
+  context: z.string().max(5000).trim().optional(),
+  dealId: z.string().uuid().optional(),
+  model: AgentModelSchema,
+});
+
+// POST /api/agents/analyze-response
+app.post('/api/agents/analyze-response', validate(ResponseAnalysisSchema), async (req, res) => {
+  try {
+    const result = await ResponseAnalysisAgent(req.validated);
+    res.json(result);
+  } catch (err) {
+    console.error('[agents/analyze-response]', err.message);
+    errorResponse(res, 503, 'AI_UNAVAILABLE', 'Agent temporarily unavailable');
+  }
+});
+
+// POST /api/agents/schedule-meeting
+app.post('/api/agents/schedule-meeting', validate(CalendarSchedulingSchema), async (req, res) => {
+  try {
+    const result = await CalendarSchedulingAgent(req.validated);
+    res.json(result);
+  } catch (err) {
+    console.error('[agents/schedule-meeting]', err.message);
+    errorResponse(res, 503, 'AI_UNAVAILABLE', 'Agent temporarily unavailable');
+  }
+});
+
+// POST /api/agents/daily-briefing
+app.post('/api/agents/daily-briefing', validate(DailyOperationsSchema), async (req, res) => {
+  try {
+    const { model, date } = req.validated;
+    const result = await DailyOperationsAgent({
+      pipeline: store.deals,
+      tasks: store.tasks,
+      meetings: store.meetings,
+      date,
+      model,
+    });
+    res.json(result);
+  } catch (err) {
+    console.error('[agents/daily-briefing]', err.message);
+    errorResponse(res, 503, 'AI_UNAVAILABLE', 'Agent temporarily unavailable');
+  }
+});
+
+// POST /api/agents/board-analysis
+app.post('/api/agents/board-analysis', validate(BoardBuilderSchema), async (req, res) => {
+  try {
+    const { targetIndustry, dealContext, model } = req.validated;
+    const result = await BoardBuilderAgent({
+      candidates: store.boardCandidates,
+      currentSeats: store.boardSeats,
+      targetIndustry,
+      dealContext,
+      model,
+    });
+    res.json(result);
+  } catch (err) {
+    console.error('[agents/board-analysis]', err.message);
+    errorResponse(res, 503, 'AI_UNAVAILABLE', 'Agent temporarily unavailable');
+  }
+});
+
+// POST /api/agents/generate-outreach
+app.post('/api/agents/generate-outreach', validate(OutreachGenerationSchema), async (req, res) => {
+  try {
+    const result = await OutreachGenerationAgent(req.validated);
+    res.json(result);
+  } catch (err) {
+    console.error('[agents/generate-outreach]', err.message);
+    errorResponse(res, 503, 'AI_UNAVAILABLE', 'Agent temporarily unavailable');
+  }
+});
+
+// POST /api/agents/analyze-deal
+app.post('/api/agents/analyze-deal', validate(DealAnalysisSchema), async (req, res) => {
+  try {
+    const { companyId, financials, notes, model } = req.validated;
+    const company = companyId ? findById(store.companies, companyId) : null;
+    const result = await DealAnalysisAgent({ company, financials, notes, model });
+    res.json(result);
+  } catch (err) {
+    console.error('[agents/analyze-deal]', err.message);
+    errorResponse(res, 503, 'AI_UNAVAILABLE', 'Agent temporarily unavailable');
+  }
+});
+
+// POST /api/agents/crm-health
+app.post('/api/agents/crm-health', validate(z.object({ model: AgentModelSchema })), async (req, res) => {
+  try {
+    const result = await CRMStewardAgent({
+      companies: store.companies,
+      contacts: store.contacts,
+      interactions: store.interactions,
+      model: req.validated.model,
+    });
+    res.json(result);
+  } catch (err) {
+    console.error('[agents/crm-health]', err.message);
+    errorResponse(res, 503, 'AI_UNAVAILABLE', 'Agent temporarily unavailable');
+  }
+});
+
+// POST /api/agents/lead-discovery
+app.post('/api/agents/lead-discovery', validate(LeadDiscoverySchema), async (req, res) => {
+  try {
+    const result = await LeadDiscoveryAgent({
+      ...req.validated,
+      currentPipelineCount: store.deals.filter((d) => d.status === 'active').length,
+    });
+    res.json(result);
+  } catch (err) {
+    console.error('[agents/lead-discovery]', err.message);
+    errorResponse(res, 503, 'AI_UNAVAILABLE', 'Agent temporarily unavailable');
+  }
+});
+
+// POST /api/agents/qualify-target
+app.post('/api/agents/qualify-target', validate(TargetQualificationSchema), async (req, res) => {
+  try {
+    const { companyId, researchNotes, linkedinData, websiteSignals, model } = req.validated;
+    const company = companyId ? findById(store.companies, companyId) : null;
+    const result = await TargetQualificationAgent({ company, researchNotes, linkedinData, websiteSignals, model });
+    res.json(result);
+  } catch (err) {
+    console.error('[agents/qualify-target]', err.message);
+    errorResponse(res, 503, 'AI_UNAVAILABLE', 'Agent temporarily unavailable');
+  }
+});
+
+// POST /api/agents/strategy-advice
+app.post('/api/agents/strategy-advice', validate(StrategyAdvisorSchema), async (req, res) => {
+  try {
+    const { question, context, dealId, model } = req.validated;
+    const deal = dealId ? findById(store.deals, dealId) : null;
+    const dealData = deal ? { ...deal, company: findById(store.companies, deal.companyId) } : null;
+    const result = await StrategyAdvisorAgent({ question, context, dealData, model });
+    res.json(result);
+  } catch (err) {
+    console.error('[agents/strategy-advice]', err.message);
+    errorResponse(res, 503, 'AI_UNAVAILABLE', 'Agent temporarily unavailable');
+  }
+});
+
+// GET /api/agents — list available agents
+app.get('/api/agents', (_req, res) => {
+  res.json({
+    agents: [
+      { id: 'analyze-response', name: 'ResponseAnalysisAgent', description: 'Classify inbound email replies and extract structured signals', endpoint: 'POST /api/agents/analyze-response' },
+      { id: 'schedule-meeting', name: 'CalendarSchedulingAgent', description: 'Propose optimal meeting time slots', endpoint: 'POST /api/agents/schedule-meeting' },
+      { id: 'daily-briefing', name: 'DailyOperationsAgent', description: 'Generate daily operational briefing', endpoint: 'POST /api/agents/daily-briefing' },
+      { id: 'board-analysis', name: 'BoardBuilderAgent', description: 'Analyze board candidates and recommend composition', endpoint: 'POST /api/agents/board-analysis' },
+      { id: 'generate-outreach', name: 'OutreachGenerationAgent', description: 'Generate personalized outreach emails', endpoint: 'POST /api/agents/generate-outreach' },
+      { id: 'analyze-deal', name: 'DealAnalysisAgent', description: 'Structured deal analysis and investment thesis', endpoint: 'POST /api/agents/analyze-deal' },
+      { id: 'crm-health', name: 'CRMStewardAgent', description: 'CRM data quality and relationship hygiene', endpoint: 'POST /api/agents/crm-health' },
+      { id: 'lead-discovery', name: 'LeadDiscoveryAgent', description: 'Lead sourcing strategy and target parameters', endpoint: 'POST /api/agents/lead-discovery' },
+      { id: 'qualify-target', name: 'TargetQualificationAgent', description: 'Quickly qualify or disqualify acquisition targets', endpoint: 'POST /api/agents/qualify-target' },
+      { id: 'strategy-advice', name: 'StrategyAdvisorAgent', description: 'Strategic advice on acquisition and deal structuring', endpoint: 'POST /api/agents/strategy-advice' },
+    ],
+  });
 });
 
 // ─── 404 ──────────────────────────────────────────────────────────────────────

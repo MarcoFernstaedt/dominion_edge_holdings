@@ -17,6 +17,7 @@ import {
   BarChart3,
   Settings,
   CalendarDays,
+  Bot,
   ChevronLeft,
   ChevronRight,
   X,
@@ -41,6 +42,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'board', label: 'Board', href: '/board', icon: Briefcase },
   { id: 'documents', label: 'Documents', href: '/documents', icon: FileText },
   { id: 'meetings', label: 'Meetings', href: '/meetings', icon: CalendarDays },
+  { id: 'agents', label: 'AI Agents', href: '/agents', icon: Bot },
   { id: 'post-acquisition', label: 'Post-Acquisition', href: '/post-acquisition', icon: Building2 },
   { id: 'reports', label: 'Reports', href: '/reports', icon: BarChart3 },
   { id: 'settings', label: 'Settings', href: '/settings', icon: Settings },
@@ -70,6 +72,7 @@ export function SidebarNav({ collapsed, onToggle, isMobile = false }: SidebarNav
     if (item.id === 'documents') return pathname.startsWith('/documents');
     if (item.id === 'outreach') return pathname.startsWith('/outreach');
     if (item.id === 'meetings') return pathname.startsWith('/meetings');
+    if (item.id === 'agents') return pathname.startsWith('/agents');
     if (item.id === 'post-acquisition') return pathname.startsWith('/post-acquisition');
     return pathname === item.href;
   }
