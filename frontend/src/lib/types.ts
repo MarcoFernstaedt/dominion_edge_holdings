@@ -1235,3 +1235,93 @@ export interface AppSettings {
   probabilityHighThreshold?: number;
   probabilityLowRescueThreshold?: number;
 }
+
+// ─── Deal Feed Marketplace ────────────────────────────────────────────────────
+
+export type DealFeedListingStatus = 'active' | 'archived' | 'imported';
+
+export interface DealFeedListing {
+  id: ID;
+  companyName: string;
+  industry: string;
+  location: string;
+  revenueEstimate: number | null;
+  ebitdaEstimate: number | null;
+  yearsInBusiness: number | null;
+  listingPrice: number | null;
+  source: string;
+  sourceUrl: string;
+  /** Redacted in list view — only visible in detail view */
+  contactName?: string;
+  contactEmail?: string;
+  contactPhone?: string;
+  listingStatus: DealFeedListingStatus;
+  acquisitionScore: number;
+  ownerRetirementSignal: boolean;
+  noWebsiteSignal: boolean;
+  notes: string;
+  externalId?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DealFeedScoreBreakdownItem {
+  factor: string;
+  maxPts: number;
+  pts: number;
+}
+
+export interface DealFeedListingDetail {
+  listing: DealFeedListing;
+  scoreBreakdown: DealFeedScoreBreakdownItem[];
+}
+
+export interface SavedListing {
+  id: ID;
+  userId: string;
+  listingId: ID;
+  savedAt: string;
+  listing: DealFeedListing | null;
+}
+
+export interface DealFeedPage {
+  listings: DealFeedListing[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+export interface DealFeedFilters {
+  industry?: string;
+  location?: string;
+  minRevenue?: number;
+  maxRevenue?: number;
+  minYears?: number;
+  maxYears?: number;
+  minScore?: number;
+  status?: DealFeedListingStatus | 'all';
+  search?: string;
+  sortBy?: 'acquisitionScore' | 'createdAt' | 'revenueEstimate' | 'listingPrice' | 'yearsInBusiness';
+  sortDir?: 'asc' | 'desc';
+  page?: number;
+  pageSize?: number;
+}
+
+export interface DealFeedSummary {
+  totalListings: number;
+  activeListings: number;
+  savedListings: number;
+  importedListings: number;
+  avgScore: number;
+  topListings: DealFeedListing[];
+  industryBreakdown: { industry: string; count: number }[];
+  scoreDistribution: Record<string, number>;
+}
+
+export interface DealFeedImportResult {
+  company: unknown;
+  deal: unknown | null;
+  listing: DealFeedListing;
+  alreadyImported: boolean;
+}

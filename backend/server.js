@@ -42,6 +42,11 @@ import ExecutionTrackerService from './services/ExecutionTrackerService.js';
 // ─── Playbook Engine ──────────────────────────────────────────────────────────
 import PlaybookService from './services/PlaybookService.js';
 
+// ─── Deal Feed ────────────────────────────────────────────────────────────────
+import DealFeedService        from './services/DealFeedService.js';
+import DealFeedScoringService from './services/DealFeedScoringService.js';
+import DealFeedIngestionJob   from './jobs/DealFeedIngestionJob.js';
+
 dotenv.config();
 
 // ─── Environment validation ───────────────────────────────────────────────────
@@ -199,6 +204,9 @@ const store = {
   playbookStages:   [],
   playbookTasks:    [],
   playbookProgress: [],
+  // Deal Feed Marketplace
+  dealFeedListings: [],
+  savedListings:    [],
   _metrics: {},
   settings: {
     fromName: '',
@@ -3059,6 +3067,234 @@ app.get('/api/playbook/progress', (req, res) => {
   }
 });
 
+// ─── Deal Feed Automation Rules ───────────────────────────────────────────────
+AutomationRuleEngine.register({
+  id: 'deal_feed_import_playbook_sync',
+  description: 'When a listing is imported to CRM → sync playbook automatic tasks',
+  trigger: 'company_created',
+  condition: (ctx) => !!(ctx.company?.sourceDealFeedId),
+  action: () => {
+    PlaybookService.syncAutomaticTasks();
+    return { synced: true };
+  },
+  enabled: true,
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// DEAL FEED MARKETPLACE
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ─── Zod schemas ───────────────────────────────────────────────────────────────
+const DealFeedListingSchema = z.object({
+  companyName:           z.string().min(1).max(200).trim(),
+  industry:              z.string().max(100).trim().optional(),
+  location:              z.string().max(200).trim().optional(),
+  revenueEstimate:       z.number().min(0).optional(),
+  ebitdaEstimate:        z.number().min(0).optional(),
+  yearsInBusiness:       z.number().min(0).max(200).optional(),
+  listingPrice:          z.number().min(0).optional(),
+  source:                z.string().max(100).trim().optional(),
+  sourceUrl:             z.string().url().optional().or(z.literal('')),
+  contactName:           z.string().max(200).trim().optional(),
+  contactEmail:          z.string().email().optional().or(z.literal('')),
+  contactPhone:          z.string().max(50).trim().optional(),
+  ownerRetirementSignal: z.boolean().optional(),
+  noWebsiteSignal:       z.boolean().optional(),
+  notes:                 z.string().max(2000).trim().optional(),
+  externalId:            z.string().max(200).trim().optional(),
+});
+
+const DealFeedListingPatchSchema = DealFeedListingSchema.extend({
+  listingStatus: z.enum(['active', 'archived', 'imported']).optional(),
+}).partial();
+
+const SaveListingSchema = z.object({
+  listingId: z.string().uuid(),
+  userId:    z.string().min(1).max(100).optional().default('default'),
+});
+
+const ImportListingSchema = z.object({
+  listingId: z.string().uuid(),
+  userId:    z.string().min(1).max(100).optional().default('default'),
+});
+
+const CsvIngestSchema = z.object({
+  rows:   z.array(z.record(z.string())).min(1).max(500),
+  source: z.string().max(100).trim().optional().default('csv'),
+});
+
+// ─── GET /api/deal-feed — list with filters + pagination ──────────────────────
+app.get('/api/deal-feed', (req, res) => {
+  try {
+    const {
+      industry, location, minRevenue, maxRevenue,
+      minYears, maxYears, minScore, status, search,
+      sortBy, sortDir, page, pageSize,
+    } = req.query;
+
+    const result = DealFeedService.listListings({
+      industry:   industry   ? String(industry).slice(0, 100)   : undefined,
+      location:   location   ? String(location).slice(0, 200)   : undefined,
+      minRevenue: minRevenue ? Number(minRevenue)  : undefined,
+      maxRevenue: maxRevenue ? Number(maxRevenue)  : undefined,
+      minYears:   minYears   ? Number(minYears)    : undefined,
+      maxYears:   maxYears   ? Number(maxYears)    : undefined,
+      minScore:   minScore   ? Number(minScore)    : undefined,
+      status:     status     ? String(status)      : 'active',
+      search:     search     ? String(search).slice(0, 200) : undefined,
+      sortBy:     sortBy     ? String(sortBy)      : 'acquisitionScore',
+      sortDir:    sortDir    ? String(sortDir)      : 'desc',
+      page:       page       ? parseInt(page, 10)  : 1,
+      pageSize:   pageSize   ? parseInt(pageSize, 10) : 20,
+    });
+    res.json(result);
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', err.message);
+  }
+});
+
+// ─── GET /api/deal-feed/summary ────────────────────────────────────────────────
+app.get('/api/deal-feed/summary', (req, res) => {
+  try {
+    res.json(DealFeedService.getSummary());
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', err.message);
+  }
+});
+
+// ─── GET /api/deal-feed/saved — saved listings for user ───────────────────────
+app.get('/api/deal-feed/saved', (req, res) => {
+  try {
+    const userId = req.query.userId ? String(req.query.userId).slice(0, 100) : 'default';
+    res.json({ saved: DealFeedService.getSavedListings(userId) });
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', err.message);
+  }
+});
+
+// ─── GET /api/deal-feed/:id — single listing (full contact details) ───────────
+app.get('/api/deal-feed/:id', (req, res) => {
+  try {
+    const listing = DealFeedService.getListing(req.params.id);
+    if (!listing) return errorResponse(res, 404, 'NOT_FOUND', 'Listing not found');
+    // Score breakdown for detail view
+    const scoreBreakdown = DealFeedScoringService.breakdown(listing);
+    res.json({ listing, scoreBreakdown });
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', err.message);
+  }
+});
+
+// ─── POST /api/deal-feed — create listing manually ────────────────────────────
+app.post('/api/deal-feed', validate(DealFeedListingSchema), (req, res) => {
+  try {
+    const listing = DealFeedService.createListing(req.validated);
+    res.status(201).json({ listing });
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', err.message);
+  }
+});
+
+// ─── PATCH /api/deal-feed/:id — update listing ────────────────────────────────
+app.patch('/api/deal-feed/:id', validate(DealFeedListingPatchSchema), (req, res) => {
+  try {
+    const updated = DealFeedService.updateListing(req.params.id, req.validated);
+    if (!updated) return errorResponse(res, 404, 'NOT_FOUND', 'Listing not found');
+    res.json({ listing: updated });
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', err.message);
+  }
+});
+
+// ─── DELETE /api/deal-feed/:id — archive listing ──────────────────────────────
+app.delete('/api/deal-feed/:id', (req, res) => {
+  try {
+    const updated = DealFeedService.archiveListing(req.params.id);
+    if (!updated) return errorResponse(res, 404, 'NOT_FOUND', 'Listing not found');
+    res.json({ archived: true });
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', err.message);
+  }
+});
+
+// ─── POST /api/deal-feed/save — save listing for user ─────────────────────────
+app.post('/api/deal-feed/save', validate(SaveListingSchema), (req, res) => {
+  try {
+    const { listingId, userId } = req.validated;
+    const saved = DealFeedService.saveListing(userId, listingId);
+    if (saved === null) {
+      // Either already saved or listing not found
+      const listing = DealFeedService.getListing(listingId);
+      if (!listing) return errorResponse(res, 404, 'NOT_FOUND', 'Listing not found');
+      return res.json({ saved: false, alreadySaved: true });
+    }
+    res.status(201).json({ saved: true, record: saved });
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', err.message);
+  }
+});
+
+// ─── DELETE /api/deal-feed/save — unsave listing ──────────────────────────────
+app.delete('/api/deal-feed/save', (req, res) => {
+  try {
+    const userId    = req.query.userId    ? String(req.query.userId).slice(0, 100) : 'default';
+    const listingId = req.query.listingId ? String(req.query.listingId)            : '';
+    if (!listingId) return errorResponse(res, 400, 'VALIDATION_ERROR', 'listingId is required');
+    const removed = DealFeedService.unsaveListing(userId, listingId);
+    res.json({ removed });
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', err.message);
+  }
+});
+
+// ─── POST /api/deal-feed/import — import listing into CRM ─────────────────────
+app.post('/api/deal-feed/import', validate(ImportListingSchema), (req, res) => {
+  try {
+    const { listingId } = req.validated;
+    const result = DealFeedService.importToCRM(
+      listingId,
+      store,
+      uid,
+      nowIso(),
+      ({ company, deal }) => {
+        // Trigger automations for the newly created company and deal
+        AutomationRuleEngine.fire('company_created',    { company },            serviceCtx);
+        AutomationRuleEngine.fire('deal_stage_changed', { deal, stage: 'identified' }, serviceCtx);
+        AutomationRuleEngine.fire('playbook_sync_on_company_created', {}, serviceCtx);
+      }
+    );
+    if (!result) return errorResponse(res, 404, 'NOT_FOUND', 'Listing not found');
+    res.status(result.alreadyImported ? 200 : 201).json(result);
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', err.message);
+  }
+});
+
+// ─── POST /api/deal-feed/ingest/csv — bulk CSV ingest ─────────────────────────
+app.post('/api/deal-feed/ingest/csv', validate(CsvIngestSchema), async (req, res) => {
+  try {
+    const { rows, source } = req.validated;
+    // Run ingestion in-process but treat as background (fire and forget for large batches)
+    const result = await DealFeedIngestionJob.ingestCsvRows(rows, source);
+    res.json({ ingested: true, ...result });
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', err.message);
+  }
+});
+
+// ─── POST /api/deal-feed/:id/score — re-score a single listing ────────────────
+app.post('/api/deal-feed/:id/score', (req, res) => {
+  try {
+    const listing = DealFeedService.getListing(req.params.id);
+    if (!listing) return errorResponse(res, 404, 'NOT_FOUND', 'Listing not found');
+    const score = DealFeedScoringService.applyScore(listing);
+    const breakdown = DealFeedScoringService.breakdown(listing);
+    res.json({ score, breakdown });
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', err.message);
+  }
+});
+
 // ─── 404 ──────────────────────────────────────────────────────────────────────
 app.use((req, res) => {
   errorResponse(res, 404, 'NOT_FOUND', `Route not found: ${req.method} ${req.path}`);
@@ -3090,6 +3326,9 @@ ExecutionTrackerService.init(store);
 
 // ─── Playbook Engine init ─────────────────────────────────────────────────────
 PlaybookService.init(store);
+
+// ─── Deal Feed init ───────────────────────────────────────────────────────────
+DealFeedService.init(store);
 
 // Initialize new platform services
 SourceAdapterRegistryService.init(store, store.settings);
@@ -3427,6 +3666,24 @@ if (process.env.NODE_ENV !== 'test') {
     intervalMs: 2 * 60 * 60 * 1000, // every 2 hours
     fn: async () => {
       PlaybookService.syncAutomaticTasks();
+    },
+  });
+
+  BackgroundJobRunner.register({
+    id: 'dealFeedIngestion',
+    name: 'Deal Feed Ingestion',
+    intervalMs: DealFeedIngestionJob.intervalMs,
+    fn: async () => {
+      await DealFeedIngestionJob.run(store);
+    },
+  });
+
+  BackgroundJobRunner.register({
+    id: 'dealFeedRescore',
+    name: 'Deal Feed Re-score All Listings',
+    intervalMs: 12 * 60 * 60 * 1000, // every 12 hours
+    fn: async () => {
+      DealFeedScoringService.rescoreAll(store.dealFeedListings || []);
     },
   });
 

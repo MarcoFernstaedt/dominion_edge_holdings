@@ -366,3 +366,70 @@ export const playbookApi = {
   sync:          () => api.post<{ synced: number; message: string }>('/api/playbook/sync', {}),
   getProgress:   () => api.get<{ progress: unknown[] }>('/api/playbook/progress'),
 };
+
+// ─── Deal Feed Marketplace ────────────────────────────────────────────────────
+
+import type { DealFeedPage, DealFeedListingDetail, DealFeedSummary, DealFeedFilters, DealFeedImportResult } from './types';
+
+export const dealFeedApi = {
+  /** Paginated + filtered listing index (seller contact info redacted). */
+  list: (filters?: DealFeedFilters) => {
+    const params = new URLSearchParams();
+    if (filters) {
+      const {
+        industry, location, minRevenue, maxRevenue, minYears, maxYears,
+        minScore, status, search, sortBy, sortDir, page, pageSize,
+      } = filters;
+      if (industry)   params.set('industry',   industry);
+      if (location)   params.set('location',   location);
+      if (minRevenue != null) params.set('minRevenue', String(minRevenue));
+      if (maxRevenue != null) params.set('maxRevenue', String(maxRevenue));
+      if (minYears   != null) params.set('minYears',   String(minYears));
+      if (maxYears   != null) params.set('maxYears',   String(maxYears));
+      if (minScore   != null) params.set('minScore',   String(minScore));
+      if (status)     params.set('status',     status);
+      if (search)     params.set('search',     search);
+      if (sortBy)     params.set('sortBy',     sortBy);
+      if (sortDir)    params.set('sortDir',    sortDir);
+      if (page    != null) params.set('page',     String(page));
+      if (pageSize != null) params.set('pageSize', String(pageSize));
+    }
+    const qs = params.toString();
+    return api.get<DealFeedPage>(`/api/deal-feed${qs ? `?${qs}` : ''}`);
+  },
+
+  getSummary: () => api.get<DealFeedSummary>('/api/deal-feed/summary'),
+
+  getSaved: (userId = 'default') =>
+    api.get<{ saved: unknown[] }>(`/api/deal-feed/saved?userId=${encodeURIComponent(userId)}`),
+
+  /** Full listing with contact info + score breakdown. */
+  get: (id: string) => api.get<DealFeedListingDetail>(`/api/deal-feed/${id}`),
+
+  create: (data: unknown) => api.post<{ listing: unknown }>('/api/deal-feed', data),
+
+  update: (id: string, data: unknown) => api.patch<{ listing: unknown }>(`/api/deal-feed/${id}`, data),
+
+  archive: (id: string) => api.delete(`/api/deal-feed/${id}`),
+
+  save: (listingId: string, userId = 'default') =>
+    api.post<{ saved: boolean; alreadySaved?: boolean; record?: unknown }>(
+      '/api/deal-feed/save',
+      { listingId, userId }
+    ),
+
+  unsave: (listingId: string, userId = 'default') =>
+    api.delete(`/api/deal-feed/save?listingId=${listingId}&userId=${encodeURIComponent(userId)}`),
+
+  import: (listingId: string, userId = 'default') =>
+    api.post<DealFeedImportResult>('/api/deal-feed/import', { listingId, userId }),
+
+  ingestCsv: (rows: Record<string, string>[], source = 'csv') =>
+    api.post<{ ingested: boolean; created: number; skipped: number; errors: number }>(
+      '/api/deal-feed/ingest/csv',
+      { rows, source }
+    ),
+
+  rescore: (id: string) =>
+    api.post<{ score: number; breakdown: unknown[] }>(`/api/deal-feed/${id}/score`, {}),
+};

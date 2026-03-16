@@ -25,6 +25,7 @@ import {
   TrendingUp,
   Activity,
   BookOpen,
+  Store,
 } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 
@@ -52,6 +53,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'capital-raising', label: 'Capital Raising', href: '/capital-raising', icon: TrendingUp },
   { id: 'execution', label: 'Execution', href: '/execution', icon: Activity },
   { id: 'playbook', label: 'Playbook', href: '/playbook', icon: BookOpen },
+  { id: 'deal-feed', label: 'Deal Feed', href: '/deal-feed', icon: Store },
   { id: 'reports', label: 'Reports', href: '/reports', icon: BarChart3 },
   { id: 'settings', label: 'Settings', href: '/settings', icon: Settings },
 ];
@@ -85,7 +87,8 @@ export function SidebarNav({ collapsed, onToggle, isMobile = false }: SidebarNav
     if (item.id === 'post-acquisition') return pathname.startsWith('/post-acquisition');
     if (item.id === 'capital-raising') return pathname.startsWith('/capital-raising');
     if (item.id === 'execution') return pathname.startsWith('/execution');
-    if (item.id === 'playbook') return pathname.startsWith('/playbook');
+    if (item.id === 'playbook')   return pathname.startsWith('/playbook');
+    if (item.id === 'deal-feed')  return pathname.startsWith('/deal-feed');
     return pathname === item.href;
   }
 
