@@ -201,6 +201,12 @@ export interface Deal {
   // System 7 — Deal Velocity
   stageEnteredAt?: string;
   stageDurationDays?: number;
+  // Deal Probability Scoring
+  probabilityScore?: number;
+  probabilityBand?: ProbabilityBand;
+  probabilityUpdatedAt?: string;
+  probabilityFactors?: ProbabilityFactors;
+  probabilityNotes?: string;
 }
 
 // ─── Performance Systems ─────────────────────────────────────────────────────
@@ -565,6 +571,7 @@ export interface Meeting {
   externalConfirmationStatus?: 'not_needed' | 'pending' | 'confirmed' | 'declined';
   followUpTaskCreated: boolean;
   prepTaskCreated: boolean;
+  prepPacketId?: ID;
   createdAt: string;
   updatedAt: string;
   completedAt?: string;
@@ -608,6 +615,123 @@ export interface Notification {
   linkedEntityId?: ID;
   isRead: boolean;
   createdAt: string;
+}
+
+// ─── Sourcing Radar ───────────────────────────────────────────────────────────
+
+export type AdapterStatus = 'connected' | 'disabled' | 'misconfigured' | 'unreachable' | 'healthy' | 'rate_limited';
+export type AdapterType = 'apollo' | 'csv' | 'manual_import' | 'public_directory' | 'custom_api' | 'listing_site';
+export type CandidateDedupeStatus = 'unchecked' | 'matched_existing' | 'new_candidate' | 'possible_duplicate';
+export type CandidateQualificationStatus = 'unreviewed' | 'qualified' | 'disqualified' | 'needs_manual_review';
+export type CandidateReviewStatus = 'pending_review' | 'accepted_to_crm' | 'rejected' | 'archived';
+export type RadarRunStatus = 'queued' | 'running' | 'completed' | 'completed_with_warnings' | 'failed';
+
+export interface SourceAdapter {
+  id: ID;
+  adapterName: string;
+  adapterType: AdapterType;
+  isEnabled: boolean;
+  config: Record<string, unknown>;
+  lastRunAt?: string;
+  lastSuccessAt?: string;
+  lastErrorAt?: string;
+  lastErrorMessage?: string;
+  status: AdapterStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SourcingRadarRun {
+  id: ID;
+  startedAt: string;
+  completedAt?: string;
+  status: RadarRunStatus;
+  sourcesAttempted: number;
+  sourcesSucceeded: number;
+  sourcesFailed: number;
+  totalCandidatesFound: number;
+  newCandidatesInserted: number;
+  duplicatesDetected: number;
+  warnings: string[];
+  errors: string[];
+  triggeredBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SourcingCandidate {
+  id: ID;
+  sourceAdapterId: ID;
+  externalSourceId?: string;
+  name: string;
+  industry?: string;
+  subIndustry?: string;
+  website?: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  zip?: string;
+  country?: string;
+  sourceUrl?: string;
+  sourceType: AdapterType;
+  yearsInBusiness?: number;
+  employeeEstimate?: number;
+  ownerName?: string;
+  notes?: string;
+  normalizedHash: string;
+  dedupeStatus: CandidateDedupeStatus;
+  qualificationStatus: CandidateQualificationStatus;
+  relevanceScore: number;
+  reviewStatus: CandidateReviewStatus;
+  linkedCompanyId?: ID;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ─── Meeting Prep Packet ─────────────────────────────────────────────────────
+
+export type PrepGenerationMode = 'deterministic' | 'ai_assisted' | 'hybrid';
+export type PrepPacketStatus = 'draft' | 'final' | 'archived';
+
+export interface MeetingPrepPacket {
+  id: ID;
+  meetingId: ID;
+  meetingType: string;
+  linkedEntityType?: string;
+  linkedEntityId?: ID;
+  linkedDealId?: ID;
+  linkedCompanyId?: ID;
+  linkedContactIds: ID[];
+  agenda: string[];
+  keyQuestions: string[];
+  motivationHypotheses: string[];
+  riskFlags: string[];
+  meetingObjectives: string[];
+  recommendedNextStepTargets: string[];
+  generatedBy: string;
+  generationMode: PrepGenerationMode;
+  status: PrepPacketStatus;
+  missingInputs: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ─── Deal Probability ─────────────────────────────────────────────────────────
+
+export type ProbabilityBand = 'very_low' | 'low' | 'medium' | 'high' | 'very_high';
+
+export interface ProbabilityFactors {
+  sellerMotivationStrength: number;
+  sellerTimelineStrength: number;
+  relationshipStrength: number;
+  financialTransparency: number;
+  responsiveness: number;
+  processMomentum: number;
+  structureFit: number;
+  dealEconomics: number;
+  riskPenalty: number;
 }
 
 // ─── App Store State ──────────────────────────────────────────────────────────
@@ -680,6 +804,20 @@ export interface AppState {
   updateMeeting: (id: ID, updates: Partial<Meeting>) => void;
   deleteMeeting: (id: ID) => void;
 
+  // Meeting Prep Packets
+  meetingPrepPackets: MeetingPrepPacket[];
+  addMeetingPrepPacket: (packet: MeetingPrepPacket) => void;
+  updateMeetingPrepPacket: (id: ID, updates: Partial<MeetingPrepPacket>) => void;
+
+  // Sourcing Radar
+  sourcingCandidates: SourcingCandidate[];
+  addSourcingCandidate: (c: SourcingCandidate) => void;
+  updateSourcingCandidate: (id: ID, updates: Partial<SourcingCandidate>) => void;
+  sourceAdapters: SourceAdapter[];
+  setSourceAdapters: (adapters: SourceAdapter[]) => void;
+  sourcingRadarRuns: SourcingRadarRun[];
+  addSourcingRadarRun: (run: SourcingRadarRun) => void;
+
   // Outreach Templates
   outreachTemplates: OutreachTemplate[];
   addOutreachTemplate: (template: OutreachTemplate) => void;
@@ -716,4 +854,19 @@ export interface AppSettings {
   smtpUser: string;
   fromName: string;
   fromEmail: string;
+  // Sourcing Radar
+  sourcingRadarEnabled?: boolean;
+  sourcingTargetIndustries?: string[];
+  sourcingTargetStates?: string[];
+  sourcingMinRelevanceThreshold?: number;
+  sourcingNotifyHighPriority?: boolean;
+  // Meeting Prep
+  autoGeneratePrepPackets?: boolean;
+  enableMeetingPrepAI?: boolean;
+  prepPacketReminderHours?: number;
+  // Deal Probability
+  enableProbabilityScoring?: boolean;
+  enableDealProbabilityCommentary?: boolean;
+  probabilityHighThreshold?: number;
+  probabilityLowRescueThreshold?: number;
 }

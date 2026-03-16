@@ -20,6 +20,10 @@ import type {
   OutreachTemplate,
   Notification,
   Meeting,
+  MeetingPrepPacket,
+  SourcingCandidate,
+  SourceAdapter,
+  SourcingRadarRun,
   ID,
 } from './types';
 import { CHECKLIST_PHASES } from '@/data/checklistData';
@@ -209,6 +213,33 @@ export const useAppStore = create<AppState>()(
       deleteMeeting: (id: ID) =>
         set((s) => ({ meetings: s.meetings.filter((m) => m.id !== id) })),
 
+      // ── Meeting Prep Packets ────────────────────────────────────────────────
+      meetingPrepPackets: [] as MeetingPrepPacket[],
+      addMeetingPrepPacket: (packet: MeetingPrepPacket) =>
+        set((s) => ({ meetingPrepPackets: [packet, ...s.meetingPrepPackets].slice(0, 200) })),
+      updateMeetingPrepPacket: (id: ID, updates: Partial<MeetingPrepPacket>) =>
+        set((s) => ({
+          meetingPrepPackets: s.meetingPrepPackets.map((p) =>
+            p.id === id ? { ...p, ...updates, updatedAt: new Date().toISOString() } : p
+          ),
+        })),
+
+      // ── Sourcing Radar ──────────────────────────────────────────────────────
+      sourcingCandidates: [] as SourcingCandidate[],
+      addSourcingCandidate: (c: SourcingCandidate) =>
+        set((s) => ({ sourcingCandidates: [c, ...s.sourcingCandidates].slice(0, 1000) })),
+      updateSourcingCandidate: (id: ID, updates: Partial<SourcingCandidate>) =>
+        set((s) => ({
+          sourcingCandidates: s.sourcingCandidates.map((c) =>
+            c.id === id ? { ...c, ...updates, updatedAt: new Date().toISOString() } : c
+          ),
+        })),
+      sourceAdapters: [] as SourceAdapter[],
+      setSourceAdapters: (adapters: SourceAdapter[]) => set({ sourceAdapters: adapters }),
+      sourcingRadarRuns: [] as SourcingRadarRun[],
+      addSourcingRadarRun: (run: SourcingRadarRun) =>
+        set((s) => ({ sourcingRadarRuns: [run, ...s.sourcingRadarRuns].slice(0, 50) })),
+
       // ── Notifications ──────────────────────────────────────────────────────
       notifications: [],
       addNotification: (n: Notification) =>
@@ -250,6 +281,10 @@ export const useAppStore = create<AppState>()(
         emailThreads: state.emailThreads,
         outreachTemplates: state.outreachTemplates,
         meetings: state.meetings,
+        meetingPrepPackets: state.meetingPrepPackets,
+        sourcingCandidates: state.sourcingCandidates,
+        sourceAdapters: state.sourceAdapters,
+        sourcingRadarRuns: state.sourcingRadarRuns,
         settings: state.settings,
         currentAffirmationIndex: state.currentAffirmationIndex,
       }),

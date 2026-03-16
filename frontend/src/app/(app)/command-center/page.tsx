@@ -13,8 +13,9 @@ import {
   ChevronRight, ChevronLeft, AlertTriangle, Clock, Star, Plus,
   CheckCircle2, Circle, ArrowRight, TrendingUp, Users, KanbanSquare,
   CheckSquare, Bell, Zap, Activity, Target, Flame, BarChart2,
-  TrendingDown, MessageSquare, UserCheck, Filter
+  TrendingDown, MessageSquare, UserCheck, Filter, Radar, BookOpen,
 } from 'lucide-react';
+import { sourcingRadarApi, meetingPrepApi, dealProbabilityApi } from '@/lib/api';
 import type {
   Task, NextBestAction,
   PipelinePressureMetrics, AcquisitionScoreboard,
@@ -986,6 +987,226 @@ function ConversationFunnelPanel() {
   );
 }
 
+// ─── Sourcing Radar Summary Widget ───────────────────────────────────────────
+
+function SourcingRadarWidget() {
+  const [summary, setSummary] = useState<{
+    newCandidatesToday: number;
+    highPriorityCount: number;
+    sourceWarnings: number;
+    lastRunAt: string | null;
+    lastRunStatus: string | null;
+  } | null>(null);
+
+  useEffect(() => {
+    sourcingRadarApi.getSourcingSummary()
+      .then((r) => setSummary(r as typeof summary))
+      .catch(() => {});
+  }, []);
+
+  return (
+    <section aria-labelledby="sr-widget-heading">
+      <h2 id="sr-widget-heading" className="text-[10px] font-medium tracking-widest uppercase text-[#A7A29A] flex items-center gap-2 mb-3">
+        <Radar size={12} className="text-[#D4AF37]" aria-hidden />
+        Sourcing Radar
+      </h2>
+      <div className="bg-[#141414] border border-[#2A2A2E] rounded-md p-4">
+        {!summary ? (
+          <div className="text-xs text-[#A7A29A]">Loading…</div>
+        ) : (
+          <div className="space-y-3">
+            <div className="grid grid-cols-3 gap-3 text-center">
+              <div>
+                <div className="text-xl font-bold text-[#E8E6E3]">{summary.newCandidatesToday}</div>
+                <div className="text-[10px] text-[#A7A29A]">New today</div>
+              </div>
+              <div>
+                <div className="text-xl font-bold text-[#D4AF37]">{summary.highPriorityCount}</div>
+                <div className="text-[10px] text-[#A7A29A]">High priority</div>
+              </div>
+              <div>
+                <div className="text-xl font-bold" style={{ color: summary.sourceWarnings > 0 ? '#C35B5B' : '#3FA66B' }}>
+                  {summary.sourceWarnings}
+                </div>
+                <div className="text-[10px] text-[#A7A29A]">Source issues</div>
+              </div>
+            </div>
+            {summary.sourceWarnings > 0 && (
+              <div className="text-xs text-[#C35B5B] flex items-center gap-1" role="alert">
+                <AlertTriangle size={10} aria-hidden />
+                {summary.sourceWarnings} source adapter{summary.sourceWarnings !== 1 ? 's' : ''} need attention.
+              </div>
+            )}
+            {summary.lastRunAt && (
+              <div className="text-[10px] text-[#A7A29A]">
+                Last scan: {formatRelativeDate(summary.lastRunAt)}
+                {' '}
+                <span style={{ color: summary.lastRunStatus === 'completed' ? '#3FA66B' : '#D9A441' }}>
+                  ({summary.lastRunStatus})
+                </span>
+              </div>
+            )}
+            <Link href="/pipeline/sourcing-radar" className="text-xs text-[#4D7EA8] hover:text-[#7EB0D4] underline">
+              Open Sourcing Radar →
+            </Link>
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+// ─── Meeting Prep Summary Widget ─────────────────────────────────────────────
+
+function MeetingPrepWidget() {
+  const [summary, setSummary] = useState<{
+    upcomingCount: number;
+    missingPrepCount: number;
+    highValueMissing: number;
+    meetings: Array<{ id: string; title: string; meetingType: string; startsAt: string; hasPrepPacket: boolean }>;
+  } | null>(null);
+
+  useEffect(() => {
+    meetingPrepApi.getPrepSummary()
+      .then((r) => setSummary(r as typeof summary))
+      .catch(() => {});
+  }, []);
+
+  return (
+    <section aria-labelledby="mp-widget-heading">
+      <h2 id="mp-widget-heading" className="text-[10px] font-medium tracking-widest uppercase text-[#A7A29A] flex items-center gap-2 mb-3">
+        <BookOpen size={12} className="text-[#D4AF37]" aria-hidden />
+        Upcoming Meeting Prep
+      </h2>
+      <div className="bg-[#141414] border border-[#2A2A2E] rounded-md p-4">
+        {!summary ? (
+          <div className="text-xs text-[#A7A29A]">Loading…</div>
+        ) : (
+          <div className="space-y-3">
+            <div className="grid grid-cols-3 gap-3 text-center">
+              <div>
+                <div className="text-xl font-bold text-[#E8E6E3]">{summary.upcomingCount}</div>
+                <div className="text-[10px] text-[#A7A29A]">Upcoming</div>
+              </div>
+              <div>
+                <div className="text-xl font-bold" style={{ color: summary.missingPrepCount > 0 ? '#D9A441' : '#3FA66B' }}>
+                  {summary.missingPrepCount}
+                </div>
+                <div className="text-[10px] text-[#A7A29A]">Missing prep</div>
+              </div>
+              <div>
+                <div className="text-xl font-bold" style={{ color: summary.highValueMissing > 0 ? '#C35B5B' : '#3FA66B' }}>
+                  {summary.highValueMissing}
+                </div>
+                <div className="text-[10px] text-[#A7A29A]">High-value no prep</div>
+              </div>
+            </div>
+            {summary.meetings.length > 0 && (
+              <ul className="space-y-1.5">
+                {summary.meetings.slice(0, 3).map((m) => (
+                  <li key={m.id} className="flex items-center justify-between text-xs">
+                    <span className="text-[#E8E6E3] truncate max-w-[200px]">{m.title}</span>
+                    <span className={m.hasPrepPacket ? 'text-[#3FA66B]' : 'text-[#D9A441]'} aria-label={m.hasPrepPacket ? 'Prep packet ready' : 'Prep packet missing'}>
+                      {m.hasPrepPacket ? '✓ Ready' : '! Missing'}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <Link href="/meetings" className="text-xs text-[#4D7EA8] hover:text-[#7EB0D4] underline">
+              Open Meetings →
+            </Link>
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+// ─── Deal Probability Widgets ─────────────────────────────────────────────────
+
+function DealProbabilityWidget() {
+  const [summary, setSummary] = useState<{
+    highProbability: Array<{ id: string; companyName: string; probabilityScore: number; probabilityBand: string; stage: string }>;
+    lowProbability: Array<{ id: string; companyName: string; probabilityScore: number; probabilityBand: string; stage: string; mainBlocker: string }>;
+    highThreshold: number;
+    lowThreshold: number;
+  } | null>(null);
+
+  useEffect(() => {
+    dealProbabilityApi.getSummary()
+      .then((r) => setSummary(r as typeof summary))
+      .catch(() => {});
+  }, []);
+
+  const bandColor = (score: number) => score >= 60 ? '#3FA66B' : score >= 40 ? '#D9A441' : '#C35B5B';
+
+  return (
+    <section aria-labelledby="dp-widget-heading">
+      <h2 id="dp-widget-heading" className="text-[10px] font-medium tracking-widest uppercase text-[#A7A29A] flex items-center gap-2 mb-3">
+        <TrendingUp size={12} className="text-[#D4AF37]" aria-hidden />
+        Deal Probability
+      </h2>
+      {!summary ? (
+        <div className="bg-[#141414] border border-[#2A2A2E] rounded-md p-4 text-xs text-[#A7A29A]">Loading…</div>
+      ) : (
+        <div className="space-y-4">
+          {/* High probability */}
+          <div className="bg-[#141414] border border-[#2A2A2E] rounded-md p-4">
+            <div className="text-[9px] uppercase tracking-wider text-[#3FA66B] mb-2 font-medium">
+              High Probability (≥{summary.highThreshold})
+            </div>
+            {summary.highProbability.length === 0 ? (
+              <div className="text-xs text-[#A7A29A]">No high-probability deals yet.</div>
+            ) : (
+              <ul className="space-y-2">
+                {summary.highProbability.map((d) => (
+                  <li key={d.id} className="flex items-center justify-between">
+                    <Link href={`/pipeline/${d.id}`} className="text-xs text-[#E8E6E3] hover:text-[#D4AF37] truncate max-w-[200px]">
+                      {d.companyName}
+                    </Link>
+                    <span
+                      className="text-xs font-mono font-bold"
+                      style={{ color: bandColor(d.probabilityScore) }}
+                      aria-label={`Probability: ${d.probabilityScore} out of 100`}
+                    >
+                      {d.probabilityScore}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          {/* Low probability rescue */}
+          {summary.lowProbability.length > 0 && (
+            <div className="bg-[#141414] border border-[#C35B5B30] rounded-md p-4">
+              <div className="text-[9px] uppercase tracking-wider text-[#C35B5B] mb-2 font-medium">
+                Rescue Needed (&lt;{summary.lowThreshold})
+              </div>
+              <ul className="space-y-2">
+                {summary.lowProbability.map((d) => (
+                  <li key={d.id}>
+                    <div className="flex items-center justify-between">
+                      <Link href={`/pipeline/${d.id}`} className="text-xs text-[#E8E6E3] hover:text-[#D4AF37] truncate max-w-[180px]">
+                        {d.companyName}
+                      </Link>
+                      <span className="text-xs font-mono text-[#C35B5B]" aria-label={`Probability: ${d.probabilityScore} out of 100`}>
+                        {d.probabilityScore}
+                      </span>
+                    </div>
+                    <div className="text-[10px] text-[#A7A29A] mt-0.5 truncate">{d.mainBlocker}</div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
 export default function CommandCenterPage() {
   return (
     <div className="max-w-5xl mx-auto px-6 py-6 space-y-7">
@@ -1039,6 +1260,19 @@ export default function CommandCenterPage() {
         </div>
         {/* Conversation Funnel — full width */}
         <ConversationFunnelPanel />
+      </div>
+
+      {/* ── New Systems: Sourcing Radar, Meeting Prep, Deal Probability ── */}
+      <div>
+        <h2 className="text-[10px] font-medium tracking-widest uppercase text-[#A7A29A] mb-4 flex items-center gap-2">
+          <Zap size={12} className="text-[#D4AF37]" aria-hidden />
+          Discovery &amp; Prioritization
+        </h2>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <SourcingRadarWidget />
+          <MeetingPrepWidget />
+          <DealProbabilityWidget />
+        </div>
       </div>
     </div>
   );

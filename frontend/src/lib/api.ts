@@ -225,3 +225,37 @@ export const settingsApi = {
 export const reportsApi = {
   getSummary: () => api.get<unknown>('/api/reports/summary'),
 };
+
+// ─── Sourcing Radar ───────────────────────────────────────────────────────────
+export const sourcingRadarApi = {
+  listAdapters: () => api.get<{ adapters: unknown[] }>('/api/sourcing-radar/adapters'),
+  updateAdapter: (id: string, data: unknown) => api.patch<unknown>(`/api/sourcing-radar/adapters/${id}`, data),
+  healthCheck: (id: string) => api.post<unknown>(`/api/sourcing-radar/adapters/${id}/health-check`, {}),
+  runScan: () => api.post<{ run: unknown }>('/api/sourcing-radar/run', {}),
+  getRuns: (limit?: number) => api.get<{ runs: unknown[] }>(`/api/sourcing-radar/runs${limit ? `?limit=${limit}` : ''}`),
+  getCandidates: (params?: { reviewStatus?: string; minScore?: number; industry?: string; state?: string }) => {
+    const qs = new URLSearchParams(Object.entries(params || {}).reduce((a, [k, v]) => v != null ? { ...a, [k]: String(v) } : a, {} as Record<string, string>)).toString();
+    return api.get<{ candidates: unknown[]; total: number }>(`/api/sourcing-radar/candidates${qs ? `?${qs}` : ''}`);
+  },
+  updateCandidate: (id: string, data: unknown) => api.patch<{ candidate: unknown }>(`/api/sourcing-radar/candidates/${id}`, data),
+  acceptCandidate: (id: string) => api.post<{ company: unknown; candidate: unknown }>(`/api/sourcing-radar/candidates/${id}/accept`, {}),
+  importCSV: (rows: Record<string, string>[]) => api.post<{ inserted: number; duplicates: number; total: number }>('/api/sourcing-radar/import-csv', { rows }),
+  getSourcingSummary: () => api.get<unknown>('/api/dashboard/sourcing-summary'),
+};
+
+// ─── Meeting Prep ─────────────────────────────────────────────────────────────
+export const meetingPrepApi = {
+  getPacket: (meetingId: string) => api.get<{ packet: unknown | null }>(`/api/meetings/${meetingId}/prep`),
+  generatePacket: (meetingId: string) => api.post<{ packet: unknown }>(`/api/meetings/${meetingId}/prep`, {}),
+  updatePacket: (meetingId: string, data: unknown) => api.patch<{ packet: unknown }>(`/api/meetings/${meetingId}/prep`, data),
+  getPrepSummary: () => api.get<unknown>('/api/dashboard/prep-summary'),
+};
+
+// ─── Deal Probability ─────────────────────────────────────────────────────────
+export const dealProbabilityApi = {
+  get: (dealId: string) => api.get<unknown>(`/api/deals/${dealId}/probability`),
+  refresh: (dealId: string) => api.post<unknown>(`/api/deals/${dealId}/probability/refresh`, {}),
+  refreshAll: () => api.post<{ refreshed: number }>('/api/deals/probability/refresh-all', {}),
+  getSummary: () => api.get<unknown>('/api/dashboard/probability-summary'),
+  getCommentary: (dealId: string) => api.post<unknown>('/api/agents/deal-probability-commentary', { dealId }),
+};

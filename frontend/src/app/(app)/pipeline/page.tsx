@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { Badge, StatusBadge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
 import { Input, Select, Textarea } from '@/components/ui/Input';
-import { Plus, AlertTriangle, ArrowRight } from 'lucide-react';
+import { Plus, AlertTriangle, ArrowRight, Radar } from 'lucide-react';
 import type { Deal, DealStage } from '@/lib/types';
 import Link from 'next/link';
 
@@ -163,7 +163,21 @@ function DealCard({ deal }: { deal: Deal }) {
 
       <div className="flex items-center justify-between">
         <span className="text-xs text-[#A7A29A]">{formatRelativeDate(deal.updatedAt)}</span>
-        {isStalled && <Badge variant="warning" size="sm">Stalled {daysSinceUpdate}d</Badge>}
+        <div className="flex items-center gap-1.5">
+          {deal.probabilityScore !== undefined && (
+            <span
+              className="text-xs font-mono px-1.5 py-0.5 rounded"
+              style={{
+                backgroundColor: deal.probabilityScore >= 60 ? '#1A2E1F' : deal.probabilityScore >= 40 ? '#2E2510' : '#2E1010',
+                color: deal.probabilityScore >= 60 ? '#3FA66B' : deal.probabilityScore >= 40 ? '#D9A441' : '#C35B5B',
+              }}
+              aria-label={`Close probability: ${deal.probabilityScore} out of 100`}
+            >
+              {deal.probabilityScore}%
+            </span>
+          )}
+          {isStalled && <Badge variant="warning" size="sm">Stalled {daysSinceUpdate}d</Badge>}
+        </div>
       </div>
 
       {/* Stage navigation */}
@@ -261,6 +275,12 @@ export default function PipelinePage() {
               List
             </button>
           </div>
+          <Link href="/pipeline/sourcing-radar">
+            <Button variant="outline">
+              <Radar size={14} className="mr-1.5" aria-hidden />
+              Sourcing Radar
+            </Button>
+          </Link>
           <Button variant="primary" onClick={() => setShowAdd(true)}>
             <Plus size={14} aria-hidden />
             Add Deal

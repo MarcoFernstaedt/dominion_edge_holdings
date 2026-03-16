@@ -22,6 +22,11 @@ import NotificationService     from './services/NotificationService.js';
 import IntegrationRegistry     from './services/IntegrationRegistry.js';
 import IntegrationHealthService from './services/IntegrationHealthService.js';
 import PipelinePressureService  from './services/PipelinePressureService.js';
+import SourceAdapterRegistryService from './services/SourceAdapterRegistryService.js';
+import SourcingRadarService    from './services/SourcingRadarService.js';
+import CandidateDeduplicationService from './services/CandidateDeduplicationService.js';
+import MeetingPreparationService from './services/MeetingPreparationService.js';
+import DealProbabilityService  from './services/DealProbabilityService.js';
 
 dotenv.config();
 
@@ -154,6 +159,12 @@ const store = {
   outreachTemplates: [],
   meetings: [],
   notifications: [],
+  // System: Sourcing Radar
+  sourceAdapters: [],
+  sourcingRadarRuns: [],
+  sourcingRadarCandidates: [],
+  // System: Meeting Prep
+  meetingPrepPackets: [],
   _metrics: {},
   settings: {
     fromName: '',
@@ -178,6 +189,21 @@ const store = {
     ownersContactedPerWeek: 25,
     followUpsPerDay:        5,
     boardOutreachPerWeek:   3,
+    // Sourcing Radar settings
+    sourcingRadarEnabled:           true,
+    sourcingTargetIndustries:       [],
+    sourcingTargetStates:           [],
+    sourcingMinRelevanceThreshold:  50,
+    sourcingNotifyHighPriority:     true,
+    // Meeting Prep settings
+    autoGeneratePrepPackets:        true,
+    enableMeetingPrepAI:            true,
+    prepPacketReminderHours:        24,
+    // Deal Probability settings
+    enableProbabilityScoring:       true,
+    enableDealProbabilityCommentary: true,
+    probabilityHighThreshold:       60,
+    probabilityLowRescueThreshold:  30,
   },
 };
 
@@ -297,6 +323,11 @@ const DealSchema = z.object({
   status:          z.string().max(50).trim().optional(),
   stageEnteredAt:  z.string().datetime().optional().or(z.literal('')),
   stageDurationDays: z.number().min(0).optional(),
+  // Deal Probability Scoring
+  probabilityScore:     z.number().min(0).max(100).optional(),
+  probabilityBand:      z.enum(['very_low', 'low', 'medium', 'high', 'very_high']).optional(),
+  probabilityUpdatedAt: z.string().datetime().optional().or(z.literal('')),
+  probabilityNotes:     z.string().max(1000).trim().optional(),
   // Pipeline pressure (System 1)
   lastInteractionAt:        z.string().datetime().optional().or(z.literal('')),
   pipelinePressureLevel:    z.enum(['active', 'cooling', 'stalled']).optional(),
@@ -359,6 +390,21 @@ const SettingsPatchSchema = z.object({
   ownersContactedPerWeek: z.number().int().min(0).max(500).optional(),
   followUpsPerDay:        z.number().int().min(0).max(100).optional(),
   boardOutreachPerWeek:   z.number().int().min(0).max(100).optional(),
+  // Sourcing Radar
+  sourcingRadarEnabled:          z.boolean().optional(),
+  sourcingTargetIndustries:      z.array(z.string().max(100)).max(10).optional(),
+  sourcingTargetStates:          z.array(z.string().max(50)).max(60).optional(),
+  sourcingMinRelevanceThreshold: z.number().int().min(0).max(100).optional(),
+  sourcingNotifyHighPriority:    z.boolean().optional(),
+  // Meeting Prep
+  autoGeneratePrepPackets:  z.boolean().optional(),
+  enableMeetingPrepAI:      z.boolean().optional(),
+  prepPacketReminderHours:  z.number().int().min(1).max(168).optional(),
+  // Deal Probability
+  enableProbabilityScoring:          z.boolean().optional(),
+  enableDealProbabilityCommentary:   z.boolean().optional(),
+  probabilityHighThreshold:          z.number().int().min(0).max(100).optional(),
+  probabilityLowRescueThreshold:     z.number().int().min(0).max(100).optional(),
 }).strict();
 
 const UnderwritingCalcSchema = z.object({
@@ -1993,6 +2039,361 @@ app.post('/api/pipeline-pressure/scan', (_req, res) => {
   }
 });
 
+// ─── Sourcing Radar routes ────────────────────────────────────────────────────
+
+// GET /api/sourcing-radar/adapters — list all source adapters
+app.get('/api/sourcing-radar/adapters', (_req, res) => {
+  try {
+    res.json({ adapters: SourceAdapterRegistryService.getAllAdapters() });
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to list adapters');
+  }
+});
+
+// PATCH /api/sourcing-radar/adapters/:id — update adapter config/enabled
+app.patch('/api/sourcing-radar/adapters/:id', validate(z.object({
+  isEnabled:   z.boolean().optional(),
+  adapterName: z.string().max(200).trim().optional(),
+  config:      z.record(z.any()).optional(),
+}).strict()), (req, res) => {
+  try {
+    const updated = SourceAdapterRegistryService.updateAdapter(req.params.id, req.validated);
+    if (!updated) return errorResponse(res, 404, 'NOT_FOUND', 'Adapter not found');
+    res.json({ adapter: { ...updated, config: { ...updated.config, apiKey: updated.config?.apiKey ? '***' : undefined } } });
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', err.message);
+  }
+});
+
+// POST /api/sourcing-radar/adapters/:id/health-check — run health check
+app.post('/api/sourcing-radar/adapters/:id/health-check', async (req, res) => {
+  try {
+    const result = await SourceAdapterRegistryService.runHealthCheck(req.params.id);
+    res.json(result);
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', err.message);
+  }
+});
+
+// POST /api/sourcing-radar/run — manually trigger a scan
+app.post('/api/sourcing-radar/run', async (req, res) => {
+  try {
+    const runRecord = await SourcingRadarService.runScheduledScan({
+      manual: true,
+      triggeredBy: 'manual',
+      settings: store.settings,
+    });
+    res.json({ run: runRecord });
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', `Scan failed: ${err.message}`);
+  }
+});
+
+// GET /api/sourcing-radar/runs — scan history
+app.get('/api/sourcing-radar/runs', (req, res) => {
+  const limit = Math.min(Number(req.query.limit) || 10, 50);
+  res.json({ runs: SourcingRadarService.getRunHistory(limit) });
+});
+
+// GET /api/sourcing-radar/candidates — review queue
+app.get('/api/sourcing-radar/candidates', (req, res) => {
+  const { reviewStatus, minScore, industry, state } = req.query;
+  const list = SourcingRadarService.getReviewQueue({
+    reviewStatus,
+    minScore: minScore ? Number(minScore) : undefined,
+    industry,
+    state,
+  });
+  res.json({ candidates: list, total: list.length });
+});
+
+// PATCH /api/sourcing-radar/candidates/:id — update review status
+app.patch('/api/sourcing-radar/candidates/:id', validate(z.object({
+  reviewStatus:        z.enum(['pending_review', 'accepted_to_crm', 'rejected', 'archived']).optional(),
+  qualificationStatus: z.enum(['unreviewed', 'qualified', 'disqualified', 'needs_manual_review']).optional(),
+  notes:               z.string().max(5000).optional(),
+}).strict()), (req, res) => {
+  try {
+    const candidate = SourcingRadarService.updateCandidateReview(req.params.id, req.validated);
+    if (!candidate) return errorResponse(res, 404, 'NOT_FOUND', 'Candidate not found');
+    res.json({ candidate });
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', err.message);
+  }
+});
+
+// POST /api/sourcing-radar/candidates/:id/accept — accept to CRM
+app.post('/api/sourcing-radar/candidates/:id/accept', (req, res) => {
+  try {
+    const result = SourcingRadarService.acceptCandidateToCRM(req.params.id, uid, nowIso);
+    if (!result) return errorResponse(res, 404, 'NOT_FOUND', 'Candidate not found');
+    AuditLogService.log(AuditLogService.AUDIT_EVENTS.COMPANY_CREATED, 'sourcing_radar', result.candidate.id, { companyId: result.company.id });
+    res.json({ company: result.company, candidate: result.candidate });
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', err.message);
+  }
+});
+
+// POST /api/sourcing-radar/import-csv — manual CSV import
+app.post('/api/sourcing-radar/import-csv', validate(z.object({
+  rows: z.array(z.record(z.string())).min(1).max(500),
+}).strict()), async (req, res) => {
+  try {
+    const { rows } = req.validated;
+    // Find or use the manual import adapter
+    const adapters = SourceAdapterRegistryService.getEnabledAdapters();
+    const manualEntry = adapters.find((e) => e.meta.adapterType === 'manual_import');
+    if (!manualEntry) return errorResponse(res, 400, 'ADAPTER_DISABLED', 'Manual import adapter not enabled');
+
+    const { candidates } = await manualEntry.instance.fetchCandidates({ filters: { rows } });
+
+    let inserted = 0;
+    let duplicates = 0;
+    for (const c of candidates) {
+      const { dedupeStatus, linkedCompanyId, normalizedHash } =
+        CandidateDeduplicationService.determineDedupeStatus(
+          c, store.companies, store.sourcingRadarCandidates
+        );
+      if (dedupeStatus === 'matched_existing') { duplicates++; continue; }
+      const now = nowIso();
+      store.sourcingRadarCandidates.unshift({
+        id: uid(),
+        sourceAdapterId: manualEntry.meta.id,
+        ...c,
+        normalizedHash,
+        dedupeStatus,
+        qualificationStatus: 'unreviewed',
+        relevanceScore: SourcingRadarService.scoreCandidateRelevance(c, store.settings),
+        reviewStatus: 'pending_review',
+        linkedCompanyId: linkedCompanyId || null,
+        createdAt: now,
+        updatedAt: now,
+      });
+      inserted++;
+    }
+    store.sourcingRadarCandidates = store.sourcingRadarCandidates.slice(0, 1000);
+    res.json({ inserted, duplicates, total: rows.length });
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', `CSV import failed: ${err.message}`);
+  }
+});
+
+// ─── Meeting Prep routes ───────────────────────────────────────────────────────
+
+// GET /api/meetings/:id/prep — get prep packet for meeting
+app.get('/api/meetings/:id/prep', (req, res) => {
+  try {
+    const packet = MeetingPreparationService.getPrepPacket(req.params.id);
+    res.json({ packet: packet || null });
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to get prep packet');
+  }
+});
+
+// POST /api/meetings/:id/prep — generate (or regenerate) prep packet
+app.post('/api/meetings/:id/prep', async (req, res) => {
+  try {
+    const meeting = findById(store.meetings, req.params.id);
+    if (!meeting) return errorResponse(res, 404, 'NOT_FOUND', 'Meeting not found');
+
+    const aiEnabled = store.settings?.enableMeetingPrepAI !== false;
+    const packet = await MeetingPreparationService.buildPrepPacket(req.params.id, aiEnabled);
+    if (!packet) return errorResponse(res, 500, 'INTERNAL_ERROR', 'Prep packet generation failed');
+    res.json({ packet });
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', `Prep generation failed: ${err.message}`);
+  }
+});
+
+// PATCH /api/meetings/:id/prep — manually edit prep packet
+app.patch('/api/meetings/:id/prep', validate(z.object({
+  agenda:               z.array(z.string()).optional(),
+  keyQuestions:         z.array(z.string()).optional(),
+  motivationHypotheses: z.array(z.string()).optional(),
+  riskFlags:            z.array(z.string()).optional(),
+  meetingObjectives:    z.array(z.string()).optional(),
+  recommendedNextStepTargets: z.array(z.string()).optional(),
+  status: z.enum(['draft', 'final', 'archived']).optional(),
+}).strict()), (req, res) => {
+  try {
+    const packet = MeetingPreparationService.getPrepPacket(req.params.id);
+    if (!packet) return errorResponse(res, 404, 'NOT_FOUND', 'No prep packet for this meeting');
+    const updated = MeetingPreparationService.updatePrepPacket(packet.id, req.validated);
+    res.json({ packet: updated });
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', err.message);
+  }
+});
+
+// GET /api/meeting-prep/packets — list all prep packets
+app.get('/api/meeting-prep/packets', (req, res) => {
+  const limit = Math.min(Number(req.query.limit) || 20, 100);
+  const packets = (store.meetingPrepPackets || []).slice(0, limit);
+  res.json({ packets, total: packets.length });
+});
+
+// ─── Deal Probability routes ──────────────────────────────────────────────────
+
+// GET /api/deals/:id/probability — get current probability score
+app.get('/api/deals/:id/probability', (req, res) => {
+  try {
+    const deal = findById(store.deals, req.params.id);
+    if (!deal) return errorResponse(res, 404, 'NOT_FOUND', 'Deal not found');
+    const explanation = DealProbabilityService.explainProbabilityScore(deal);
+    res.json({
+      probabilityScore:     deal.probabilityScore ?? null,
+      probabilityBand:      deal.probabilityBand  ?? null,
+      probabilityUpdatedAt: deal.probabilityUpdatedAt ?? null,
+      probabilityFactors:   deal.probabilityFactors ?? null,
+      probabilityNotes:     deal.probabilityNotes ?? null,
+      ...explanation,
+    });
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to get probability');
+  }
+});
+
+// POST /api/deals/:id/probability/refresh — recompute probability score
+app.post('/api/deals/:id/probability/refresh', (req, res) => {
+  try {
+    const deal = findById(store.deals, req.params.id);
+    if (!deal) return errorResponse(res, 404, 'NOT_FOUND', 'Deal not found');
+    DealProbabilityService.refreshDealProbability(deal, store);
+    AuditLogService.log(AuditLogService.AUDIT_EVENTS.AGENT_RUN, 'system', deal.id, { action: 'probability_refresh', score: deal.probabilityScore });
+    res.json({ probabilityScore: deal.probabilityScore, probabilityBand: deal.probabilityBand, probabilityFactors: deal.probabilityFactors });
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', 'Probability refresh failed');
+  }
+});
+
+// POST /api/deals/probability/refresh-all — recompute all active deals
+app.post('/api/deals/probability/refresh-all', (req, res) => {
+  try {
+    const count = DealProbabilityService.refreshAllActiveDealProbabilities(store);
+    res.json({ refreshed: count });
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', 'Bulk probability refresh failed');
+  }
+});
+
+// POST /api/agents/conversation-prep
+app.post('/api/agents/conversation-prep', validate(z.object({
+  meetingId: z.string().uuid(),
+  model: z.string().max(100).optional(),
+})), async (req, res) => {
+  try {
+    const result = await AgentOrchestrator.run('ConversationPreparationAgent', {
+      meetingId: req.validated.meetingId,
+      store,
+      costFlags: store.settings,
+    });
+    res.json(result);
+  } catch (err) {
+    errorResponse(res, 500, 'AI_UNAVAILABLE', err.message);
+  }
+});
+
+// POST /api/agents/deal-probability-commentary
+app.post('/api/agents/deal-probability-commentary', validate(z.object({
+  dealId: z.string().uuid(),
+  model: z.string().max(100).optional(),
+})), async (req, res) => {
+  try {
+    const deal = findById(store.deals, req.validated.dealId);
+    if (!deal) return errorResponse(res, 404, 'NOT_FOUND', 'Deal not found');
+    const company = deal.companyId ? findById(store.companies, deal.companyId) : null;
+    const interactions = (store.interactions || []).filter((i) => i.companyId === deal.companyId || i.dealId === deal.id);
+    const scenarios = (store.underwritingScenarios || []).filter((s) => s.dealId === deal.id);
+    // Ensure score is fresh
+    DealProbabilityService.refreshDealProbability(deal, store);
+    const result = await AgentOrchestrator.run('DealProbabilityCommentaryAgent', {
+      deal, interactions, scenarios, company, costFlags: store.settings,
+    });
+    res.json(result);
+  } catch (err) {
+    errorResponse(res, 500, 'AI_UNAVAILABLE', err.message);
+  }
+});
+
+// GET /api/dashboard/probability-summary — high/low probability deal summary
+app.get('/api/dashboard/probability-summary', (req, res) => {
+  try {
+    const activeDeals = (store.deals || []).filter((d) => d.status === 'active');
+    const highThreshold = store.settings?.probabilityHighThreshold || 60;
+    const lowThreshold  = store.settings?.probabilityLowRescueThreshold || 30;
+
+    const highProbability = activeDeals
+      .filter((d) => (d.probabilityScore ?? 0) >= highThreshold)
+      .sort((a, b) => (b.probabilityScore || 0) - (a.probabilityScore || 0))
+      .slice(0, 5)
+      .map((d) => ({ id: d.id, companyName: d.companyName, probabilityScore: d.probabilityScore, probabilityBand: d.probabilityBand, stage: d.stage }));
+
+    const lowProbability = activeDeals
+      .filter((d) => d.probabilityScore !== undefined && d.probabilityScore < lowThreshold)
+      .sort((a, b) => (a.probabilityScore || 0) - (b.probabilityScore || 0))
+      .slice(0, 5)
+      .map((d) => ({
+        id: d.id, companyName: d.companyName, probabilityScore: d.probabilityScore,
+        probabilityBand: d.probabilityBand, stage: d.stage,
+        mainBlocker: (d.probabilityNotes || 'Review deal details'),
+      }));
+
+    res.json({ highProbability, lowProbability, highThreshold, lowThreshold });
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to compute probability summary');
+  }
+});
+
+// GET /api/dashboard/sourcing-summary — sourcing radar summary for command center
+app.get('/api/dashboard/sourcing-summary', (req, res) => {
+  try {
+    const now = Date.now();
+    const todayStart = new Date(now - 24 * 60 * 60 * 1000).toISOString();
+
+    const allCandidates  = store.sourcingRadarCandidates || [];
+    const newToday       = allCandidates.filter((c) => c.createdAt >= todayStart).length;
+    const highPriority   = allCandidates.filter((c) => c.reviewStatus === 'pending_review' && c.relevanceScore >= (store.settings?.sourcingMinRelevanceThreshold || 50)).length;
+    const sourceWarnings = (store.sourceAdapters || []).filter((a) => a.isEnabled && ['unreachable', 'misconfigured', 'rate_limited'].includes(a.status)).length;
+    const lastRun = SourcingRadarService.getLastRun();
+
+    res.json({ newCandidatesToday: newToday, highPriorityCount: highPriority, sourceWarnings, lastRunAt: lastRun?.completedAt || null, lastRunStatus: lastRun?.status || null });
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to compute sourcing summary');
+  }
+});
+
+// GET /api/dashboard/prep-summary — meeting prep status for command center
+app.get('/api/dashboard/prep-summary', (req, res) => {
+  try {
+    const upcomingWindow = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    const now = new Date();
+
+    const upcomingMeetings = (store.meetings || []).filter((m) => {
+      if (!['confirmed', 'scheduled', 'proposed'].includes(m.status)) return false;
+      const start = new Date(m.startsAt);
+      return start > now && start <= upcomingWindow;
+    });
+
+    const prepPacketIds = new Set((store.meetingPrepPackets || []).map((p) => p.meetingId));
+    const missingPrep   = upcomingMeetings.filter((m) => !prepPacketIds.has(m.id));
+
+    const highValueTypes = ['seller_discovery', 'seller_followup', 'diligence_review'];
+    const highValueMissingPrep = missingPrep.filter((m) => highValueTypes.includes(m.meetingType));
+
+    res.json({
+      upcomingCount:      upcomingMeetings.length,
+      missingPrepCount:   missingPrep.length,
+      highValueMissing:   highValueMissingPrep.length,
+      meetings:           upcomingMeetings.slice(0, 5).map((m) => ({
+        id: m.id, title: m.title, meetingType: m.meetingType, startsAt: m.startsAt,
+        hasPrepPacket: prepPacketIds.has(m.id),
+      })),
+    });
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to compute prep summary');
+  }
+});
+
 // ─── 404 ──────────────────────────────────────────────────────────────────────
 app.use((req, res) => {
   errorResponse(res, 404, 'NOT_FOUND', `Route not found: ${req.method} ${req.path}`);
@@ -2012,8 +2413,171 @@ app.use((err, req, res, _next) => {
 // Sync IntegrationRegistry with settings (runs in all environments)
 IntegrationRegistry.syncFromSettings(store.settings);
 
+// Initialize new platform services
+SourceAdapterRegistryService.init(store, store.settings);
+SourcingRadarService.init(store);
+MeetingPreparationService.init(store);
+
+// Initialize deal probability for existing active deals
+if (store.settings?.enableProbabilityScoring !== false) {
+  DealProbabilityService.refreshAllActiveDealProbabilities(store);
+}
+
+// Register new automation rules
+AutomationRuleEngine.register({
+  id: 'generate_prep_on_meeting_confirmed',
+  description: 'When meeting confirmed or scheduled → generate prep packet (deterministic)',
+  trigger: 'meeting_confirmed',
+  condition: (ctx) => !!ctx.meeting?.id && store.settings?.autoGeneratePrepPackets !== false,
+  action: async (ctx) => {
+    try {
+      const packet = await MeetingPreparationService.buildPrepPacket(ctx.meeting.id, false);
+      return { generated: true, packetId: packet?.id };
+    } catch (err) {
+      return { generated: false, error: err.message };
+    }
+  },
+  enabled: true,
+});
+
+AutomationRuleEngine.register({
+  id: 'generate_prep_on_meeting_scheduled',
+  description: 'When meeting scheduled → generate prep packet (deterministic)',
+  trigger: 'meeting_scheduled',
+  condition: (ctx) => !!ctx.meeting?.id && store.settings?.autoGeneratePrepPackets !== false,
+  action: async (ctx) => {
+    try {
+      const packet = await MeetingPreparationService.buildPrepPacket(ctx.meeting.id, false);
+      return { generated: true, packetId: packet?.id };
+    } catch (err) {
+      return { generated: false, error: err.message };
+    }
+  },
+  enabled: true,
+});
+
+AutomationRuleEngine.register({
+  id: 'recompute_probability_on_interaction',
+  description: 'When new interaction logged → recompute deal probability for linked deal',
+  trigger: 'interaction_logged',
+  condition: (ctx) => !!ctx.interaction?.dealId && store.settings?.enableProbabilityScoring !== false,
+  action: (ctx) => {
+    const deal = store.deals.find((d) => d.id === ctx.interaction.dealId);
+    if (deal) DealProbabilityService.refreshDealProbability(deal, store);
+    return { refreshed: !!deal };
+  },
+  enabled: true,
+});
+
+AutomationRuleEngine.register({
+  id: 'recompute_probability_on_stage_change',
+  description: 'When deal stage changes → recompute probability score',
+  trigger: 'deal_stage_changed',
+  condition: (ctx) => !!ctx.deal?.id && store.settings?.enableProbabilityScoring !== false,
+  action: (ctx) => {
+    const deal = store.deals.find((d) => d.id === ctx.deal.id);
+    if (deal) DealProbabilityService.refreshDealProbability(deal, store);
+    return { refreshed: !!deal };
+  },
+  enabled: true,
+});
+
+AutomationRuleEngine.register({
+  id: 'recompute_probability_on_scenario_saved',
+  description: 'When underwriting scenario saved → recompute probability score',
+  trigger: 'scenario_saved',
+  condition: (ctx) => !!ctx.scenario?.dealId && store.settings?.enableProbabilityScoring !== false,
+  action: (ctx) => {
+    const deal = store.deals.find((d) => d.id === ctx.scenario.dealId);
+    if (deal) DealProbabilityService.refreshDealProbability(deal, store);
+    return { refreshed: !!deal };
+  },
+  enabled: true,
+});
+
+AutomationRuleEngine.register({
+  id: 'high_priority_sourcing_candidate_notify',
+  description: 'When high-relevance sourcing candidate created → notify operator',
+  trigger: 'sourcing_candidate_created',
+  condition: (ctx) => (ctx.candidate?.relevanceScore || 0) >= (store.settings?.sourcingMinRelevanceThreshold || 50),
+  action: (ctx, { notificationService, store: s }) => {
+    const n = notificationService.createNotification({
+      type: 'system',
+      title: `High-priority sourcing target: ${ctx.candidate.name}`,
+      message: `Score ${ctx.candidate.relevanceScore}/100 — ${ctx.candidate.industry || 'Unknown industry'} in ${ctx.candidate.city || ''} ${ctx.candidate.state || ''}. Review in Sourcing Radar.`,
+      priority: 'high',
+      entityType: 'sourcing_radar_candidate',
+      entityId: ctx.candidate.id,
+    });
+    s.notifications = [n, ...(s.notifications || [])].slice(0, 50);
+    return { notified: true };
+  },
+  enabled: true,
+});
+
 if (process.env.NODE_ENV !== 'test') {
   BackgroundJobRunner.init(store, AgentOrchestrator);
+
+  // Register new background jobs
+  BackgroundJobRunner.register({
+    id: 'runSourcingRadar',
+    name: 'Run Sourcing Radar',
+    intervalMs: 24 * 60 * 60 * 1000, // daily
+    fn: async () => {
+      if (!store.settings?.sourcingRadarEnabled) return;
+      await SourcingRadarService.runScheduledScan({
+        manual: false,
+        triggeredBy: 'scheduler',
+        settings: store.settings,
+      });
+    },
+  });
+
+  BackgroundJobRunner.register({
+    id: 'recomputeDealProbabilities',
+    name: 'Recompute Deal Probabilities',
+    intervalMs: 6 * 60 * 60 * 1000, // every 6 hours
+    fn: async () => {
+      if (!store.settings?.enableProbabilityScoring) return;
+      DealProbabilityService.refreshAllActiveDealProbabilities(store);
+    },
+  });
+
+  BackgroundJobRunner.register({
+    id: 'refreshSourceHealth',
+    name: 'Refresh Source Adapter Health',
+    intervalMs: 4 * 60 * 60 * 1000, // every 4 hours
+    fn: async () => {
+      await SourceAdapterRegistryService.runAllHealthChecks();
+    },
+  });
+
+  BackgroundJobRunner.register({
+    id: 'generateMissingPrepPackets',
+    name: 'Generate Missing Prep Packets',
+    intervalMs: 60 * 60 * 1000, // every hour
+    fn: async () => {
+      if (!store.settings?.autoGeneratePrepPackets) return;
+      const reminderHours = store.settings?.prepPacketReminderHours || 24;
+      const windowMs  = reminderHours * 60 * 60 * 1000;
+      const now       = Date.now();
+      const prepIds   = new Set((store.meetingPrepPackets || []).map((p) => p.meetingId));
+
+      const needsPrep = (store.meetings || []).filter((m) => {
+        if (!['confirmed', 'scheduled'].includes(m.status)) return false;
+        if (prepIds.has(m.id)) return false;
+        const minsUntil = new Date(m.startsAt).getTime() - now;
+        return minsUntil > 0 && minsUntil <= windowMs;
+      });
+
+      for (const m of needsPrep) {
+        try {
+          await MeetingPreparationService.buildPrepPacket(m.id, false);
+        } catch { /* skip */ }
+      }
+    },
+  });
+
   app.listen(PORT, () => {
     console.log(`DEH backend running on port ${PORT} [${NODE_ENV}]`);
   });

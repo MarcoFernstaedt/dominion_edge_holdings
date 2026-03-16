@@ -19,3 +19,5 @@ export { CRMStewardAgent }        from './crmSteward.js';
 export { LeadDiscoveryAgent }     from './leadDiscovery.js';
 export { TargetQualificationAgent } from './targetQualification.js';
 export { StrategyAdvisorAgent }   from './strategyAdvisor.js';
+export { ConversationPreparationAgent } from './conversationPreparation.js';
+export { DealProbabilityCommentaryAgent } from './dealProbabilityCommentary.js';

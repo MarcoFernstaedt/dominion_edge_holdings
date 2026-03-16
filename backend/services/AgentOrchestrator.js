@@ -16,17 +16,19 @@ import NotificationService from './NotificationService.js';
 import IntegrationRegistry from './IntegrationRegistry.js';
 
 const AGENT_MAP = {
-  ResponseAnalysisAgent:    Agents.ResponseAnalysisAgent,
-  CalendarSchedulingAgent:  Agents.CalendarSchedulingAgent,
-  DailyOperationsAgent:     Agents.DailyOperationsAgent,
-  BoardBuilderAgent:        Agents.BoardBuilderAgent,
-  OutreachGenerationAgent:  Agents.OutreachGenerationAgent,
-  OutreachExecutionAgent:   Agents.OutreachExecutionAgent,  // deterministic
-  DealAnalysisAgent:        Agents.DealAnalysisAgent,
-  CRMStewardAgent:          Agents.CRMStewardAgent,
-  LeadDiscoveryAgent:       Agents.LeadDiscoveryAgent,
-  TargetQualificationAgent: Agents.TargetQualificationAgent,
-  StrategyAdvisorAgent:     Agents.StrategyAdvisorAgent,
+  ResponseAnalysisAgent:            Agents.ResponseAnalysisAgent,
+  CalendarSchedulingAgent:          Agents.CalendarSchedulingAgent,
+  DailyOperationsAgent:             Agents.DailyOperationsAgent,
+  BoardBuilderAgent:                Agents.BoardBuilderAgent,
+  OutreachGenerationAgent:          Agents.OutreachGenerationAgent,
+  OutreachExecutionAgent:           Agents.OutreachExecutionAgent,  // deterministic
+  DealAnalysisAgent:                Agents.DealAnalysisAgent,
+  CRMStewardAgent:                  Agents.CRMStewardAgent,
+  LeadDiscoveryAgent:               Agents.LeadDiscoveryAgent,
+  TargetQualificationAgent:         Agents.TargetQualificationAgent,
+  StrategyAdvisorAgent:             Agents.StrategyAdvisorAgent,
+  ConversationPreparationAgent:     Agents.ConversationPreparationAgent,
+  DealProbabilityCommentaryAgent:   Agents.DealProbabilityCommentaryAgent,
 };
 
 /**

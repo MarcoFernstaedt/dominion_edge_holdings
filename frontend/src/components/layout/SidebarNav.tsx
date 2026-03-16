@@ -21,6 +21,7 @@ import {
   ChevronLeft,
   ChevronRight,
   X,
+  Radar,
 } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 
@@ -38,6 +39,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'inbox', label: 'Inbox', href: '/inbox', icon: Mail },
   { id: 'outreach', label: 'Outreach', href: '/outreach', icon: Send },
   { id: 'pipeline', label: 'Pipeline', href: '/pipeline', icon: KanbanSquare },
+  { id: 'sourcing-radar', label: 'Sourcing Radar', href: '/pipeline/sourcing-radar', icon: Radar },
   { id: 'underwriting', label: 'Underwriting', href: '/underwriting', icon: Calculator },
   { id: 'board', label: 'Board', href: '/board', icon: Briefcase },
   { id: 'documents', label: 'Documents', href: '/documents', icon: FileText },
@@ -67,7 +69,8 @@ export function SidebarNav({ collapsed, onToggle, isMobile = false }: SidebarNav
   function isActive(item: NavItem): boolean {
     if (item.id === 'crm') return pathname.startsWith('/crm');
     if (item.id === 'board') return pathname.startsWith('/board');
-    if (item.id === 'pipeline') return pathname.startsWith('/pipeline');
+    if (item.id === 'pipeline') return pathname === '/pipeline';
+    if (item.id === 'sourcing-radar') return pathname.startsWith('/pipeline/sourcing-radar');
     if (item.id === 'underwriting') return pathname.startsWith('/underwriting');
     if (item.id === 'documents') return pathname.startsWith('/documents');
     if (item.id === 'outreach') return pathname.startsWith('/outreach');

@@ -1,13 +1,15 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAppStore } from '@/lib/store';
 import { cn, formatDate, nowIso, generateId } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
 import { Input, Select, Textarea } from '@/components/ui/Input';
-import { Calendar, Plus, Clock, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
+import { Calendar, Plus, Clock, CheckCircle, XCircle, AlertTriangle, BookOpen, RefreshCw } from 'lucide-react';
+import { meetingPrepApi } from '@/lib/api';
+import type { MeetingPrepPacket } from '@/lib/types';
 import type { Meeting, MeetingStatus, MeetingType } from '@/lib/types';
 
 const MEETING_TYPE_LABELS: Record<MeetingType, string> = {
@@ -227,6 +229,164 @@ function CreateMeetingModal({ open, onClose }: { open: boolean; onClose: () => v
   );
 }
 
+function PrepPacketSection({ meetingId }: { meetingId: string }) {
+  const [packet, setPacket] = useState<MeetingPrepPacket | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [showFull, setShowFull] = useState(false);
+
+  useEffect(() => {
+    setLoading(true);
+    meetingPrepApi.getPacket(meetingId)
+      .then((r) => setPacket(r.packet as MeetingPrepPacket | null))
+      .catch(() => setPacket(null))
+      .finally(() => setLoading(false));
+  }, [meetingId]);
+
+  const generate = async () => {
+    setGenerating(true);
+    try {
+      const r = await meetingPrepApi.generatePacket(meetingId);
+      setPacket(r.packet as MeetingPrepPacket);
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  if (loading) return <div className="text-xs text-[#A7A29A]">Loading prep packet…</div>;
+
+  return (
+    <div className="border border-[#2A2A2E] rounded-md p-3 bg-[#0D0D0D]">
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-1.5 text-[9px] tracking-widest uppercase text-[#A7A29A] font-medium">
+          <BookOpen size={10} aria-hidden />
+          Prep Packet
+          {packet && (
+            <span className="ml-1 text-[#D4AF37]">{packet.generationMode === 'ai_assisted' ? '· AI-assisted' : '· Template'}</span>
+          )}
+        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={generate}
+          disabled={generating}
+          aria-label={packet ? 'Regenerate prep packet' : 'Generate prep packet'}
+        >
+          <RefreshCw size={10} className={cn('mr-1', generating && 'animate-spin')} aria-hidden />
+          {generating ? 'Generating…' : packet ? 'Regenerate' : 'Generate Prep'}
+        </Button>
+      </div>
+
+      {!packet && !generating && (
+        <p className="text-xs text-[#A7A29A]">No prep packet yet. Generate one to get agenda, key questions, and risk flags.</p>
+      )}
+
+      {packet && (
+        <div className="space-y-3">
+          {/* Objectives */}
+          {packet.meetingObjectives.length > 0 && (
+            <div>
+              <div className="text-[9px] text-[#D4AF37] uppercase tracking-wide mb-1">Objectives</div>
+              <ol className="space-y-0.5">
+                {packet.meetingObjectives.map((obj, i) => (
+                  <li key={i} className="text-xs text-[#E8E6E3] flex gap-1.5">
+                    <span className="text-[#D4AF37] flex-shrink-0">{i + 1}.</span>
+                    {obj}
+                  </li>
+                ))}
+              </ol>
+            </div>
+          )}
+
+          {showFull && (
+            <>
+              {/* Agenda */}
+              {packet.agenda.length > 0 && (
+                <div>
+                  <div className="text-[9px] text-[#A7A29A] uppercase tracking-wide mb-1">Agenda</div>
+                  <ol className="space-y-0.5">
+                    {packet.agenda.map((a, i) => (
+                      <li key={i} className="text-xs text-[#A7A29A] flex gap-1.5">
+                        <span className="flex-shrink-0">{i + 1}.</span>{a}
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              )}
+
+              {/* Key Questions */}
+              {packet.keyQuestions.length > 0 && (
+                <div>
+                  <div className="text-[9px] text-[#A7A29A] uppercase tracking-wide mb-1">Key Questions</div>
+                  <ul className="space-y-0.5">
+                    {packet.keyQuestions.map((q, i) => (
+                      <li key={i} className="text-xs text-[#E8E6E3] flex gap-1.5">
+                        <span className="text-[#A7A29A] flex-shrink-0">·</span>{q}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Risk Flags */}
+              {packet.riskFlags.length > 0 && (
+                <div>
+                  <div className="text-[9px] text-[#C35B5B] uppercase tracking-wide mb-1">Risk Flags</div>
+                  <ul className="space-y-0.5">
+                    {packet.riskFlags.map((r, i) => (
+                      <li key={i} className="text-xs text-[#C35B5B] flex gap-1.5">
+                        <AlertTriangle size={9} className="flex-shrink-0 mt-0.5" aria-hidden />
+                        {r}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Hypotheses */}
+              {packet.motivationHypotheses.length > 0 && (
+                <div>
+                  <div className="text-[9px] text-[#A7A29A] uppercase tracking-wide mb-1">Motivation Hypotheses</div>
+                  <ul className="space-y-0.5">
+                    {packet.motivationHypotheses.map((h, i) => (
+                      <li key={i} className="text-xs text-[#A7A29A] italic flex gap-1.5">
+                        <span className="flex-shrink-0">·</span>{h}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Next Steps */}
+              {packet.recommendedNextStepTargets.length > 0 && (
+                <div>
+                  <div className="text-[9px] text-[#3FA66B] uppercase tracking-wide mb-1">Next Step Targets</div>
+                  <ul className="space-y-0.5">
+                    {packet.recommendedNextStepTargets.map((s, i) => (
+                      <li key={i} className="text-xs text-[#E8E6E3] flex gap-1.5">
+                        <span className="text-[#3FA66B] flex-shrink-0">→</span>{s}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </>
+          )}
+
+          <button
+            className="text-xs text-[#4D7EA8] hover:text-[#7EB0D4] underline"
+            onClick={() => setShowFull((s) => !s)}
+            aria-expanded={showFull}
+            aria-controls="prep-full-content"
+          >
+            {showFull ? 'Show less' : 'Show full prep packet'}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function MeetingCard({ meeting }: { meeting: Meeting }) {
   const updateMeeting = useAppStore((s) => s.updateMeeting);
   const companies = useAppStore((s) => s.companies);
@@ -358,6 +518,9 @@ function MeetingCard({ meeting }: { meeting: Meeting }) {
               <p className="text-xs text-[#A7A29A]">{meeting.meetingNotes}</p>
             </div>
           )}
+
+          {/* Prep Packet */}
+          <PrepPacketSection meetingId={meeting.id} />
 
           {/* Task status indicators */}
           <div className="flex gap-4 flex-wrap">
