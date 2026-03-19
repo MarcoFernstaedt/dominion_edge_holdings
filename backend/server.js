@@ -59,6 +59,13 @@ import PromptRegistry       from './services/PromptRegistry.js';
 import ModelGateway         from './services/ModelGateway.js';
 import OutputValidator      from './services/OutputValidator.js';
 import ApprovalService      from './services/ApprovalService.js';
+import WorkflowEngine       from './services/WorkflowEngine.js';
+import NextActionEngine     from './services/NextActionEngine.js';
+import ProofEngine          from './services/ProofEngine.js';
+import ScoringEngine        from './services/ScoringEngine.js';
+import UnderwritingEngine   from './services/UnderwritingEngine.js';
+import DiligenceEngine      from './services/DiligenceEngine.js';
+import SequenceEngine       from './services/SequenceEngine.js';
 
 dotenv.config();
 
@@ -4212,9 +4219,389 @@ if (process.env.NODE_ENV !== 'test') {
     },
   });
 
+  // ══════════════════════════════════════════════════════════════════════════
+  // BATCH 2 ENGINES — Workflow, Proof, Scoring, Underwriting, Diligence, Seq
+  // ══════════════════════════════════════════════════════════════════════════
+
+  // ── Workflow ──────────────────────────────────────────────────────────────
+
+  // GET /api/workflow/phases — full phase definitions
+  app.get('/api/workflow/phases', (_req, res) => {
+    res.json({ phases: Object.values(WorkflowEngine.PHASES), phase_order: WorkflowEngine.PHASE_ORDER });
+  });
+
+  // GET /api/workflow/status — detect current phase + readiness
+  app.get('/api/workflow/status', (req, res) => {
+    const ctx = req.query.ctx ? JSON.parse(req.query.ctx) : {};
+    const result = WorkflowEngine.detectCurrentPhase(ctx);
+    res.json(result);
+  });
+
+  // POST /api/workflow/evaluate-gates — check if a phase can be exited
+  app.post('/api/workflow/evaluate-gates', (req, res) => {
+    const { phase_key, ctx = {} } = req.body;
+    if (!phase_key) return res.status(400).json({ error: 'phase_key required' });
+    try {
+      res.json(WorkflowEngine.evaluatePhaseGates(phase_key, ctx));
+    } catch (e) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
+  // POST /api/workflow/evaluate-transition — check if transition is allowed
+  app.post('/api/workflow/evaluate-transition', (req, res) => {
+    const { from_phase, to_phase, ctx = {} } = req.body;
+    if (!from_phase || !to_phase) return res.status(400).json({ error: 'from_phase and to_phase required' });
+    res.json(WorkflowEngine.evaluateTransition(from_phase, to_phase, ctx));
+  });
+
+  // GET /api/next-action — calculate highest-value next action
+  app.get('/api/next-action', (req, res) => {
+    const {
+      current_phase = 'targeting',
+      tasks = [], deals = [], relationships = [], meetings = [],
+      gates = [], scores = {}, proof_gaps = [],
+    } = req.query.ctx ? JSON.parse(req.query.ctx) : {};
+    res.json(NextActionEngine.calculate({ current_phase, tasks, deals, relationships, meetings, gates, scores, proof_gaps }));
+  });
+
+  // POST /api/next-action — body-based (for large contexts)
+  app.post('/api/next-action', (req, res) => {
+    const ctx = req.body ?? {};
+    res.json(NextActionEngine.calculate(ctx));
+  });
+
+  // ── Proof ─────────────────────────────────────────────────────────────────
+
+  // POST /api/tasks/:id/proof — validate and submit proof for a task
+  app.post('/api/tasks/:id/proof', (req, res) => {
+    const task     = store.tasks?.find((t) => t.id === req.params.id);
+    if (!task) return res.status(404).json({ error: 'Task not found' });
+    const evidence = req.body.evidence ?? {};
+    const result   = ProofEngine.validate(task, evidence);
+    if (result.valid) {
+      task.proof_status   = result.status;
+      task.proof_evidence = result.evidence_summary;
+    }
+    res.json({ task_id: req.params.id, proof_result: result });
+  });
+
+  // POST /api/tasks/:id/proof/override — privileged manual override
+  app.post('/api/tasks/:id/proof/override', (req, res) => {
+    const { user_id, user_role, reason, override_to } = req.body;
+    const result = ProofEngine.applyOverride({ task_id: req.params.id, overriding_user_id: user_id, overriding_user_role: user_role, reason, override_to });
+    if (!result.allowed) return res.status(403).json({ error: result.error });
+    const task = store.tasks?.find((t) => t.id === req.params.id);
+    if (task) {
+      task.proof_status   = result.override_record.override_status;
+      task.override_reason = result.override_record.reason;
+    }
+    res.json(result.override_record);
+  });
+
+  // POST /api/tasks/:id/complete — complete a task (validates proof first)
+  app.post('/api/tasks/:id/complete', async (req, res) => {
+    const task = store.tasks?.find((t) => t.id === req.params.id);
+    if (!task) return res.status(404).json({ error: 'Task not found' });
+    const { quality, notes } = req.body;
+    const { completeTask } = await import('./services/TaskService.js');
+    const result = completeTask(task, { quality, notes });
+    if (!result.success) return res.status(400).json({ error: result.error });
+    Object.assign(task, result.task);
+    res.json(result.task);
+  });
+
+  // POST /api/tasks/:id/block — mark a task as blocked
+  app.post('/api/tasks/:id/block', (req, res) => {
+    const task = store.tasks?.find((t) => t.id === req.params.id);
+    if (!task) return res.status(404).json({ error: 'Task not found' });
+    task.status       = 'blocked';
+    task.block_reason = req.body.reason ?? 'Blocked';
+    res.json(task);
+  });
+
+  // POST /api/tasks/:id/unblock — remove block from a task
+  app.post('/api/tasks/:id/unblock', (req, res) => {
+    const task = store.tasks?.find((t) => t.id === req.params.id);
+    if (!task) return res.status(404).json({ error: 'Task not found' });
+    task.status       = 'todo';
+    task.block_reason = null;
+    res.json(task);
+  });
+
+  // ── Scoring ───────────────────────────────────────────────────────────────
+
+  // GET /api/scores/firm — firm-level health scores
+  app.get('/api/scores/firm', (req, res) => {
+    const data = req.query.ctx ? JSON.parse(req.query.ctx) : {};
+    res.json(ScoringEngine.firmScores(data));
+  });
+
+  // POST /api/scores/deal/:id — all scores for a deal
+  app.post('/api/scores/deal/:id', (req, res) => {
+    const deal = store.deals?.find((d) => d.id === req.params.id);
+    if (!deal) return res.status(404).json({ error: 'Deal not found' });
+    const { thesis = {}, diligence = {}, underwriting = {}, execution = {} } = req.body;
+    res.json(ScoringEngine.dealScores(deal, { thesis, diligence, underwriting, execution }));
+  });
+
+  // POST /api/scores/relationship/:id
+  app.post('/api/scores/relationship/:id', (req, res) => {
+    const rel = store.relationships?.find((r) => r.id === req.params.id);
+    if (!rel) return res.status(404).json({ error: 'Relationship not found' });
+    res.json(ScoringEngine.relationshipStrengthScore(rel));
+  });
+
+  // ── Underwriting ──────────────────────────────────────────────────────────
+
+  // GET /api/deals/:id/underwriting — run full underwriting on a deal
+  app.get('/api/deals/:id/underwriting', (req, res) => {
+    const deal = store.deals?.find((d) => d.id === req.params.id);
+    if (!deal) return res.status(404).json({ error: 'Deal not found' });
+    res.json(UnderwritingEngine.runUnderwriting(deal));
+  });
+
+  // POST /api/deals/:id/underwriting/scenario — build a single custom scenario
+  app.post('/api/deals/:id/underwriting/scenario', (req, res) => {
+    const deal = store.deals?.find((d) => d.id === req.params.id);
+    if (!deal) return res.status(404).json({ error: 'Deal not found' });
+    try {
+      const scenario = UnderwritingEngine.buildScenario({ ...req.body });
+      res.json(scenario);
+    } catch (e) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
+  // POST /api/deals/:id/underwriting/fatal-flag — flag a deal with a fatal issue
+  app.post('/api/deals/:id/fatal-flag', (req, res) => {
+    const deal = store.deals?.find((d) => d.id === req.params.id);
+    if (!deal) return res.status(404).json({ error: 'Deal not found' });
+    const { flag_key, reason } = req.body;
+    if (!flag_key) return res.status(400).json({ error: 'flag_key required' });
+    if (!deal.fatal_flags) deal.fatal_flags = [];
+    deal.fatal_flags.push({ flag_key, reason, flagged_at: new Date().toISOString() });
+    res.json({ deal_id: deal.id, fatal_flags: deal.fatal_flags });
+  });
+
+  // POST /api/deals/:id/decision-log — log a deal decision
+  app.post('/api/deals/:id/decision-log', (req, res) => {
+    const deal = store.deals?.find((d) => d.id === req.params.id);
+    if (!deal) return res.status(404).json({ error: 'Deal not found' });
+    if (!deal.decision_log) deal.decision_log = [];
+    deal.decision_log.push({ ...req.body, logged_at: new Date().toISOString() });
+    res.json({ deal_id: deal.id, decision_log: deal.decision_log });
+  });
+
+  // POST /api/deals/:id/underwriting/commentary — AI commentary on underwriting (approval-gated)
+  app.post('/api/deals/:id/underwriting/commentary', async (req, res) => {
+    const deal = store.deals?.find((d) => d.id === req.params.id);
+    if (!deal) return res.status(404).json({ error: 'Deal not found' });
+    const uw = UnderwritingEngine.runUnderwriting(deal);
+    try {
+      const result = await ModelGateway.run({
+        taskType:        'deal_structure_commentary',
+        agentName:       'UnderwritingCommentaryAgent',
+        entityIds:       [deal.id],
+        systemPrompt:    'You are an acquisition underwriting analyst. Provide structured commentary on the provided underwriting results. Be specific, factual, and actionable. Return JSON.',
+        userMessage:     JSON.stringify({ underwriting: uw, deal: { name: deal.name, stage: deal.stage } }),
+        approvalRequired: false,
+      });
+      uw.ai_commentary       = result.content;
+      uw.ai_commentary_available = true;
+      uw.provider_used       = result.provider_used;
+      res.json(uw);
+    } catch {
+      uw.ai_commentary       = null;
+      uw.ai_commentary_available = false;
+      res.json(uw);
+    }
+  });
+
+  // ── Diligence ─────────────────────────────────────────────────────────────
+
+  // GET /api/deals/:id/diligence — completeness overview
+  app.get('/api/deals/:id/diligence', (req, res) => {
+    const deal   = store.deals?.find((d) => d.id === req.params.id);
+    if (!deal) return res.status(404).json({ error: 'Deal not found' });
+    const issues = (store.diligenceIssues ?? []).filter((i) => i.deal_id === deal.id);
+    const docs   = (store.documents ?? []).filter((d) => d.deal_id === deal.id);
+    res.json(DiligenceEngine.overallCompleteness(issues, docs));
+  });
+
+  // POST /api/deals/:id/diligence/issues — create a diligence issue
+  app.post('/api/deals/:id/diligence/issues', (req, res) => {
+    const deal = store.deals?.find((d) => d.id === req.params.id);
+    if (!deal) return res.status(404).json({ error: 'Deal not found' });
+    try {
+      const issue = DiligenceEngine.createIssue({ ...req.body, deal_id: deal.id });
+      if (!store.diligenceIssues) store.diligenceIssues = [];
+      store.diligenceIssues.push(issue);
+      res.status(201).json(issue);
+    } catch (e) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
+  // POST /api/deals/:id/diligence/questions — generate standard questions for a category
+  app.post('/api/deals/:id/diligence/questions', async (req, res) => {
+    const { category, use_ai = false } = req.body;
+    const standard = DiligenceEngine.standardQuestions(category);
+    if (!use_ai) return res.json({ questions: standard, source: 'standard_template' });
+    try {
+      const result = await ModelGateway.run({
+        taskType:    'diligence_question_generation',
+        agentName:   'DiligenceQuestionAgent',
+        entityIds:   [req.params.id],
+        systemPrompt: 'You are a diligence analyst. Enhance or supplement the provided standard questions based on the deal context. Return JSON array of question objects.',
+        userMessage:  JSON.stringify({ standard_questions: standard, category, deal_id: req.params.id }),
+        approvalRequired: false,
+      });
+      res.json({ questions: result.content?.questions ?? standard, source: 'ai_enhanced', provider_used: result.provider_used });
+    } catch {
+      res.json({ questions: standard, source: 'standard_template_fallback' });
+    }
+  });
+
+  // POST /api/deals/:id/diligence/summary — AI summary of diligence state
+  app.post('/api/deals/:id/diligence/summary', async (req, res) => {
+    const deal   = store.deals?.find((d) => d.id === req.params.id);
+    if (!deal) return res.status(404).json({ error: 'Deal not found' });
+    const issues = (store.diligenceIssues ?? []).filter((i) => i.deal_id === deal.id);
+    const docs   = (store.documents ?? []).filter((d) => d.deal_id === deal.id);
+    const completeness = DiligenceEngine.overallCompleteness(issues, docs);
+    const grouped      = DiligenceEngine.groupBySeverity(issues);
+    try {
+      const result = await ModelGateway.run({
+        taskType:    'complex_diligence_synthesis',
+        agentName:   'DiligenceSummaryAgent',
+        entityIds:   [deal.id],
+        systemPrompt: 'Synthesize the diligence state for this deal. Identify patterns, key risks, and most critical next steps. Return structured JSON.',
+        userMessage:  JSON.stringify({ completeness, grouped_issues: grouped, deal: { name: deal.name } }),
+        approvalRequired: false,
+      });
+      res.json({ completeness, grouped_issues: grouped, ai_synthesis: result.content, provider_used: result.provider_used, fallback_used: result.fallback_used });
+    } catch {
+      res.json({ completeness, grouped_issues: grouped, ai_synthesis: null });
+    }
+  });
+
+  // ── Sequence ──────────────────────────────────────────────────────────────
+
+  // GET /api/outreach/sequences — list all sequence definitions
+  app.get('/api/outreach/sequences', (_req, res) => {
+    res.json({ sequences: Object.values(SequenceEngine.SEQUENCES) });
+  });
+
+  // POST /api/outreach/sequences/next-step — calculate next step for a sequence state
+  app.post('/api/outreach/sequences/next-step', (req, res) => {
+    const state = req.body;
+    res.json(SequenceEngine.calculateNextStep(state));
+  });
+
+  // POST /api/outreach/sequences/advance — advance a sequence step
+  app.post('/api/outreach/sequences/advance', (req, res) => {
+    const { state, outcome, proof_reference } = req.body;
+    if (!state || !outcome) return res.status(400).json({ error: 'state and outcome required' });
+    res.json(SequenceEngine.advanceStep(state, { outcome, proof_reference }));
+  });
+
+  // POST /api/outreach/sequences/recommend — recommend sequence for a target
+  app.post('/api/outreach/sequences/recommend', (req, res) => {
+    const { audience, ctx = {} } = req.body;
+    if (!audience) return res.status(400).json({ error: 'audience required' });
+    const recommended = SequenceEngine.recommendSequence(audience, ctx);
+    res.json({ audience, recommended_sequence: recommended, sequence: recommended ? SequenceEngine.SEQUENCES[recommended] : null });
+  });
+
+  // POST /api/outreach/draft — draft outreach copy via AI (approval-gated)
+  app.post('/api/outreach/draft', async (req, res) => {
+    const { template_key, context = {}, audience, approval_required = true } = req.body;
+    if (!template_key) return res.status(400).json({ error: 'template_key required' });
+
+    if (approval_required) {
+      const approval = ApprovalService.createApproval({
+        action_type:   'outbound_email_draft',
+        action_label:  `Draft outreach: ${template_key}`,
+        payload:       { template_key, context, audience },
+        requested_by:  req.body.requested_by ?? 'system',
+        approval_note: 'Outbound email draft requires review before send',
+      });
+      return res.status(202).json({ approval_required: true, approval_id: approval.id, status: 'pending_approval' });
+    }
+
+    try {
+      const result = await ModelGateway.run({
+        taskType:         'outreach_draft',
+        agentName:        'OutreachDraftAgent',
+        entityIds:        context.entity_ids ?? [],
+        systemPrompt:     `You are an expert acquisition outreach copywriter. Draft a ${template_key} outreach message for the ${audience ?? 'seller'} audience. Return JSON with subject and body fields.`,
+        userMessage:      JSON.stringify(context),
+        approvalRequired: approval_required,
+      });
+      res.json({ template_key, draft: result.content, provider_used: result.provider_used, fallback_used: result.fallback_used });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // ── Command center ────────────────────────────────────────────────────────
+
+  // GET /api/command-center/summary — unified firm state snapshot
+  app.get('/api/command-center/summary', (req, res) => {
+    const thesis     = store.thesis       ?? {};
+    const board      = store.board        ?? {};
+    const tasks      = store.tasks        ?? [];
+    const deals      = store.deals        ?? [];
+    const rels       = store.relationships ?? [];
+    const firmScores = ScoringEngine.firmScores({ thesis, board, execution: _executionCtx(tasks), momentum: _momentumCtx(tasks, deals) });
+    const nextAction = NextActionEngine.calculate({ current_phase: store.current_phase ?? 'targeting', tasks, deals, relationships: rels });
+    res.json({ firm_scores: firmScores, next_action: nextAction, generated_at: new Date().toISOString() });
+  });
+
+  // GET /api/command-center/alerts — critical items needing attention
+  app.get('/api/command-center/alerts', (req, res) => {
+    const tasks = store.tasks ?? [];
+    const deals = store.deals ?? [];
+    const now   = Date.now();
+    const overdue = tasks.filter((t) => t.status !== 'done' && t.dueDate && new Date(t.dueDate) < now);
+    const fatalDeals = deals.filter((d) => (d.fatal_flags ?? []).length > 0 && d.stage !== 'closed' && d.stage !== 'dead');
+    const stalledDeals = deals.filter((d) => d.daysSinceActivity > 14 && d.stage !== 'closed');
+    res.json({
+      overdue_tasks:  overdue.slice(0, 10),
+      fatal_flag_deals: fatalDeals.map((d) => ({ id: d.id, name: d.name, flags: d.fatal_flags })),
+      stalled_deals:  stalledDeals.slice(0, 5).map((d) => ({ id: d.id, name: d.name, days_inactive: d.daysSinceActivity })),
+      total_alerts:   overdue.length + fatalDeals.length + stalledDeals.length,
+      generated_at:   new Date().toISOString(),
+    });
+  });
+
   app.listen(PORT, () => {
     console.log(`DEH backend running on port ${PORT} [${NODE_ENV}]`);
   });
+}
+
+// ─── Internal helpers for scoring context ────────────────────────────────────
+function _executionCtx(tasks = []) {
+  const required = tasks.filter((t) => t.is_required);
+  const now = Date.now();
+  const onTime = required.filter((t) => t.status === 'done' && (!t.dueDate || new Date(t.dueDate) >= now)).length;
+  const proven = required.filter((t) => t.proof_status === 'proven' || t.proof_status === 'waived').length;
+  return {
+    required_tasks_on_time_pct: required.length ? Math.round((onTime / required.length) * 100) : 100,
+    proof_completion_rate:      required.length ? Math.round((proven / required.length) * 100) : 100,
+    stalled_count:              tasks.filter((t) => t.status === 'blocked').length,
+  };
+}
+
+function _momentumCtx(tasks = [], deals = []) {
+  const now = Date.now();
+  const sevenDaysAgo = now - 7 * 86400000;
+  return {
+    activity_7d:           tasks.filter((t) => t.completed_at && new Date(t.completed_at) > sevenDaysAgo).length,
+    deal_stage_change_7d:  deals.some((d) => d.last_stage_change && new Date(d.last_stage_change) > sevenDaysAgo),
+    overdue_count:         tasks.filter((t) => t.status !== 'done' && t.dueDate && new Date(t.dueDate) < now).length,
+  };
 }
 
 export { app, store };

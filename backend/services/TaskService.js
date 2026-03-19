@@ -2,8 +2,38 @@
  * TaskService — Deterministic task logic. No AI calls.
  *
  * Handles: task creation rules, priority assignment, due date calculation,
- * meeting prep/follow-up task templates, overdue detection.
+ * meeting prep/follow-up task templates, overdue detection, dependency
+ * resolution, proof linkage, blocking gate associations, and origin tracking.
+ *
+ * Task object shape (full):
+ * {
+ *   id, title, taskType, status, priority, dueDate,
+ *   is_required,           // boolean — workflow gate depends on this
+ *   phase_key,             // which workflow phase this task belongs to
+ *   dependency_ids,        // task IDs that must complete first
+ *   blocking_gate_keys,    // WorkflowEngine gate keys this task satisfies
+ *   proof_type,            // from ProofEngine.PROOF_TYPES
+ *   proof_status,          // from ProofEngine.PROOF_STATUS
+ *   proof_evidence,        // snapshot of evidence used for proof
+ *   origin_system,         // see ORIGIN_SYSTEMS
+ *   origin_entity_type,    // e.g. 'deal', 'meeting', 'sequence_step'
+ *   origin_entity_id,
+ *   completion_quality,    // optional: 'high' | 'medium' | 'low'
+ *   override_reason,       // populated on privileged override
+ * }
  */
+
+import { PROOF_STATUS } from './ProofEngine.js';
+
+// ─── Origin systems ───────────────────────────────────────────────────────────
+export const ORIGIN_SYSTEMS = {
+  WORKFLOW_ENGINE:   'workflow_engine',
+  NEXT_ACTION_ENGINE:'next_action_engine',
+  SEQUENCE_ENGINE:   'sequence_engine',
+  MEETING_ENGINE:    'meeting_engine',
+  DILIGENCE_ENGINE:  'diligence_engine',
+  MANUAL_USER:       'manual_user',
+};
 
 // ─── Priority rules (deterministic) ──────────────────────────────────────────
 export function assignPriority({ dueDate, linkedDealStage, taskType }) {
@@ -107,5 +137,124 @@ export function detectOverdue(tasks) {
     .sort((a, b) => b.daysOverdue - a.daysOverdue);
 }
 
-export const TaskService = { assignPriority, calculateDueDate, createPrepTask, createFollowUpTask, detectOverdue };
+// ─── Dependency resolution ────────────────────────────────────────────────────
+
+/**
+ * Check if a task's dependencies are all met.
+ * Returns { ready, blocked_by }
+ */
+export function checkDependencies(task, allTasks = []) {
+  if (!task.dependency_ids?.length) return { ready: true, blocked_by: [] };
+
+  const taskMap = Object.fromEntries(allTasks.map((t) => [t.id, t]));
+  const blocked = task.dependency_ids.filter((depId) => {
+    const dep = taskMap[depId];
+    return !dep || dep.status !== 'done';
+  });
+
+  return { ready: blocked.length === 0, blocked_by: blocked };
+}
+
+/**
+ * Return all tasks that are blocked from starting due to unmet dependencies.
+ */
+export function detectBlocked(tasks = []) {
+  return tasks
+    .filter((t) => t.status !== 'done')
+    .map((t) => ({ ...t, _deps: checkDependencies(t, tasks) }))
+    .filter((t) => !t._deps.ready)
+    .map(({ _deps, ...t }) => ({ ...t, blocked_by: _deps.blocked_by }));
+}
+
+/**
+ * Create a workflow-engine-originated required task.
+ * Includes all proof + gate linkage fields.
+ */
+export function createWorkflowTask({
+  title, taskType, phaseKey, blockingGateKeys = [], proofType = null,
+  dependencyIds = [], dueDate = null, originEntityType = null, originEntityId = null,
+}) {
+  return {
+    title,
+    taskType,
+    status:              'todo',
+    is_required:         true,
+    phase_key:           phaseKey,
+    dependency_ids:      dependencyIds,
+    blocking_gate_keys:  blockingGateKeys,
+    proof_type:          proofType,
+    proof_status:        PROOF_STATUS.PENDING,
+    origin_system:       ORIGIN_SYSTEMS.WORKFLOW_ENGINE,
+    origin_entity_type:  originEntityType,
+    origin_entity_id:    originEntityId,
+    priority:            'high',
+    dueDate:             dueDate ?? calculateDueDate(taskType, new Date().toISOString()),
+    completion_quality:  null,
+    override_reason:     null,
+  };
+}
+
+/**
+ * Create a sequence-engine-originated outreach task.
+ */
+export function createSequenceTask({
+  title, taskType, phaseKey, proofType, sequenceKey, stepNumber,
+  targetEntityType, targetEntityId, dueDate = null,
+}) {
+  return {
+    title,
+    taskType,
+    status:              'todo',
+    is_required:         false,
+    phase_key:           phaseKey,
+    dependency_ids:      [],
+    blocking_gate_keys:  [],
+    proof_type:          proofType,
+    proof_status:        PROOF_STATUS.PENDING,
+    origin_system:       ORIGIN_SYSTEMS.SEQUENCE_ENGINE,
+    origin_entity_type:  targetEntityType,
+    origin_entity_id:    targetEntityId,
+    sequence_key:        sequenceKey,
+    sequence_step:       stepNumber,
+    priority:            assignPriority({ dueDate, taskType }),
+    dueDate:             dueDate ?? calculateDueDate(taskType, new Date().toISOString()),
+    completion_quality:  null,
+    override_reason:     null,
+  };
+}
+
+/**
+ * Mark a task as complete. Returns updated task — caller must persist.
+ * Validates that proof_status is proven or waived before allowing completion.
+ */
+export function completeTask(task, { quality = null, notes = null } = {}) {
+  if (task.is_required && task.proof_type) {
+    const provenStatuses = [PROOF_STATUS.PROVEN, PROOF_STATUS.WAIVED, PROOF_STATUS.OVERRIDDEN];
+    if (!provenStatuses.includes(task.proof_status)) {
+      return {
+        success: false,
+        error: `Required task "${task.title}" cannot be completed — proof_status is "${task.proof_status}". Submit proof first.`,
+        task,
+      };
+    }
+  }
+
+  return {
+    success: true,
+    task: {
+      ...task,
+      status:             'done',
+      completed_at:       new Date().toISOString(),
+      completion_quality: quality,
+      completion_notes:   notes,
+    },
+  };
+}
+
+export const TaskService = {
+  assignPriority, calculateDueDate,
+  createPrepTask, createFollowUpTask, createWorkflowTask, createSequenceTask,
+  detectOverdue, detectBlocked, checkDependencies, completeTask,
+  ORIGIN_SYSTEMS,
+};
 export default TaskService;
