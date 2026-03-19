@@ -67,6 +67,9 @@ import ScoringEngine        from './services/ScoringEngine.js';
 import UnderwritingEngine   from './services/UnderwritingEngine.js';
 import DiligenceEngine      from './services/DiligenceEngine.js';
 import SequenceEngine       from './services/SequenceEngine.js';
+import TimingEngine         from './services/TimingEngine.js';
+import RecoveryEngine       from './services/RecoveryEngine.js';
+import ALL_THRESHOLDS       from './services/CadenceThresholds.js';
 
 dotenv.config();
 
@@ -2203,6 +2206,106 @@ app.post('/api/artifacts/:id/mark-sent', (req, res) => {
 app.delete('/api/cache', validate(z.object({ prefix: z.string().min(1).max(100) })), (req, res) => {
   CacheService.invalidate(req.validated.prefix);
   res.json({ invalidated: true, prefix: req.validated.prefix });
+});
+
+// ─── Timing routes ────────────────────────────────────────────────────────────
+
+// GET /api/timing/summary — full timing summary across all entity sets
+app.post('/api/timing/summary', (req, res) => {
+  try {
+    const entitySets = req.body ?? {};
+    const summary = TimingEngine.generateTimingSummary(entitySets);
+    res.json(summary);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/timing/alerts — flat SLA alert list, sorted by severity
+app.post('/api/timing/alerts', (req, res) => {
+  try {
+    const entitySets = req.body ?? {};
+    const alerts = TimingEngine.generateSlaAlerts(entitySets);
+    res.json({ total: alerts.length, alerts });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/timing/thresholds — expose all configurable thresholds (read-only)
+app.get('/api/timing/thresholds', (_req, res) => {
+  res.json(ALL_THRESHOLDS);
+});
+
+// GET /api/timing/entity/:entityType/:id — calculate timing state for one entity
+app.post('/api/timing/entity/:entityType/:id', (req, res) => {
+  const { entityType } = req.params;
+  const entity = { id: req.params.id, ...(req.body ?? {}) };
+
+  try {
+    let result;
+    switch (entityType) {
+      case 'task':            result = TimingEngine.calcTaskSlaState(entity);       break;
+      case 'deal':            result = TimingEngine.calcDealVelocityState(entity);  break;
+      case 'deal_heat':       result = TimingEngine.calcDealHeat(entity);           break;
+      case 'relationship':    result = TimingEngine.calcRelationshipState(entity);  break;
+      case 'board_candidate': result = TimingEngine.calcBoardCandidateState(entity);break;
+      case 'board_seat':      result = TimingEngine.calcBoardSeatTiming(entity);    break;
+      case 'diligence_issue': result = TimingEngine.calcDiligenceIssueSla(entity);  break;
+      case 'meeting':         result = TimingEngine.calcMeetingState(entity);       break;
+      case 'investor':        result = TimingEngine.calcInvestorState(entity);      break;
+      case 'approval':        result = TimingEngine.calcApprovalState(entity);      break;
+      case 'artifact':        result = TimingEngine.calcArtifactStaleness(entity);  break;
+      default:
+        return res.status(400).json({ error: `Unknown entity type: ${entityType}` });
+    }
+    res.json(result);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// ─── Recovery routes ──────────────────────────────────────────────────────────
+
+// POST /api/recovery/generate — generate recovery actions from SLA alerts
+app.post('/api/recovery/generate', (req, res) => {
+  try {
+    const { entity_sets = {}, entity_maps = {} } = req.body ?? {};
+    const slaAlerts       = TimingEngine.generateSlaAlerts(entity_sets);
+    const recoveryActions = RecoveryEngine.generateRecoveryActions(slaAlerts, entity_maps);
+    res.json({
+      sla_alert_count:      slaAlerts.length,
+      recovery_action_count: recoveryActions.length,
+      critical_count:       recoveryActions.filter(a => a.severity === 'critical_intervention').length,
+      urgent_count:         recoveryActions.filter(a => a.severity === 'urgent_recovery').length,
+      actions:              recoveryActions,
+      generated_at:         new Date().toISOString(),
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/recovery/apply-task-pack — convert recovery actions into task-pack format
+app.post('/api/recovery/apply-task-pack', validate(z.object({
+  recovery_action: z.object({
+    recovery_id:   z.string(),
+    action_type:   z.string(),
+    severity:      z.string(),
+    title:         z.string(),
+    reason:        z.string(),
+    entity_type:   z.string(),
+    entity_id:     z.string().nullable().optional(),
+    due_at:        z.string().optional(),
+    priority:      z.string().optional(),
+  }),
+})), (req, res) => {
+  try {
+    const pack = RecoveryEngine.buildRecoveryTaskPack(req.validated.recovery_action);
+    res.status(201).json(pack);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
 });
 
 // ─── Integration routes ───────────────────────────────────────────────────────
