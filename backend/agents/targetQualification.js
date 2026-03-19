@@ -5,7 +5,7 @@
  * Model: Claude Haiku (target_qualification task)
  */
 
-import AIService from '../services/AIService.js';
+import ModelGateway from '../services/ModelGateway.js';
 
 const SYSTEM_PROMPT = `You are the Target Qualification Agent for Dominion Edge Holdings.
 
@@ -68,12 +68,13 @@ Return ONLY this JSON:
   "suggestedOutreachAngle": "<one sentence>"
 }`;
 
-  const result = await AIService.run('target_qualification', { companyId: company?.id, industry: company?.industry, sellerSignalScore }, {
-    entityId: entityId || company?.id || `qual_${Date.now()}`,
-    entityType: 'company',
+  const result = await ModelGateway.run({
+    taskType: 'target_qualification',
+    agentName: 'TargetQualificationAgent',
+    entityIds: [entityId || company?.id || `qual_${Date.now()}`],
     systemPrompt: SYSTEM_PROMPT,
     userMessage,
-    costFlags,
+    outputSchema: null,
   });
 
   return result.content;

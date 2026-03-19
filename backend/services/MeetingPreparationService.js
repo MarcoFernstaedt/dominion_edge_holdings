@@ -6,7 +6,7 @@
  */
 
 import crypto from 'crypto';
-import AIService from './AIService.js';
+import ModelGateway from './ModelGateway.js';
 
 // ─── Deterministic templates by meeting type ──────────────────────────────────
 
@@ -378,17 +378,22 @@ Rules:
 Return JSON only.`;
 
     try {
-      const result = await AIService.run('outreach_draft', prompt, {
-        maxTokens: 1024,
-        costFlags: { enableAIOutreachDrafts: true },
+      const result = await ModelGateway.run({
+        taskType: 'outreach_draft',
+        agentName: 'ConversationPreparationAgent',
+        entityIds: [meeting.id || `meeting_prep_${Date.now()}`],
+        systemPrompt: 'You are the Conversation Preparation Agent for Dominion Edge Holdings. Generate a meeting prep packet based on the provided context.',
+        userMessage: prompt,
+        outputSchema: null,
       });
 
-      if (result && typeof result === 'object' && result.agenda) {
-        return result;
+      const content = result?.content;
+      if (content && typeof content === 'object' && content.agenda) {
+        return content;
       }
 
       // Try parsing text response
-      const text = result?.text || result?.content || (typeof result === 'string' ? result : '');
+      const text = typeof content === 'string' ? content : (typeof result === 'string' ? result : '');
       const jsonMatch = text.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         const parsed = JSON.parse(jsonMatch[0]);

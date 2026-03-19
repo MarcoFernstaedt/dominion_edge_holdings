@@ -11,7 +11,7 @@
  * }
  */
 
-import AIService, { AIServiceError } from '../services/AIService.js';
+import ModelGateway from '../services/ModelGateway.js';
 
 // ─── Seller motivation heuristic (System 4 — Conversation Intelligence) ──────
 function extractMotivationSignals(text) {
@@ -117,12 +117,13 @@ Return ONLY this JSON shape (no other text):
 }`;
 
   try {
-    const result = await AIService.run('reply_classification', { emailBody, senderName, companyName }, {
-      entityId: entityId || `reply_${Date.now()}`,
-      entityType: 'email',
+    const result = await ModelGateway.run({
+      taskType: 'reply_classification',
+      agentName: 'ResponseAnalysisAgent',
+      entityIds: [entityId || `reply_${Date.now()}`],
       systemPrompt: SYSTEM_PROMPT,
       userMessage,
-      costFlags,
+      outputSchema: null,
     });
     return result.content;
   } catch (err) {

@@ -8,7 +8,7 @@
  * Model: Fast model (haiku). Can be disabled.
  */
 
-import AIService from '../services/AIService.js';
+import ModelGateway from '../services/ModelGateway.js';
 import DealProbabilityService from '../services/DealProbabilityService.js';
 
 export async function DealProbabilityCommentaryAgent({
@@ -92,12 +92,16 @@ Return JSON:
   let fallbackUsed = false;
 
   try {
-    const raw = await AIService.run('reply_classification', prompt, {
-      maxTokens: 512,
-      costFlags,
+    const raw = await ModelGateway.run({
+      taskType: 'reply_classification',
+      agentName: 'DealProbabilityCommentaryAgent',
+      entityIds: [deal.id || `deal_prob_${Date.now()}`],
+      systemPrompt: 'You are the Deal Probability Commentary Agent for Dominion Edge Holdings. A deal has received a deterministic probability score. Your job is to explain why and what would move it.',
+      userMessage: prompt,
+      outputSchema: null,
     });
 
-    const text = raw?.text || raw?.content || (typeof raw === 'string' ? raw : '');
+    const text = raw?.content || (typeof raw === 'string' ? raw : '');
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
       aiResult = JSON.parse(jsonMatch[0]);
