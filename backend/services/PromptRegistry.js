@@ -924,17 +924,130 @@ Be factual. Use only provided data. Do not invent.`,
   },
 };
 
+// ─── Prompt metadata overlay ──────────────────────────────────────────────────
+// Adds spec-required fields without rewriting every entry inline.
+// Fields: agent_name, output_schema_reference, context_builder_rules,
+//         fallback_behavior, staleness_policy
+
+const PROMPT_METADATA = {
+  empire_coach_daily: {
+    agent_name:               'EmpireCoachAgent',
+    output_schema_reference:  'AGENT_OUTPUT_SCHEMAS.EmpireCoachAgent',
+    context_builder_rules:    ['Include workflow_summary', 'Include overdue_items', 'Include momentum_score', 'Include discipline_score', 'Omit resolved items older than 7 days'],
+    fallback_behavior:        'deterministic_briefing',
+    staleness_policy:         { stale_hours: 6, reason: 'Daily briefing loses relevance within hours' },
+  },
+  empire_coach_strategy: {
+    agent_name:               'EmpireCoachAgent',
+    output_schema_reference:  'BASE_AGENT_SCHEMA',
+    context_builder_rules:    ['Include full pipeline health', 'Include capital state', 'Include board health snapshot', 'Include execution metrics'],
+    fallback_behavior:        'deterministic_briefing',
+    staleness_policy:         { stale_hours: 24, reason: 'Strategy output valid for one business day' },
+  },
+  board_candidate_ranking: {
+    agent_name:               'BoardBuilderAgent',
+    output_schema_reference:  'AGENT_OUTPUT_SCHEMAS.BoardBuilderAgent',
+    context_builder_rules:    ['Include board_seat_summary', 'Include all candidates with scores', 'Omit candidates with hard disqualifiers', 'Include recent interaction history'],
+    fallback_behavior:        'deterministic_board_snapshot',
+    staleness_policy:         { stale_hours: 48, reason: 'Candidate rankings shift as outreach progresses' },
+  },
+  board_outreach_draft: {
+    agent_name:               'BoardBuilderAgent',
+    output_schema_reference:  'AGENT_OUTPUT_SCHEMAS.BoardBuilderAgent',
+    context_builder_rules:    ['Include candidate profile', 'Include target seat', 'Include thesis summary', 'Include tone and channel preferences'],
+    fallback_behavior:        'return_missing_information',
+    staleness_policy:         { stale_hours: 72, reason: 'Outreach drafts are approval-gated; stale if source contact changes' },
+  },
+  deal_scout_screening: {
+    agent_name:               'DealScoutAgent',
+    output_schema_reference:  'AGENT_OUTPUT_SCHEMAS.DealScoutAgent',
+    context_builder_rules:    ['Include target financials', 'Include thesis buy box', 'Include disqualifiers', 'Highlight missing fields'],
+    fallback_behavior:        'deterministic_fit_score',
+    staleness_policy:         { stale_hours: 168, reason: 'Screening valid for 7 days unless financials change' },
+  },
+  deal_scout_rich: {
+    agent_name:               'DealScoutAgent',
+    output_schema_reference:  'AGENT_OUTPUT_SCHEMAS.DealScoutAgent',
+    context_builder_rules:    ['Include full target record', 'Include thesis', 'Include comparable deals if any', 'Include relationship history'],
+    fallback_behavior:        'deterministic_fit_score',
+    staleness_policy:         { stale_hours: 72, reason: 'Rich screening stale if financials or thesis updated' },
+  },
+  underwriter_commentary: {
+    agent_name:               'UnderwriterAgent',
+    output_schema_reference:  'AGENT_OUTPUT_SCHEMAS.UnderwriterAgent',
+    context_builder_rules:    ['Include deal', 'Include all scenarios', 'Include SDE and DSCR', 'Include fatal_flags', 'Include risk_flags', 'Include verdict'],
+    fallback_behavior:        'deterministic_underwriting_summary',
+    staleness_policy:         { stale_hours: 24, reason: 'Commentary stale if deal financials change' },
+  },
+  diligence_synthesis: {
+    agent_name:               'DiligenceAnalystAgent',
+    output_schema_reference:  'AGENT_OUTPUT_SCHEMAS.DiligenceAnalystAgent',
+    context_builder_rules:    ['Include all diligence items', 'Group by category', 'Flag fatal and lender-blocking items', 'Include missing_docs list'],
+    fallback_behavior:        'deterministic_diligence_summary',
+    staleness_policy:         { stale_hours: 24, reason: 'Diligence synthesis stale when new items added or resolved' },
+  },
+  outreach_draft: {
+    agent_name:               'OutreachWriterAgent',
+    output_schema_reference:  'AGENT_OUTPUT_SCHEMAS.OutreachWriterAgent',
+    context_builder_rules:    ['Include seller/contact profile', 'Include relationship history', 'Include thesis context', 'Include channel and tone preferences'],
+    fallback_behavior:        'return_missing_information',
+    staleness_policy:         { stale_hours: 72, reason: 'Approval-gated; stale if contact record changes' },
+  },
+  investor_memo_draft: {
+    agent_name:               'InvestorAdvisorAgent',
+    output_schema_reference:  'AGENT_OUTPUT_SCHEMAS.InvestorAdvisorAgent',
+    context_builder_rules:    ['Include investor profile', 'Include deal or firm summary', 'Include thesis', 'Include readiness gaps'],
+    fallback_behavior:        'return_missing_information',
+    staleness_policy:         { stale_hours: 48, reason: 'Approval-gated memo; stale if deal stage changes' },
+  },
+  meeting_prep: {
+    agent_name:               'MeetingPrepAgent',
+    output_schema_reference:  'AGENT_OUTPUT_SCHEMAS.MeetingPrepAgent',
+    context_builder_rules:    ['Include meeting record', 'Include attendee profiles', 'Include recent interactions', 'Include open issues', 'Include desired outcome'],
+    fallback_behavior:        'deterministic_meeting_brief',
+    staleness_policy:         { stale_hours: 12, reason: 'Prep loses relevance quickly as meeting approaches' },
+  },
+  execution_brief: {
+    agent_name:               'ExecutionAnalystAgent',
+    output_schema_reference:  'AGENT_OUTPUT_SCHEMAS.ExecutionAnalystAgent',
+    context_builder_rules:    ['Include execution metrics', 'Include overdue tasks', 'Include stalled entities', 'Include discipline_score'],
+    fallback_behavior:        'deterministic_execution_summary',
+    staleness_policy:         { stale_hours: 6, reason: 'Execution briefs are intraday operating tools' },
+  },
+};
+
 // ─── Registry API ─────────────────────────────────────────────────────────────
 
 /**
- * Get a prompt entry by key. Throws if not found.
+ * Get a prompt entry by key, merged with spec metadata. Throws if not found.
  */
 export function getPrompt(key) {
   const prompt = PROMPTS[key];
   if (!prompt) {
     throw new Error(`PromptRegistry: unknown prompt key "${key}". Valid keys: ${Object.keys(PROMPTS).join(', ')}`);
   }
-  return prompt;
+  const meta = PROMPT_METADATA[key] ?? {};
+  return {
+    // Spec-canonical field names
+    prompt_key:               prompt.key ?? key,
+    version:                  prompt.version ?? '1.0',
+    agent_name:               meta.agent_name ?? null,
+    system_prompt:            prompt.system,
+    context_builder_rules:    meta.context_builder_rules ?? prompt.context_fields ?? [],
+    output_schema_reference:  meta.output_schema_reference ?? null,
+    recommended_model_tier:   prompt.tier,
+    fallback_behavior:        meta.fallback_behavior ?? prompt.fallback ?? 'return_missing_information',
+    staleness_policy:         meta.staleness_policy ?? { stale_hours: prompt.stale_hours ?? 24 },
+
+    // Legacy fields retained for backwards-compat
+    key:            prompt.key ?? key,
+    tier:           prompt.tier,
+    system:         prompt.system,
+    context_fields: prompt.context_fields,
+    output_schema:  prompt.output_schema,
+    fallback:       prompt.fallback,
+    stale_hours:    prompt.stale_hours ?? 24,
+  };
 }
 
 /**
@@ -948,7 +1061,18 @@ export function listPromptKeys() {
  * Get all prompts for a given model tier.
  */
 export function getPromptsByTier(tier) {
-  return Object.values(PROMPTS).filter((p) => p.tier === tier);
+  return Object.keys(PROMPTS)
+    .filter((k) => PROMPTS[k].tier === tier)
+    .map((k) => getPrompt(k));
+}
+
+/**
+ * Get all prompts for a given agent name.
+ */
+export function getPromptsByAgent(agentName) {
+  return Object.keys(PROMPTS)
+    .filter((k) => (PROMPT_METADATA[k]?.agent_name ?? null) === agentName)
+    .map((k) => getPrompt(k));
 }
 
 /**
@@ -956,15 +1080,25 @@ export function getPromptsByTier(tier) {
  */
 export function getStaleAfter(key) {
   const prompt = getPrompt(key);
-  const ms = (prompt.stale_hours ?? 24) * 60 * 60 * 1000;
-  return new Date(Date.now() + ms).toISOString();
+  const hours  = prompt.staleness_policy?.stale_hours ?? prompt.stale_hours ?? 24;
+  return new Date(Date.now() + hours * 3600_000).toISOString();
+}
+
+/**
+ * Get the fallback behavior for a prompt.
+ */
+export function getFallbackBehavior(key) {
+  const prompt = getPrompt(key);
+  return prompt.fallback_behavior;
 }
 
 export default {
   getPrompt,
   listPromptKeys,
   getPromptsByTier,
+  getPromptsByAgent,
   getStaleAfter,
+  getFallbackBehavior,
   MODEL_TIER,
   GLOBAL_SYSTEM_BASE,
   BASE_OUTPUT_SCHEMA,

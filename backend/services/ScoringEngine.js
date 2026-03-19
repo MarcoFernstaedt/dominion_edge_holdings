@@ -8,32 +8,140 @@
  *  - Scores never depend on AI availability.
  */
 
-// ─── Label thresholds ─────────────────────────────────────────────────────────
+// ─── Label thresholds (spec-aligned) ─────────────────────────────────────────
+// 0–39 weak | 40–59 developing | 60–74 solid | 75–89 strong | 90–100 elite
 
-const LABELS = [
-  { min: 80, label: 'elite' },
-  { min: 65, label: 'strong' },
-  { min: 50, label: 'solid' },
-  { min: 30, label: 'developing' },
-  { min: 0,  label: 'weak' },
+export const SCORE_THRESHOLDS = [
+  { min: 90, label: 'elite',      description: 'Exceptional — operating at peak standard' },
+  { min: 75, label: 'strong',     description: 'Well-developed — minor gaps remain' },
+  { min: 60, label: 'solid',      description: 'Functional — meaningful gaps to close' },
+  { min: 40, label: 'developing', description: 'Early-stage — foundational work needed' },
+  { min: 0,  label: 'weak',       description: 'Critical gaps — immediate attention required' },
 ];
 
-function labelFor(score) {
-  return LABELS.find((l) => score >= l.min)?.label ?? 'weak';
+export function labelFor(score) {
+  return (SCORE_THRESHOLDS.find((t) => score >= t.min) ?? SCORE_THRESHOLDS[SCORE_THRESHOLDS.length - 1]).label;
+}
+
+export function thresholdFor(score) {
+  return SCORE_THRESHOLDS.find((t) => score >= t.min) ?? SCORE_THRESHOLDS[SCORE_THRESHOLDS.length - 1];
+}
+
+export function isLowScore(score) {
+  return score < 60; // weak or developing
+}
+
+// ─── Per-score implication map ────────────────────────────────────────────────
+
+const SCORE_IMPLICATIONS = {
+  thesis_clarity: {
+    explanation:                'Measures how precisely the investment thesis defines the target, buy box, and rationale.',
+    what_improves_this:         ['Define revenue buy box range', 'Add firm disqualifiers', 'Write fragmentation + why-now rationale', 'Set geography'],
+    what_hurts_this:            ['Missing buy box', 'No disqualifiers', 'No written rationale', 'Generic industry selection'],
+    recommended_next_move_if_low: 'Open thesis settings and complete buy box, add 2+ disqualifiers, and write the why-now rationale.',
+  },
+  board_readiness: {
+    explanation:                'Measures progress toward a fully composed advisory board with active candidates and outreach.',
+    what_improves_this:         ['Define all 6 seat types', 'Add 10+ candidates', 'Send outreach', 'Hold meetings', 'Secure commitments'],
+    what_hurts_this:            ['Undefined seats', 'Empty pipeline', 'No outreach sent', 'No meetings held'],
+    recommended_next_move_if_low: 'Define missing seat types and identify 2+ candidates per unfilled seat.',
+  },
+  target_fit: {
+    explanation:                'Measures how well an acquisition target aligns to the current thesis parameters.',
+    what_improves_this:         ['Revenue in buy box', 'Geography match', 'Industry match', 'Meets EBITDA floor', 'No disqualifiers triggered'],
+    what_hurts_this:            ['Revenue out of range', 'Industry mismatch', 'Disqualifier triggered', 'Missing financial data'],
+    recommended_next_move_if_low: 'Review the thesis parameters and confirm target financial data is complete.',
+  },
+  relationship_strength: {
+    explanation:                'Measures engagement depth with a contact or seller based on interactions, recency, and responses.',
+    what_improves_this:         ['Log recent touchpoints', 'Record responses', 'Hold meetings', 'Progress through engagement stages'],
+    what_hurts_this:            ['No recent contact', 'No response recorded', 'Stale last contact', 'No meetings'],
+    recommended_next_move_if_low: 'Log the most recent touchpoint and schedule the next contact.',
+  },
+  seller_likelihood: {
+    explanation:                'Measures signals that a seller may be open to a transaction in the near term.',
+    what_improves_this:         ['Record motivation signals', 'Identify timing signals', 'Log positive responses', 'Advance engagement stage'],
+    what_hurts_this:            ['No motivation on record', 'No engagement', 'No timing signals', 'Stale contact'],
+    recommended_next_move_if_low: 'Research and log at least one seller motivation signal.',
+  },
+  deal_quality: {
+    explanation:                'Measures overall deal viability based on financial completeness, stage, and risk profile.',
+    what_improves_this:         ['Complete financials', 'Advance stage', 'Reduce risk flags', 'Log LOI or PSA progress'],
+    what_hurts_this:            ['Incomplete financials', 'High risk flags', 'Deal stalled in early stage'],
+    recommended_next_move_if_low: 'Identify and complete the next missing financial field.',
+  },
+  underwriting_strength: {
+    explanation:                'Measures how well a deal underwrites based on DSCR, structure viability, and financial completeness.',
+    what_improves_this:         ['Achieve DSCR >= 1.25x', 'Complete financials', 'Resolve risk flags', 'Confirm working capital'],
+    what_hurts_this:            ['DSCR below 1.25x', 'Missing financials', 'Multiple risk flags', 'Customer concentration'],
+    recommended_next_move_if_low: 'Complete financial intake and run underwriting structure review.',
+  },
+  diligence_completeness: {
+    explanation:                'Measures how thoroughly diligence has been started, logged, and cleared across all categories.',
+    what_improves_this:         ['Start all diligence categories', 'Log issues', 'Resolve fatal issues', 'Clear lender blockers'],
+    what_hurts_this:            ['Diligence categories not started', 'Fatal issues open', 'Lender blockers unresolved'],
+    recommended_next_move_if_low: 'Start diligence review on the highest-weight uncompleted category.',
+  },
+  lender_readiness: {
+    explanation:                'Measures readiness to submit a deal package to a lender.',
+    what_improves_this:         ['Complete financial package', 'Achieve underwriting score >= 60', 'Clear lender blockers', 'Organize documents', 'Write executive summary'],
+    what_hurts_this:            ['Incomplete financial package', 'Open lender blockers', 'No executive summary', 'Weak underwriting'],
+    recommended_next_move_if_low: 'Resolve open lender blockers and complete the financial package.',
+  },
+  investor_readiness: {
+    explanation:                'Measures readiness to present a deal or opportunity to an investor.',
+    what_improves_this:         ['Complete thesis', 'Advance board progress', 'Complete deal underwriting', 'Prepare memo or pitch outline'],
+    what_hurts_this:            ['Weak thesis', 'No board progress', 'Incomplete financials', 'No memo prepared'],
+    recommended_next_move_if_low: 'Complete thesis documentation and draft the investor summary memo.',
+  },
+  execution_score: {
+    explanation:                'Measures consistency and quality of task execution across active priorities.',
+    what_improves_this:         ['Complete high-priority tasks on time', 'Reduce overdue items', 'Log completions'],
+    what_hurts_this:            ['Overdue tasks', 'Stalled entities', 'Low completion rate', 'No recent activity'],
+    recommended_next_move_if_low: 'Pick one overdue high-priority task and complete it today.',
+  },
+  momentum_score: {
+    explanation:                'Measures forward progress velocity across active deals, outreach, and board building.',
+    what_improves_this:         ['Log new activities', 'Advance deal stages', 'Send outreach', 'Hold meetings'],
+    what_hurts_this:            ['No new activities', 'Deals stalled', 'No outreach this week', 'No meetings this month'],
+    recommended_next_move_if_low: 'Identify one deal or contact that is stalled and take a concrete next step.',
+  },
+  discipline_score: {
+    explanation:                'Measures consistency of structured execution habits over time.',
+    what_improves_this:         ['Log daily activities', 'Maintain consistent outreach cadence', 'Reduce stall periods'],
+    what_hurts_this:            ['Long gaps in activity', 'Inconsistent logging', 'Repeated overdue items'],
+    recommended_next_move_if_low: 'Log at least one activity per day for the next 5 days.',
+  },
+};
+
+function _implications(scoreName, value) {
+  const imp = SCORE_IMPLICATIONS[scoreName];
+  if (!imp) return {};
+  return {
+    explanation:                  imp.explanation,
+    what_improves_this:           imp.what_improves_this,
+    what_hurts_this:              imp.what_hurts_this,
+    recommended_next_move_if_low: isLowScore(value) ? imp.recommended_next_move_if_low : null,
+  };
 }
 
 function scoreResult(name, components, improvements = [], staleAt = null) {
   const weights = Object.values(components).reduce((s, c) => s + c.weight, 0);
   const earned  = Object.values(components).reduce((s, c) => s + (c.met ? c.weight : 0), 0);
   const value   = weights > 0 ? Math.round((earned / weights) * 100) : 0;
+  const thresh  = thresholdFor(value);
+  // Canonical score name without _score suffix for implication lookup
+  const implKey = name.replace(/_score$/, '');
   return {
-    score_name:          name,
-    score_value:         value,
-    score_label:         labelFor(value),
-    score_components:    components,
-    improvement_actions: improvements.filter(Boolean),
-    stale_at:            staleAt,
-    calculated_at:       new Date().toISOString(),
+    score_name:                   name,
+    score_value:                  value,
+    score_label:                  thresh.label,
+    score_label_description:      thresh.description,
+    score_components:             components,
+    improvement_actions:          improvements.filter(Boolean),
+    stale_at:                     staleAt,
+    calculated_at:                new Date().toISOString(),
+    ..._implications(implKey, value),
   };
 }
 
@@ -302,6 +410,27 @@ export function lenderReadinessScore(data = {}) {
   return scoreResult('lender_readiness_score', c, improvements);
 }
 
+// ─── investor_readiness_score ─────────────────────────────────────────────────
+
+export function investorReadinessScore(data = {}) {
+  const c = {
+    thesis_clarity:       { weight: 20, met: (data.thesis_clarity_score  ?? 0) >= 60, label: 'Thesis clarity score >= 60' },
+    board_progress:       { weight: 15, met: (data.board_readiness_score ?? 0) >= 40, label: 'Board readiness score >= 40' },
+    deal_underwriting:    { weight: 20, met: (data.underwriting_score    ?? 0) >= 60, label: 'Underwriting score >= 60' },
+    diligence_started:    { weight: 15, met: (data.diligence_score       ?? 0) >= 40, label: 'Diligence completeness >= 40' },
+    memo_or_pitch_exists: { weight: 15, met: Boolean(data.memo_exists || data.pitch_deck_exists), label: 'Investor memo or pitch deck outline exists' },
+    financials_complete:  { weight: 10, met: Boolean(data.financials_complete), label: 'Financial package complete enough for review' },
+    executive_summary:    { weight: 5,  met: Boolean(data.executive_summary_exists), label: 'Executive summary written' },
+  };
+  const improvements = [
+    !c.thesis_clarity.met       && 'Improve thesis clarity score to 60+ before investor outreach',
+    !c.memo_or_pitch_exists.met && 'Create an investor memo or pitch deck outline',
+    !c.financials_complete.met  && 'Complete financial intake before investor conversations',
+    !c.executive_summary.met    && 'Write executive summary',
+  ];
+  return scoreResult('investor_readiness_score', c, improvements);
+}
+
 // ─── Batch score calculation ──────────────────────────────────────────────────
 
 /**
@@ -354,5 +483,6 @@ export default {
   thesisClarityScore, boardReadinessScore, targetFitScore, relationshipStrengthScore,
   sellerLikelihoodScore, dealQualityScore, executionScore, momentumScore, disciplineScore,
   underwritingStrengthScore, diligenceCompletenessScore, lenderReadinessScore,
-  dealScores, firmScores, labelFor,
+  investorReadinessScore,
+  dealScores, firmScores, labelFor, thresholdFor, isLowScore, SCORE_THRESHOLDS,
 };

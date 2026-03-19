@@ -59,6 +59,7 @@ import PromptRegistry       from './services/PromptRegistry.js';
 import ModelGateway         from './services/ModelGateway.js';
 import OutputValidator      from './services/OutputValidator.js';
 import ApprovalService      from './services/ApprovalService.js';
+import * as ArtifactStore   from './services/ArtifactStore.js';
 import WorkflowEngine       from './services/WorkflowEngine.js';
 import NextActionEngine     from './services/NextActionEngine.js';
 import ProofEngine          from './services/ProofEngine.js';
@@ -2016,13 +2017,15 @@ app.get('/api/ai/task-routes', (_req, res) => {
 
 // ─── Approval routes ──────────────────────────────────────────────────────────
 
+// ─── Approval routes ──────────────────────────────────────────────────────────
+
 // GET /api/approvals — list with optional filters
 app.get('/api/approvals', (req, res) => {
-  const { status, actionType, entityId, recipientType, limit, offset } = req.query;
+  const { status, artifactType, actionType, approvalScope, entityId, recipientType, limit, offset } = req.query;
   try {
     res.json(ApprovalService.query({
-      status, actionType, entityId, recipientType,
-      limit:  Math.min(Number(limit)  || 50, 200),
+      status, artifactType, actionType, approvalScope, entityId, recipientType,
+      limit:  Math.min(Number(limit) || 50, 200),
       offset: Number(offset) || 0,
     }));
   } catch (err) {
@@ -2037,6 +2040,35 @@ app.get('/api/approvals/:id', (req, res) => {
   res.json(rec);
 });
 
+// GET /api/approvals/:id/history
+app.get('/api/approvals/:id/history', (req, res) => {
+  try {
+    res.json(ApprovalService.getHistory(req.params.id));
+  } catch (err) {
+    res.status(404).json({ error: err.message });
+  }
+});
+
+// GET /api/approvals/:id/staleness
+app.get('/api/approvals/:id/staleness', (req, res) => {
+  try {
+    const warning = ApprovalService.getStalenessWarning(req.params.id);
+    res.json({ stale: Boolean(warning), warning });
+  } catch (err) {
+    res.status(404).json({ error: err.message });
+  }
+});
+
+// POST /api/approvals/:id/submit
+app.post('/api/approvals/:id/submit', (req, res) => {
+  try {
+    const rec = ApprovalService.submit(req.params.id, { submittedBy: req.body?.submitted_by ?? 'user' });
+    res.json(rec);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
 // POST /api/approvals/:id/approve
 app.post('/api/approvals/:id/approve', validate(z.object({ notes: z.string().max(500).optional() })), (req, res) => {
   try {
@@ -2047,8 +2079,8 @@ app.post('/api/approvals/:id/approve', validate(z.object({ notes: z.string().max
   }
 });
 
-// POST /api/approvals/:id/reject
-app.post('/api/approvals/:id/reject', validate(z.object({ reason: z.string().max(500).optional() })), (req, res) => {
+// POST /api/approvals/:id/reject  — reason is required
+app.post('/api/approvals/:id/reject', validate(z.object({ reason: z.string().min(1).max(500) })), (req, res) => {
   try {
     const rec = ApprovalService.reject(req.params.id, { reason: req.validated.reason });
     res.json(rec);
@@ -2057,11 +2089,111 @@ app.post('/api/approvals/:id/reject', validate(z.object({ reason: z.string().max
   }
 });
 
-// POST /api/approvals/:id/revise
-app.post('/api/approvals/:id/revise', validate(z.object({ notes: z.string().min(1).max(1000) })), (req, res) => {
+// POST /api/approvals/:id/revise  — instructions required
+app.post('/api/approvals/:id/revise', validate(z.object({ instructions: z.string().min(1).max(1000) })), (req, res) => {
   try {
-    const rec = ApprovalService.requestRevision(req.params.id, { notes: req.validated.notes });
+    const rec = ApprovalService.requestRevision(req.params.id, { instructions: req.validated.instructions });
     res.json(rec);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// POST /api/approvals/:id/apply  — apply an approved draft
+app.post('/api/approvals/:id/apply', (req, res) => {
+  try {
+    const rec = ApprovalService.apply(req.params.id, { appliedBy: req.body?.applied_by ?? 'user' });
+    res.json(rec);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// ─── Artifact routes ──────────────────────────────────────────────────────────
+
+// GET /api/artifacts — query with filters
+app.get('/api/artifacts', (req, res) => {
+  const { artifactType, approvalStatus, linkedEntityId, generatedByAgent, approvalRequired, latestOnly, limit, offset } = req.query;
+  try {
+    res.json(ArtifactStore.query({
+      artifactType,
+      approvalStatus,
+      linkedEntityId,
+      generatedByAgent,
+      approvalRequired: approvalRequired !== undefined ? approvalRequired === 'true' : null,
+      latestOnly:       latestOnly !== 'false',
+      limit:            Math.min(Number(limit) || 50, 200),
+      offset:           Number(offset) || 0,
+    }));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/artifacts — create a new artifact
+app.post('/api/artifacts', validate(z.object({
+  artifactType:      z.string().min(1),
+  title:             z.string().min(1).max(300),
+  linkedEntityTypes: z.array(z.string()).optional().default([]),
+  linkedEntityIds:   z.array(z.string()).optional().default([]),
+  content:           z.any(),
+  format:            z.enum(['json', 'markdown', 'text']).optional().default('json'),
+  generatedByAgent:  z.string().optional(),
+  promptKey:         z.string().optional(),
+  promptVersion:     z.string().optional(),
+  approvalRequired:  z.boolean().optional().default(false),
+  groupId:           z.string().optional(),
+  staleHours:        z.number().optional(),
+})), (req, res) => {
+  try {
+    const artifact = ArtifactStore.create(req.validated);
+    res.status(201).json(artifact);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// GET /api/artifacts/:id — get single artifact
+app.get('/api/artifacts/:id', (req, res) => {
+  const art = ArtifactStore.getById(req.params.id);
+  if (!art) return res.status(404).json({ error: 'Artifact not found' });
+  res.json(art);
+});
+
+// GET /api/artifacts/:id/summary — lightweight preview-safe summary
+app.get('/api/artifacts/:id/summary', (req, res) => {
+  try {
+    res.json(ArtifactStore.getSummary(req.params.id));
+  } catch (err) {
+    res.status(404).json({ error: err.message });
+  }
+});
+
+// GET /api/artifacts/:id/versions — full version history for a group
+app.get('/api/artifacts/:id/versions', (req, res) => {
+  try {
+    const art = ArtifactStore.getById(req.params.id);
+    if (!art) return res.status(404).json({ error: 'Artifact not found' });
+    res.json(ArtifactStore.getVersionHistory(art.groupId));
+  } catch (err) {
+    res.status(404).json({ error: err.message });
+  }
+});
+
+// GET /api/artifacts/:id/staleness — staleness check
+app.get('/api/artifacts/:id/staleness', (req, res) => {
+  try {
+    res.json(ArtifactStore.getStaleness(req.params.id));
+  } catch (err) {
+    res.status(404).json({ error: err.message });
+  }
+});
+
+// POST /api/artifacts/:id/mark-sent — mark artifact as sent
+app.post('/api/artifacts/:id/mark-sent', (req, res) => {
+  try {
+    const art = ArtifactStore.markSent(req.params.id, { sentBy: req.body?.sent_by ?? 'user' });
+    res.json(art);
   } catch (err) {
     res.status(400).json({ error: err.message });
   }

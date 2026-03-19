@@ -23,107 +23,63 @@ import CostControlService  from './CostControlService.js';
 import AgentRunLogger      from './AgentRunLogger.js';
 import OutputValidator     from './OutputValidator.js';
 import { withRetry }       from '../utils/retry.js';
+import ProviderConfig      from './ProviderConfig.js';
+import {
+  validateBaseSchema,
+  buildRepairPrompt,
+  buildEmptyFallback,
+  repairOutput,
+} from './AgentOutputSchema.js';
 
-// ─── Provider model map ───────────────────────────────────────────────────────
+// ─── Provider model map — delegated to ProviderConfig ────────────────────────
+// Raw model IDs live ONLY in ProviderConfig. Do not add them here.
 
-const PROVIDERS = {
-  anthropic: {
-    name: 'anthropic',
-    models: {
-      LOW:  'claude-haiku-4-5-20251001',
-      MID:  'claude-haiku-4-5-20251001',
-      HIGH: 'claude-sonnet-4-6',
-    },
-    maxTokens: {
-      LOW:  1024,
-      MID:  1536,
-      HIGH: 2048,
-    },
-    timeoutMs: {
-      LOW:  15_000,
-      MID:  30_000,
-      HIGH: 60_000,
-    },
-  },
-  openai: {
-    name: 'openai',
-    models: {
-      LOW:  'gpt-4o-mini',
-      MID:  'gpt-4o-mini',
-      HIGH: 'gpt-4o',
-    },
-    maxTokens: {
-      LOW:  1024,
-      MID:  1536,
-      HIGH: 2048,
-    },
-    timeoutMs: {
-      LOW:  15_000,
-      MID:  30_000,
-      HIGH: 60_000,
-    },
-  },
-};
+const PROVIDERS   = ProviderConfig.PROVIDERS;
 
-// ─── Task → tier routing ──────────────────────────────────────────────────────
+// ─── Task → tier routing — merged from ProviderConfig + local extensions ──────
 // Rule: default to LOW. Escalate only when quality materially matters.
 
 const TASK_TIERS = {
-  // LOW — classification, tagging, field extraction, short summaries
-  classification:              'LOW',
-  document_classification:     'LOW',
-  field_extraction:            'LOW',
-  short_summary:               'LOW',
-  crm_hygiene:                 'LOW',
-  seller_signal_commentary:    'LOW',
-  activity_categorization:     'LOW',
-  subject_line_generation:     'LOW',
-  outreach_small_rewrite:      'LOW',
-  reply_classification:        'LOW',
-  contact_classification:      'LOW',
-  status_inference:            'LOW',
-  metadata_normalization:      'LOW',
-  execution_diagnostic:        'LOW',
-  deal_scout_screening:        'LOW',
+  ...ProviderConfig.TASK_TIERS,
 
-  // MID — drafting, prep, synthesis, summaries
-  outreach_draft:              'MID',
-  board_outreach_draft:        'MID',
-  daily_briefing:              'MID',
-  meeting_prep:                'MID',
-  meeting_summary:             'MID',
-  deal_snapshot:               'MID',
-  deal_scout_rich:             'MID',
-  relationship_summary:        'MID',
-  execution_brief:             'MID',
-  execution_recovery:          'MID',
-  empire_coach_daily:          'MID',
-  memo_section_draft:          'MID',
-  investor_update_draft:       'MID',
-  investor_fit_summary:        'MID',
+  // Additional local routing (not yet in ProviderConfig)
+  outreach_small_rewrite:       'LOW',
+  reply_classification:         'LOW',
+  contact_classification:       'LOW',
+  status_inference:             'LOW',
+  metadata_normalization:       'LOW',
+  execution_diagnostic:         'LOW',
+  deal_scout_screening:         'LOW',
+  outreach_draft:               'MID',
+  board_outreach_draft:         'MID',
+  daily_briefing:               'MID',
+  meeting_summary:              'MID',
+  deal_scout_rich:              'MID',
+  relationship_summary:         'MID',
+  execution_brief:              'MID',
+  execution_recovery:           'MID',
+  empire_coach_daily:           'MID',
+  memo_section_draft:           'MID',
+  investor_update_draft:        'MID',
+  investor_fit_summary:         'MID',
   diligence_question_generation:'MID',
-  board_candidate_ranking:     'MID',
-  investor_outreach_draft:     'MID',
-  lead_discovery:              'MID',
-  target_qualification:        'MID',
-  board_analysis:              'MID',
-  crm_health:                  'MID',
-
-  // HIGH — complex tradeoffs, strategy, multi-doc synthesis
-  deal_structure_commentary:   'HIGH',
-  capital_stack_commentary:    'HIGH',
-  complex_diligence_synthesis: 'HIGH',
-  strategy_summary:            'HIGH',
-  board_strategy_synthesis:    'HIGH',
-  cross_deal_synthesis:        'HIGH',
-  high_stakes_external_draft:  'HIGH',
-  deal_analysis:               'HIGH',
-  document_generation:         'HIGH',
-  multi_document_analysis:     'HIGH',
-  underwriter_commentary:      'HIGH',
-  empire_coach_strategy:       'HIGH',
-  investor_memo_draft:         'HIGH',
-  outreach_high_stakes:        'HIGH',
+  investor_outreach_draft:      'MID',
+  lead_discovery:               'MID',
+  target_qualification:         'MID',
+  board_analysis:               'MID',
+  crm_health:                   'MID',
+  deal_structure_commentary:    'HIGH',
+  capital_stack_commentary:     'HIGH',
+  complex_diligence_synthesis:  'HIGH',
+  strategy_summary:             'HIGH',
+  board_strategy_synthesis:     'HIGH',
+  cross_deal_synthesis:         'HIGH',
+  high_stakes_external_draft:   'HIGH',
+  deal_analysis:                'HIGH',
+  document_generation:          'HIGH',
+  multi_document_analysis:      'HIGH',
+  underwriter_commentary:       'HIGH',
+  outreach_high_stakes:         'HIGH',
 };
 
 // ─── Lazy clients ─────────────────────────────────────────────────────────────
@@ -419,9 +375,47 @@ export async function run({
     parseSuccess = false;
   }
 
-  // ── 6. Validate against schema ────────────────────────────────────────────
-  let validationWarning = null;
-  if (outputSchema && parseSuccess) {
+  // ── 6. Validate against schema — retry once on failure, then fallback ────
+  let validationWarning  = null;
+  let schemaRetried      = false;
+
+  if (parseSuccess && agentName) {
+    const baseCheck = validateBaseSchema(content);
+    if (!baseCheck.valid) {
+      console.warn(`[ModelGateway] Base schema invalid for ${taskType} (${agentName}). Errors: ${baseCheck.errors.join('; ')}. Retrying once.`);
+      schemaRetried = true;
+
+      const repairMsg = buildRepairPrompt(callResult.rawText, baseCheck.errors);
+      let repairRaw   = null;
+      try {
+        const repairResult = await callAnthropic({
+          model:       PROVIDERS.anthropic.models[tier],
+          maxTokens:   PROVIDERS.anthropic.maxTokens[tier],
+          timeoutMs:   PROVIDERS.anthropic.timeoutMs[tier],
+          systemPrompt: 'You are a JSON repair assistant. Return only valid JSON.',
+          userMessage:  repairMsg,
+        });
+        repairRaw = repairResult.rawText;
+        const repaired = extractJSON(repairRaw);
+        const recheck  = validateBaseSchema(repaired);
+        if (recheck.valid) {
+          content      = repaired;
+          parseSuccess = true;
+          validationWarning = null;
+        } else {
+          // Repair still failed — use local coercion
+          content      = repairOutput(repaired ?? content, agentName);
+          validationWarning = `Schema repair used coercion. Remaining errors: ${recheck.errors.join('; ')}`;
+        }
+      } catch (repairErr) {
+        console.warn(`[ModelGateway] Schema repair call failed for ${taskType}: ${repairErr.message}. Using coercion fallback.`);
+        content      = repairOutput(content, agentName) ?? buildEmptyFallback(agentName, 'schema repair failed');
+        validationWarning = 'Schema repair failed — coercion fallback applied';
+      }
+    }
+  }
+
+  if (outputSchema && parseSuccess && !schemaRetried) {
     const vResult = OutputValidator.validate(content, outputSchema);
     if (!vResult.valid) {
       validationWarning = `Schema mismatch: ${vResult.errors.join(', ')}`;
@@ -509,5 +503,6 @@ function _logAndTrack({ agentName, promptKey, promptVersion, taskType, tier,
 export function getTaskTier(taskType)    { return TASK_TIERS[taskType] ?? 'LOW'; }
 export function listTaskRoutes()          { return Object.entries(TASK_TIERS).map(([task, tier]) => ({ task, tier, model: PROVIDERS.anthropic.models[tier] })); }
 export function getProviderModels()       { return PROVIDERS; }
+export function getConfigSummary()        { return ProviderConfig.getConfigSummary(); }
 
-export default { run, getTaskTier, listTaskRoutes, getProviderModels, GatewayError };
+export default { run, getTaskTier, listTaskRoutes, getProviderModels, getConfigSummary, GatewayError };
