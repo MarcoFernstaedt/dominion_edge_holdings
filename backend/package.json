@@ -7,13 +7,17 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
-    "test": "node --experimental-vm-modules node_modules/.bin/jest --testPathPattern=tests/"
+    "test": "node --experimental-vm-modules node_modules/.bin/jest --testPathPattern=tests/",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate deploy",
+    "db:studio": "prisma studio"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.78.0",
+    "@prisma/client": "^6.0.0",
     "compression": "^1.7.5",
     "cors": "^2.8.6",
     "dotenv": "^17.3.1",
@@ -24,6 +28,7 @@
   },
   "devDependencies": {
     "jest": "^29.7.0",
+    "prisma": "^6.0.0",
     "supertest": "^7.0.0"
   },
   "jest": {

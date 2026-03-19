@@ -1,0 +1,902 @@
+// ─── Dominion Edge AOS — Prisma Schema ────────────────────────────────────────
+// Database: PostgreSQL
+// ORM: Prisma
+// Replaces in-memory store; designed for a solo operator acquisition platform.
+// All tables use cuid() as primary key for URL-safety and sortability.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ENUMS
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum CompanyStatus {
+  prospect
+  active
+  diligence
+  loi_sent
+  under_loi
+  closed_won
+  closed_lost
+  on_hold
+}
+
+enum ContactType {
+  seller
+  board_candidate
+  investor
+  advisor
+  lender
+  lawyer
+  accountant
+  broker
+  operator
+  networking_contact
+  vendor
+  employee_candidate
+}
+
+enum ContactStatus {
+  active
+  inactive
+  stale
+  suppressed
+}
+
+enum RelationshipStage {
+  cold
+  aware
+  engaged
+  relationship
+  trusted
+}
+
+enum RelationshipWarmth {
+  cold
+  cooling
+  warm
+  hot
+}
+
+enum InteractionType {
+  email
+  call
+  meeting
+  note
+  document_sent
+  proposal
+  loi
+  follow_up
+  research
+}
+
+enum DealStage {
+  identified
+  contacted
+  discovery
+  financial_review
+  loi_discussion
+  loi_signed
+  due_diligence
+  financing
+  closing
+  closed
+  lost
+}
+
+enum DealType {
+  platform
+  add_on
+  board_recruitment_related
+  networking_only
+}
+
+enum RiskLevel {
+  low
+  medium
+  high
+  critical
+}
+
+enum TaskStatus {
+  todo
+  in_progress
+  blocked
+  done
+  archived
+}
+
+enum TaskPriority {
+  critical
+  high
+  medium
+  low
+}
+
+enum DocumentType {
+  loi
+  board_invite
+  outreach_letter
+  follow_up_email
+  meeting_agenda
+  meeting_summary
+  deal_memo
+  diligence_checklist
+  board_update
+  post_acquisition_plan
+}
+
+enum DocumentStatus {
+  draft
+  review
+  final
+  sent
+  archived
+}
+
+enum InvestorType {
+  angel
+  family_office
+  private_equity
+  operator_investor
+  private_lender
+  bank
+  search_fund_investor
+}
+
+enum InvestorRelationshipStage {
+  cold
+  aware
+  engaged
+  relationship
+  active_investor
+}
+
+enum PlaybookTaskStatus {
+  not_started
+  in_progress
+  completed
+  skipped
+}
+
+enum PlaybookCompletionType {
+  manual
+  automatic
+  hybrid
+}
+
+enum PlaybookCompletionMode {
+  tasks
+  metrics
+  hybrid
+}
+
+enum EmpirePhaseStatus {
+  locked
+  active
+  complete
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// USERS / AUTH (single-operator for now; multi-firm ready)
+// ─────────────────────────────────────────────────────────────────────────────
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  avatarUrl String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  settings  UserSettings?
+  companies Company[]
+  contacts  Contact[]
+  deals     Deal[]
+  tasks     Task[]
+  documents Document[]
+  meetings  Meeting[]
+}
+
+model UserSettings {
+  id                          String   @id @default(cuid())
+  userId                      String   @unique
+  user                        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // AI
+  aiDraftingEnabled           Boolean  @default(true)
+  aiReplyEnabled              Boolean  @default(true)
+  aiBriefingEnabled           Boolean  @default(true)
+  primaryModel                String   @default("claude-sonnet-4-6")
+  // Email
+  emailMode                   String   @default("smtp_only")
+  smtpHost                    String   @default("")
+  smtpPort                    Int      @default(587)
+  smtpUser                    String   @default("")
+  fromName                    String   @default("")
+  fromEmail                   String   @default("")
+  // Execution targets
+  weeklyOwnerContactTarget    Int      @default(25)
+  dailyFollowUpTarget         Int      @default(5)
+  weeklyBoardOutreachTarget   Int      @default(3)
+  weeklyInvestorOutreachTarget Int     @default(5)
+  // Feature flags
+  sourcingRadarEnabled        Boolean  @default(true)
+  sourcingMinRelevanceThreshold Int    @default(50)
+  autoGeneratePrepPackets     Boolean  @default(true)
+  // UI
+  reducedMotion               Boolean  @default(false)
+  highContrast                Boolean  @default(false)
+  density                     String   @default("standard")
+  createdAt                   DateTime @default(now())
+  updatedAt                   DateTime @updatedAt
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CRM — COMPANIES (acquisition targets)
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Company {
+  id                   String        @id @default(cuid())
+  userId               String
+  user                 User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name                 String
+  industry             String?
+  subIndustry          String?
+  website              String?
+  linkedinUrl          String?
+  address              String?
+  city                 String?
+  state                String?
+  country              String        @default("US")
+  employeeCount        Int?
+  annualRevenue        Float?
+  annualRevenueMin     Float?
+  annualRevenueMax     Float?
+  sdeEstimate          Float?
+  ebitdaEstimate       Float?
+  askingPrice          Float?
+  status               CompanyStatus @default(prospect)
+  priority             String        @default("medium")
+  source               String?
+  sourceUrl            String?
+  sourcedAt            DateTime?
+  notes                String?
+  tags                 String[]
+  // Seller intelligence
+  ownerName            String?
+  ownerEmail           String?
+  ownerPhone           String?
+  sellerMotivation     String?
+  sellerTimeline       String?
+  yearsOwned           Int?
+  // Pipeline pressure (System 1)
+  lastInteractionAt    DateTime?
+  pipelinePressureLevel String?
+  daysSinceLastContact Int?
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+
+  contacts     Contact[]
+  deals        Deal[]
+  interactions Interaction[]
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CRM — CONTACTS
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Contact {
+  id                   String             @id @default(cuid())
+  userId               String
+  user                 User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  companyId            String?
+  company              Company?           @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  firstName            String
+  lastName             String
+  fullName             String
+  title                String?
+  contactType          ContactType        @default(networking_contact)
+  email                String?
+  phone                String?
+  linkedinUrl          String?
+  preferredChannel     String?
+  timezone             String?
+  status               ContactStatus      @default(active)
+  notes                String?
+  tags                 String[]
+  // Relationship intelligence (System 2)
+  influenceScore       Int?
+  relationshipWarmth   RelationshipWarmth?
+  relationshipStage    RelationshipStage  @default(cold)
+  lastInteractionAt    DateTime?
+  lastConversationSummary String?
+  relationshipNotes    String?
+  // Conversation intelligence (System 4)
+  sellerTimeline       String?
+  sellerMotivation     String?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  interactions         Interaction[]
+  meetingAttendees     MeetingAttendee[]
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// INTERACTIONS
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Interaction {
+  id                    String          @id @default(cuid())
+  userId                String
+  companyId             String?
+  company               Company?        @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  contactId             String?
+  contact               Contact?        @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  dealId                String?
+  deal                  Deal?           @relation(fields: [dealId], references: [id], onDelete: SetNull)
+  interactionType       InteractionType
+  direction             String          @default("outbound")
+  channel               String?
+  subject               String?
+  bodyPreview           String?
+  outcome               String?
+  sentiment             String?
+  requiresFollowUp      Boolean         @default(false)
+  followUpDate          DateTime?
+  // Conversation intelligence
+  conversationSummary   String?
+  sellerMotivation      String?
+  sellerTimeline        String?
+  sellerConcerns        String?
+  nextConversationGoal  String?
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DEALS — PIPELINE
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Deal {
+  id               String    @id @default(cuid())
+  userId           String
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  companyId        String?
+  company          Company?  @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  name             String
+  dealType         DealType  @default(platform)
+  stage            DealStage @default(identified)
+  probability      Float     @default(10)
+  // Financials snapshot
+  askingPrice      Float?
+  sde              Float?
+  ebitda           Float?
+  revenue          Float?
+  grossProfit      Float?
+  employeeCount    Int?
+  // Deal details
+  industry         String?
+  location         String?
+  source           String?
+  brokerName       String?
+  brokerEmail      String?
+  notes            String?
+  tags             String[]
+  // Velocity / momentum
+  daysSinceLastActivity Int?
+  lastActivityAt   DateTime?
+  stageChangedAt   DateTime?
+  closeProbability Float?
+  riskLevel        RiskLevel @default(medium)
+  // Dates
+  loiSentAt        DateTime?
+  loiSignedAt      DateTime?
+  closingTargetAt  DateTime?
+  closedAt         DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  interactions         Interaction[]
+  underwritingScenarios UnderwritingScenario[]
+  capitalStack         CapitalStack?
+  documents            Document[]
+  tasks                Task[]
+  diligenceItems       DiligenceItem[]
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// UNDERWRITING — FINANCIAL MODELING
+// ─────────────────────────────────────────────────────────────────────────────
+
+model UnderwritingScenario {
+  id                  String   @id @default(cuid())
+  dealId              String
+  deal                Deal     @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  name                String   @default("Base Case")
+  // Income
+  revenue             Float?
+  grossProfit         Float?
+  ownerSalary         Float    @default(0)
+  addBacks            Float    @default(0)
+  sde                 Float?
+  ebitda              Float?
+  // Deal structure
+  purchasePrice       Float?
+  multipleUsed        Float?
+  // Debt structure
+  seniorDebtAmount    Float    @default(0)
+  seniorDebtRate      Float    @default(6.5)
+  seniorDebtTermYears Int      @default(10)
+  sellerNoteAmount    Float    @default(0)
+  sellerNoteRate      Float    @default(5.0)
+  sellerNoteTermYears Int      @default(5)
+  // Equity
+  equityRequired      Float?
+  operatorEquity      Float    @default(10)
+  investorEquity      Float    @default(90)
+  // Output (computed by DealService)
+  annualDebtService   Float?
+  dscr                Float?
+  verdict             String?  // GO | CONDITIONAL_GO | NO_GO
+  notes               String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DILIGENCE OS
+// ─────────────────────────────────────────────────────────────────────────────
+
+model DiligenceItem {
+  id           String   @id @default(cuid())
+  dealId       String
+  deal         Deal     @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  category     String   // financial, legal, operational, tax, hr, customer, supplier
+  name         String
+  description  String?
+  required     Boolean  @default(true)
+  received     Boolean  @default(false)
+  receivedAt   DateTime?
+  requestedAt  DateTime?
+  blocksClose  Boolean  @default(false)
+  blocksLender Boolean  @default(false)
+  severity     String   @default("medium") // low, medium, high, critical
+  notes        String?
+  assignedTo   String?
+  dueDate      DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// BOARD OS
+// ─────────────────────────────────────────────────────────────────────────────
+
+model BoardSeat {
+  id               String         @id @default(cuid())
+  seatOrder        Int
+  title            String
+  focusArea        String
+  criticalQuestion String
+  targetProfile    String?
+  isFilledBy       String?
+  status           String         @default("vacant") // vacant, targeting, committed, filled
+  notes            String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  candidates       BoardCandidate[]
+}
+
+model BoardCandidate {
+  id                String    @id @default(cuid())
+  seatId            String
+  seat              BoardSeat @relation(fields: [seatId], references: [id], onDelete: Cascade)
+  name              String
+  title             String?
+  company           String?
+  email             String?
+  phone             String?
+  linkedinUrl       String?
+  // Qualification
+  yearsRelevantExp  Int?
+  networksOwnedDeals Int?
+  capitalDeployed   Float?
+  industryFocus     String?
+  // Relationship
+  warmthScore       Int       @default(0)  // 0-100
+  source            String?
+  referredBy        String?
+  status            String    @default("identified") // identified, outreached, meeting_scheduled, meeting_done, committed, declined
+  // Tracking
+  lastContactAt     DateTime?
+  nextFollowUpAt    DateTime?
+  commitmentLevel   String    @default("none") // none, interested, verbal, written
+  notes             String?
+  tags              String[]
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CAPITAL RAISING
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Investor {
+  id                   String                    @id @default(cuid())
+  name                 String
+  organization         String?
+  investorType         InvestorType              @default(angel)
+  email                String?
+  phone                String?
+  location             String?
+  checkSizeMin         Float?
+  checkSizeMax         Float?
+  industriesPreferred  String[]
+  dealStagePreference  String?
+  riskTolerance        String                    @default("moderate")
+  priorDeals           String?
+  relationshipStage    InvestorRelationshipStage @default(cold)
+  notes                String?
+  lastInteractionAt    DateTime?
+  createdAt            DateTime                  @default(now())
+  updatedAt            DateTime                  @updatedAt
+
+  memos    InvestorMemo[]
+}
+
+model CapitalStack {
+  id                      String   @id @default(cuid())
+  dealId                  String   @unique
+  deal                    Deal     @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  purchasePrice           Float
+  seniorDebtAmount        Float    @default(0)
+  sellerNoteAmount        Float    @default(0)
+  equityRequired          Float    @default(0)
+  operatorEquity          Float    @default(10)
+  investorEquity          Float    @default(0)
+  committedInvestorEquity Float    @default(0)
+  equityStillNeeded       Float    @default(0)
+  debtInterestRate        Float    @default(6.5)
+  debtTermMonths          Int      @default(120)
+  sellerNoteRate          Float    @default(5.0)
+  sellerNoteTermMonths    Int      @default(60)
+  notes                   String?
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+}
+
+model InvestorMemo {
+  id          String   @id @default(cuid())
+  investorId  String
+  investor    Investor @relation(fields: [investorId], references: [id], onDelete: Cascade)
+  title       String
+  content     String
+  status      String   @default("draft")
+  sentAt      DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TASKS
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Task {
+  id               String       @id @default(cuid())
+  userId           String
+  user             User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dealId           String?
+  deal             Deal?        @relation(fields: [dealId], references: [id], onDelete: SetNull)
+  title            String
+  description      String?
+  status           TaskStatus   @default(todo)
+  priority         TaskPriority @default(medium)
+  dueDate          DateTime?
+  linkedEntityType String?
+  linkedEntityId   String?
+  source           String?
+  completedAt      DateTime?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MEETINGS
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Meeting {
+  id              String    @id @default(cuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title           String
+  meetingType     String    @default("general")
+  linkedEntityType String?
+  linkedEntityId  String?
+  scheduledAt     DateTime
+  durationMinutes Int       @default(60)
+  location        String?
+  videoLink       String?
+  agenda          String?
+  notes           String?
+  outcome         String?
+  status          String    @default("scheduled") // scheduled, completed, cancelled, no_show
+  aiPrepped       Boolean   @default(false)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  attendees       MeetingAttendee[]
+  prepPacket      MeetingPrepPacket?
+}
+
+model MeetingAttendee {
+  id        String   @id @default(cuid())
+  meetingId String
+  meeting   Meeting  @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  contactId String?
+  contact   Contact? @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  name      String
+  email     String?
+  role      String?
+}
+
+model MeetingPrepPacket {
+  id          String   @id @default(cuid())
+  meetingId   String   @unique
+  meeting     Meeting  @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  content     String
+  generatedAt DateTime @default(now())
+  model       String?
+  updatedAt   DateTime @updatedAt
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DOCUMENTS
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Document {
+  id           String         @id @default(cuid())
+  userId       String
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dealId       String?
+  deal         Deal?          @relation(fields: [dealId], references: [id], onDelete: SetNull)
+  documentType DocumentType
+  status       DocumentStatus @default(draft)
+  title        String
+  content      String
+  linkedEntityType String?
+  linkedEntityId   String?
+  generatedBy  String?        // "ai" | "manual"
+  model        String?
+  sentAt       DateTime?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// EXECUTION OS — KPI TRACKING
+// ─────────────────────────────────────────────────────────────────────────────
+
+model ExecutionDailyStat {
+  id                     String   @id @default(cuid())
+  date                   String   @unique // YYYY-MM-DD
+  ownersCalled           Int      @default(0)
+  ownersEmailed          Int      @default(0)
+  ownersLinkedIn         Int      @default(0)
+  ownersTotalContacted   Int      @default(0)
+  ownerConversations     Int      @default(0)
+  meetingsScheduled      Int      @default(0)
+  loisSent               Int      @default(0)
+  investorConversations  Int      @default(0)
+  boardOutreach          Int      @default(0)
+  boardMeetings          Int      @default(0)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+}
+
+model ExecutionWeeklyStat {
+  id                     String   @id @default(cuid())
+  weekStartDate          String   @unique // YYYY-MM-DD (Monday)
+  ownersContacted        Int      @default(0)
+  ownerConversations     Int      @default(0)
+  meetingsScheduled      Int      @default(0)
+  investorConversations  Int      @default(0)
+  boardMeetings          Int      @default(0)
+  loisSent               Int      @default(0)
+  companiesAdded         Int      @default(0)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+}
+
+model ExecutionMonthlyStat {
+  id                     String   @id @default(cuid())
+  month                  String   @unique // YYYY-MM
+  ownersContacted        Int      @default(0)
+  ownerConversations     Int      @default(0)
+  meetingsScheduled      Int      @default(0)
+  investorConversations  Int      @default(0)
+  boardMeetings          Int      @default(0)
+  loisSent               Int      @default(0)
+  dealsOpened            Int      @default(0)
+  dealsClosed            Int      @default(0)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+}
+
+model QlaTargets {
+  id                          String   @id @default(cuid())
+  // Weekly targets
+  weeklyOwnerContacts         Int      @default(25)
+  weeklyOwnerConversations    Int      @default(5)
+  weeklyMeetings              Int      @default(3)
+  weeklyLoisSent              Int      @default(1)
+  weeklyBoardOutreach         Int      @default(3)
+  weeklyInvestorConversations Int      @default(5)
+  // Daily targets
+  dailyOwnerCalls             Int      @default(5)
+  dailyFollowUps              Int      @default(5)
+  createdAt                   DateTime @default(now())
+  updatedAt                   DateTime @updatedAt
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PLAYBOOK ENGINE — QLA STAGE PROGRESSION
+// ─────────────────────────────────────────────────────────────────────────────
+
+model PlaybookStage {
+  id                  String                @id @default(cuid())
+  stageOrder          Int                   @unique
+  stageName           String
+  description         String
+  completionMode      PlaybookCompletionMode @default(tasks)
+  metricRequirements  Json?
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+
+  tasks     PlaybookTask[]
+  progress  PlaybookProgress[]
+}
+
+model PlaybookTask {
+  id                     String                 @id @default(cuid())
+  stageId                String
+  stage                  PlaybookStage          @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  taskTitle              String
+  taskDescription        String?
+  taskCategory           String                 @default("general")
+  taskOrder              Int                    @default(0)
+  estimatedEffortMinutes Int                    @default(30)
+  completionType         PlaybookCompletionType @default(manual)
+  createdAt              DateTime               @default(now())
+  updatedAt              DateTime               @updatedAt
+
+  progress PlaybookProgress[]
+}
+
+model PlaybookProgress {
+  id          String             @id @default(cuid())
+  taskId      String
+  task        PlaybookTask       @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  stageId     String
+  stage       PlaybookStage      @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  status      PlaybookTaskStatus @default(not_started)
+  completedAt DateTime?
+  notes       String?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  @@unique([taskId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// EMPIRE ROADMAP — PHASE GATE SYSTEM
+// The core QLA journey from zero to exit, with entry/exit criteria and gating.
+// ─────────────────────────────────────────────────────────────────────────────
+
+model EmpirePhase {
+  id               String            @id @default(cuid())
+  phaseOrder       Int               @unique
+  phaseName        String
+  phaseCode        String            @unique // e.g. "IDENTITY", "THESIS", "BOARD"
+  description      String
+  whyItMatters     String
+  danPenaQuote     String?
+  entryCriteria    Json              // string[] — what must be true to enter
+  exitCriteria     Json              // string[] — what must be true to exit
+  keyDeliverables  Json              // string[] — what you produce in this phase
+  blockers         Json              @default("[]") // string[] — common blockers
+  estimatedWeeks   Int               @default(2)
+  status           EmpirePhaseStatus @default(locked)
+  unlockedAt       DateTime?
+  completedAt      DateTime?
+  notes            String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  milestones       EmpireMilestone[]
+}
+
+model EmpireMilestone {
+  id          String      @id @default(cuid())
+  phaseId     String
+  phase       EmpirePhase @relation(fields: [phaseId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  proof       String?     // what counts as evidence of completion
+  isComplete  Boolean     @default(false)
+  completedAt DateTime?
+  sortOrder   Int         @default(0)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DEAL FEED — MARKETPLACE SOURCING
+// ─────────────────────────────────────────────────────────────────────────────
+
+model DealFeedListing {
+  id               String   @id @default(cuid())
+  externalId       String?
+  sourceAdapter    String   @default("manual")
+  title            String
+  description      String?
+  industry         String?
+  location         String?
+  askingPrice      Float?
+  revenue          Float?
+  sde              Float?
+  ebitda           Float?
+  employees        Int?
+  yearsInBusiness  Int?
+  reasonForSelling String?
+  listingUrl       String?
+  brokerName       String?
+  brokerEmail      String?
+  isSaved          Boolean  @default(false)
+  fitScore         Float?
+  fitNotes         String?
+  status           String   @default("new") // new, reviewing, saved, dismissed, converted
+  listedAt         DateTime?
+  scrapedAt        DateTime @default(now())
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// NOTIFICATIONS
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Notification {
+  id          String   @id @default(cuid())
+  type        String
+  title       String
+  message     String
+  isRead      Boolean  @default(false)
+  linkedEntityType String?
+  linkedEntityId   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AUDIT LOG
+// ─────────────────────────────────────────────────────────────────────────────
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  action     String
+  entityType String?
+  entityId   String?
+  metadata   Json?
+  ipAddress  String?
+  requestId  String?
+  createdAt  DateTime @default(now())
+}

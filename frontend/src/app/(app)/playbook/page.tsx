@@ -92,10 +92,10 @@ function TaskCard({
   onComplete: (taskId: string) => void;
   completing: string | null;
 }) {
-  const status = task.progress?.status ?? 'not_started';
+  const status = task.status ?? 'not_started';
   const isDone = status === 'completed';
-  const isBusy = completing === task.id;
-  const isManual = task.completionType === 'manual' || task.completionType === 'hybrid';
+  const isBusy = completing === task.task.id;
+  const isManual = task.task.completionType === 'manual' || task.task.completionType === 'hybrid';
 
   return (
     <div
@@ -107,7 +107,7 @@ function TaskCard({
     >
       {/* status icon / checkbox */}
       <button
-        onClick={() => !isDone && isManual && onComplete(task.id)}
+        onClick={() => !isDone && isManual && onComplete(task.task.id)}
         disabled={isDone || !isManual || isBusy}
         className="mt-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37] rounded-full disabled:cursor-default"
         aria-label={isDone ? 'Task completed' : 'Mark complete'}
@@ -126,27 +126,27 @@ function TaskCard({
               isDone ? 'line-through text-[var(--color-text-muted)]' : 'text-[var(--color-text-primary)]'
             }`}
           >
-            {task.taskTitle}
+            {task.task.taskTitle}
           </span>
-          {task.completionType === 'automatic' && (
+          {task.task.completionType === 'automatic' && (
             <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-sky-900/30 text-sky-400 border border-sky-800/30 font-semibold">
               Auto
             </span>
           )}
         </div>
-        {task.taskDescription && (
+        {task.task.taskDescription && (
           <p className="text-xs text-[var(--color-text-muted)] mt-0.5 line-clamp-2">
-            {task.taskDescription}
+            {task.task.taskDescription}
           </p>
         )}
         <div className="flex items-center gap-3 mt-1.5">
           <span className="text-[10px] text-[var(--color-text-muted)]">
-            {task.taskCategory}
+            {task.task.taskCategory}
           </span>
-          {task.estimatedEffortMinutes && (
+          {task.task.estimatedEffortMinutes && (
             <span className="text-[10px] text-[var(--color-text-muted)] flex items-center gap-1">
               <Clock size={10} aria-hidden />
-              {task.estimatedEffortMinutes} min
+              {task.task.estimatedEffortMinutes} min
             </span>
           )}
         </div>
@@ -177,7 +177,7 @@ function StageRow({
   completing: string | null;
 }) {
   const tasks: PlaybookTaskWithProgress[] = stage.tasks ?? [];
-  const completedCount = tasks.filter((t) => t.progress?.status === 'completed').length;
+  const completedCount = tasks.filter((t) => t.status === 'completed').length;
   const totalCount = tasks.length;
   const pct = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
 
@@ -247,7 +247,7 @@ function StageRow({
           ) : (
             tasks.map((task) => (
               <TaskCard
-                key={task.id}
+                key={task.task.id}
                 task={task}
                 onComplete={onComplete}
                 completing={completing}
@@ -263,6 +263,7 @@ function StageRow({
 /* ─── main page ──────────────────────────────────────────────────── */
 export default function PlaybookPage() {
   const [summary,    setSummary]    = useState<PlaybookSummary | null>(null);
+  const [stages,     setStages]     = useState<PlaybookStage[]>([]);
   const [stageData,  setStageData]  = useState<Record<string, PlaybookTaskWithProgress[]>>({});
   const [expanded,   setExpanded]   = useState<Set<string>>(new Set());
   const [loading,    setLoading]    = useState(true);
@@ -284,10 +285,18 @@ export default function PlaybookPage() {
         setExpanded(new Set([s.currentStage.id]));
       }
 
+      // Augment stages with isComplete / isCurrent flags
+      const rawStages = (stagesRes as { stages: PlaybookStage[] }).stages ?? [];
+      const augmented = rawStages.map((st) => ({
+        ...st,
+        isComplete: st.completion?.complete ?? false,
+        isCurrent: st.id === s.currentStage?.id,
+      }));
+      setStages(augmented);
+
       // fetch tasks for all stages in parallel
-      const stages = (stagesRes as { stages: PlaybookStage[] }).stages ?? [];
       const entries = await Promise.all(
-        stages.map(async (st) => {
+        rawStages.map(async (st) => {
           try {
             const r = await playbookApi.getStage(st.id);
             const tasks = ((r as { tasks?: PlaybookTaskWithProgress[] }).tasks) ?? [];
@@ -331,9 +340,8 @@ export default function PlaybookPage() {
     finally { setSyncing(false); }
   };
 
-  const stages: PlaybookStage[] = summary?.stages ?? [];
   const currentStage = summary?.currentStage ?? null;
-  const overallPct = summary?.overallCompletionPct ?? 0;
+  const overallPct = summary?.overallProgress ?? 0;
   const completedStages = stages.filter((s) => s.isComplete).length;
 
   return (

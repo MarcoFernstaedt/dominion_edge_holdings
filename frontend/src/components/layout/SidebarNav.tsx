@@ -29,6 +29,8 @@ import {
   UserCheck,
   MessageCircle,
   Zap,
+  Map,
+  type LucideIcon,
 } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 
@@ -36,11 +38,12 @@ interface NavItem {
   id: string;
   label: string;
   href: string;
-  icon: React.ComponentType<{ size?: number; className?: string; 'aria-hidden'?: boolean }>;
+  icon: LucideIcon;
 }
 
 const NAV_ITEMS: NavItem[] = [
   { id: 'command-center', label: 'Command Center', href: '/command-center', icon: LayoutDashboard },
+  { id: 'empire-roadmap', label: 'Empire Roadmap', href: '/empire-roadmap', icon: Map },
   { id: 'checklist', label: 'Checklist', href: '/checklist', icon: CheckSquare },
   { id: 'crm', label: 'CRM', href: '/crm/companies', icon: Users },
   { id: 'inbox', label: 'Inbox', href: '/inbox', icon: Mail },

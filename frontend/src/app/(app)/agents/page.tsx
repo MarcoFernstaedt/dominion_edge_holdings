@@ -20,6 +20,7 @@ import {
   Loader2,
   AlertCircle,
   CheckCircle2,
+  type LucideIcon,
 } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -27,7 +28,7 @@ interface AgentCard {
   id: string;
   name: string;
   description: string;
-  icon: React.ComponentType<{ size?: number; className?: string }>;
+  icon: LucideIcon;
   endpoint: string;
   inputComponent: React.FC<{ onSubmit: (data: unknown) => void; loading: boolean }>;
 }

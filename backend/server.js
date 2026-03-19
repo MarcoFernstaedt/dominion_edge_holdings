@@ -520,6 +520,11 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', ts: nowIso(), env: NODE_ENV });
 });
 
+// /api/health — accessible via frontend proxy (mirrors /health)
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', ts: nowIso(), env: NODE_ENV });
+});
+
 // ─── AI Chat (streaming) ──────────────────────────────────────────────────────
 app.post('/api/chat', validate(ChatSchema), async (req, res) => {
   const { messages, system } = req.validated;

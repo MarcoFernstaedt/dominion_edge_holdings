@@ -6,7 +6,7 @@ import { cn, formatDate } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { CheckCircle2, Circle, ChevronDown, ChevronUp, Info, FileText, Users, Calendar, Calculator } from 'lucide-react';
-import type { ChecklistItem } from '@/lib/types';
+import type { ChecklistItem, ChecklistPhase } from '@/lib/types';
 
 const COMPLETION_ICONS: Record<string, React.ReactNode> = {
   manual: null,
@@ -121,7 +121,7 @@ function ChecklistItemRow({
 function PhaseAccordion({
   phase,
 }: {
-  phase: ReturnType<typeof useAppStore>['checklistPhases'][0];
+  phase: ChecklistPhase;
 }) {
   const toggleItem = useAppStore((s) => s.toggleChecklistItem);
   const [open, setOpen] = useState(true);

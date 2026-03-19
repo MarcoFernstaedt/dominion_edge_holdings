@@ -21,6 +21,7 @@ import type {
   Task, NextBestAction,
   PipelinePressureMetrics, AcquisitionScoreboard,
   DealVelocityEntry, ConversationFunnel, FrequencyProgress,
+  Deal, EmailThread, BoardCandidate, ChecklistPhase,
 } from '@/lib/types';
 import Link from 'next/link';
 
@@ -123,10 +124,10 @@ function TodaysBriefing() {
 
 function generateNextBestActions(
   tasks: Task[],
-  deals: ReturnType<typeof useAppStore>['deals'],
-  emailThreads: ReturnType<typeof useAppStore>['emailThreads'],
-  boardCandidates: ReturnType<typeof useAppStore>['boardCandidates'],
-  checklistPhases: ReturnType<typeof useAppStore>['checklistPhases']
+  deals: Deal[],
+  emailThreads: EmailThread[],
+  boardCandidates: BoardCandidate[],
+  checklistPhases: ChecklistPhase[]
 ): NextBestAction[] {
   const actions: NextBestAction[] = [];
 

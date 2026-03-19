@@ -39,7 +39,7 @@ export default function MonthlyPage() {
       setStat(s);
       setTargets(t);
       const f: Record<string, string> = {};
-      FIELD_LABELS.forEach(([key]) => { f[key] = String((s as Record<string, unknown>)[key] ?? 0); });
+      FIELD_LABELS.forEach(([key]) => { f[key] = String((s as unknown as Record<string, unknown>)[key] ?? 0); });
       setForm(f);
     } catch { /* silent */ }
     finally { setLoading(false); }

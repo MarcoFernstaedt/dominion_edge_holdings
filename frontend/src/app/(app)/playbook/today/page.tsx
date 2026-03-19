@@ -116,10 +116,10 @@ function ActionCard({
 
           {/* meta row */}
           <div className="flex flex-wrap items-center gap-3 mt-2">
-            {action.estimatedMinutes && (
+            {(action.effortMin ?? action.estimatedMinutes) && (
               <span className="flex items-center gap-1 text-[10px] text-[var(--color-text-muted)]">
                 <Clock size={10} aria-hidden />
-                {action.estimatedMinutes} min
+                {action.effortMin ?? action.estimatedMinutes} min
               </span>
             )}
             {action.relatedEntity && (
@@ -215,8 +215,9 @@ export default function PlaybookTodayPage() {
   const totalCount = allActions.length;
   const pct = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0;
 
-  const date = plan?.date
-    ? new Date(plan.date).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
+  const dateStr = plan?.date ?? plan?.generatedAt;
+  const date = dateStr
+    ? new Date(dateStr).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
     : new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
 
   return (
@@ -283,7 +284,7 @@ export default function PlaybookTodayPage() {
       )}
 
       {/* Stage context */}
-      {plan?.currentStage && (
+      {(plan?.currentStage ?? plan?.stageName) && (
         <div className="bg-[#1A1A1E] border border-[var(--color-border)] rounded-xl p-4 flex items-center gap-3">
           <BookOpen size={16} className="text-[#D4AF37] flex-shrink-0" aria-hidden />
           <div className="min-w-0">
@@ -291,7 +292,7 @@ export default function PlaybookTodayPage() {
               Current Stage
             </div>
             <div className="text-sm font-medium text-[var(--color-text-primary)]">
-              {plan.currentStage}
+              {plan?.currentStage ?? plan?.stageName}
             </div>
           </div>
         </div>

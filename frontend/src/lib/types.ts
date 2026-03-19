@@ -864,7 +864,7 @@ export type InvestorType =
   | 'angel' | 'family_office' | 'private_equity' | 'operator_investor'
   | 'private_lender' | 'bank' | 'search_fund_investor';
 
-export type RelationshipStage = 'cold' | 'aware' | 'engaged' | 'relationship' | 'active_investor';
+export type InvestorRelationshipStage = 'cold' | 'aware' | 'engaged' | 'relationship' | 'active_investor';
 
 export interface Investor {
   id: ID;
@@ -880,7 +880,7 @@ export interface Investor {
   dealStagePreference: string;
   riskTolerance: string;
   priorDeals: string;
-  relationshipStage: RelationshipStage;
+  relationshipStage: InvestorRelationshipStage;
   notes: string;
   lastInteractionAt: string | null;
   createdAt: string;
@@ -1123,6 +1123,10 @@ export interface PlaybookStage {
   metricRequirements?: Record<string, number>;
   createdAt: string;
   updatedAt: string;
+  // Augmented by API (GET /api/playbook/stages adds completion; pages compute isComplete/isCurrent)
+  completion?: StageCompletion;
+  isComplete?: boolean;
+  isCurrent?: boolean;
 }
 
 export interface PlaybookTask {
@@ -1175,7 +1179,7 @@ export interface PlaybookTaskWithProgress {
 }
 
 export interface DailyAction {
-  source: 'playbook' | 'execution' | 'momentum' | 'stage';
+  source: 'playbook' | 'execution' | 'momentum' | 'stage' | 'alert';
   priority: 'critical' | 'high' | 'medium' | 'low';
   title: string;
   description: string;
@@ -1184,6 +1188,8 @@ export interface DailyAction {
   stageName: string | null;
   dealId?: ID;
   effortMin?: number;
+  estimatedMinutes?: number; // alias used by some pages
+  relatedEntity?: string;    // optional label for the related record
 }
 
 export interface DailyActionPlan {
@@ -1191,6 +1197,9 @@ export interface DailyActionPlan {
   stageId: ID;
   actions: DailyAction[];
   generatedAt: string;
+  // Aliases for pages that reference these names
+  currentStage?: string;
+  date?: string;
 }
 
 export interface PlaybookSummary {

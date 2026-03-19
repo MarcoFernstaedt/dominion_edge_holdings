@@ -7,7 +7,7 @@ import { Modal } from '@/components/ui/Modal';
 import { Input, Select, Textarea } from '@/components/ui/Input';
 import { Badge } from '@/components/ui/Badge';
 import { Plus, Mail, Phone, MapPin, Send } from 'lucide-react';
-import type { Investor, InvestorType, RelationshipStage } from '@/lib/types';
+import type { Investor, InvestorType, InvestorRelationshipStage } from '@/lib/types';
 
 const INVESTOR_TYPE_LABELS: Record<InvestorType, string> = {
   angel:               'Angel',
@@ -19,7 +19,7 @@ const INVESTOR_TYPE_LABELS: Record<InvestorType, string> = {
   search_fund_investor:'Search Fund Investor',
 };
 
-const STAGE_COLORS: Record<RelationshipStage, string> = {
+const STAGE_COLORS: Record<InvestorRelationshipStage, string> = {
   cold:           'bg-zinc-700 text-zinc-300',
   aware:          'bg-blue-900 text-blue-300',
   engaged:        'bg-amber-900 text-amber-300',
@@ -27,7 +27,7 @@ const STAGE_COLORS: Record<RelationshipStage, string> = {
   active_investor:'bg-violet-900 text-violet-300',
 };
 
-const STAGE_LABELS: Record<RelationshipStage, string> = {
+const STAGE_LABELS: Record<InvestorRelationshipStage, string> = {
   cold:           'Cold',
   aware:          'Aware',
   engaged:        'Engaged',
@@ -48,7 +48,7 @@ const BLANK_FORM = {
   dealStagePreference: '',
   riskTolerance: 'moderate',
   priorDeals: '',
-  relationshipStage: 'cold' as RelationshipStage,
+  relationshipStage: 'cold' as InvestorRelationshipStage,
   notes: '',
 };
 
@@ -75,20 +75,14 @@ function InvestorForm({
           label="Investor Type"
           value={form.investorType}
           onChange={(e) => set('investorType', e.target.value as InvestorType)}
-        >
-          {Object.entries(INVESTOR_TYPE_LABELS).map(([v, l]) => (
-            <option key={v} value={v}>{l}</option>
-          ))}
-        </Select>
+          options={Object.entries(INVESTOR_TYPE_LABELS).map(([v, l]) => ({ value: v, label: l }))}
+        />
         <Select
           label="Relationship Stage"
           value={form.relationshipStage}
-          onChange={(e) => set('relationshipStage', e.target.value as RelationshipStage)}
-        >
-          {Object.entries(STAGE_LABELS).map(([v, l]) => (
-            <option key={v} value={v}>{l}</option>
-          ))}
-        </Select>
+          onChange={(e) => set('relationshipStage', e.target.value as InvestorRelationshipStage)}
+          options={Object.entries(STAGE_LABELS).map(([v, l]) => ({ value: v, label: l }))}
+        />
       </div>
       <div className="grid grid-cols-2 gap-3">
         <Input label="Email" type="email" value={form.email} onChange={(e) => set('email', e.target.value)} />
@@ -107,11 +101,16 @@ function InvestorForm({
       />
       <div className="grid grid-cols-2 gap-3">
         <Input label="Deal Stage Preference" value={form.dealStagePreference} onChange={(e) => set('dealStagePreference', e.target.value)} />
-        <Select label="Risk Tolerance" value={form.riskTolerance} onChange={(e) => set('riskTolerance', e.target.value)}>
-          <option value="low">Low</option>
-          <option value="moderate">Moderate</option>
-          <option value="high">High</option>
-        </Select>
+        <Select
+          label="Risk Tolerance"
+          value={form.riskTolerance}
+          onChange={(e) => set('riskTolerance', e.target.value)}
+          options={[
+            { value: 'low', label: 'Low' },
+            { value: 'moderate', label: 'Moderate' },
+            { value: 'high', label: 'High' },
+          ]}
+        />
       </div>
       <Textarea label="Prior Deals" value={form.priorDeals} onChange={(e) => set('priorDeals', e.target.value)} rows={2} />
       <Textarea label="Notes" value={form.notes} onChange={(e) => set('notes', e.target.value)} rows={3} />

@@ -23,7 +23,7 @@ const DOC_TYPES: { value: DocumentType; label: string }[] = [
   { value: 'post_acquisition_plan', label: 'Post-Acquisition Plan' },
 ];
 
-const LOI_TEMPLATE = `LETTER OF INTENT
+const LOI_TEMPLATE = String.raw`LETTER OF INTENT
 
 Date: {{date}}
 
@@ -45,9 +45,9 @@ This Letter of Intent ("LOI") sets forth the general terms under which {{buyer_e
    Target Company: {{seller_company}}
 
 2. PURCHASE PRICE
-   Total Purchase Price: ${{purchase_price}}
-   Down Payment: ${{down_payment}}
-   Seller Note: ${{seller_note}} at {{seller_note_rate}}% over {{seller_note_term}} months
+   Total Purchase Price: \${{purchase_price}}
+   Down Payment: \${{down_payment}}
+   Seller Note: \${{seller_note}} at {{seller_note_rate}}% over {{seller_note_term}} months
    SBA Financing: Subject to lender approval
 
 3. EXCLUSIVITY
