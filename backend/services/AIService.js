@@ -1,65 +1,112 @@
 /**
- * AIService — Centralized AI execution layer
+ * AIService — Centralized AI execution layer (ModelGateway)
  *
  * ALL model calls in the platform must go through AIService.run().
- * Agents must never call model APIs directly.
+ * No module, agent, or route handler should call model SDKs directly.
  *
- * Execution priority (per spec):
+ * Execution priority:
  *   1. Deterministic code  → handled upstream by Core Services
- *   2. Cache hit           → return cached output
- *   3. Lightweight model   → Claude Haiku
- *   4. Advanced model      → Claude Sonnet
+ *   2. Cache hit           → return cached artifact
+ *   3. Primary model       → tier-appropriate model via MODEL_ROUTES
+ *   4. Fallback model      → gpt-4o-mini if Anthropic unavailable
+ *   5. Non-AI fallback     → caller's fallback_behavior (not handled here)
  *
- * Model routing:
- *   reply_classification    → claude-haiku
- *   outreach_draft          → claude-haiku
- *   daily_briefing          → claude-haiku
- *   meeting_summary         → claude-haiku
- *   lead_discovery          → claude-haiku
- *   target_qualification    → claude-haiku
- *   board_analysis          → claude-haiku
- *   crm_health              → claude-haiku
- *   deal_analysis           → claude-sonnet
- *   strategy_summary        → claude-sonnet
- *   document_generation     → claude-sonnet
- *   multi_document_analysis → claude-sonnet
+ * Model tiers (from PromptRegistry.MODEL_TIER):
+ *   LOW  → classification, short summaries, field extraction   → claude-haiku
+ *   MID  → drafting, meeting prep, deal summaries              → claude-haiku (upgraded to sonnet when justified)
+ *   HIGH → complex tradeoff, capital stack, strategy           → claude-sonnet
  *
- * Fallback: gpt-4o-mini (if Anthropic unavailable and OpenAI key present)
+ * Routing rule: always use the cheapest model that can do the job reliably.
+ * Never default to the strongest model. Escalate only when justified.
+ *
+ * Every run is logged to AgentRunLogger and cost-tracked by CostControlService.
  */
 
 import Anthropic from '@anthropic-ai/sdk';
 import CacheService from './CacheService.js';
 import IntegrationRegistry from './IntegrationRegistry.js';
+import CostControlService from './CostControlService.js';
+import AgentRunLogger from './AgentRunLogger.js';
 import { withRetry } from '../utils/retry.js';
 
 // ─── Model routing table ──────────────────────────────────────────────────────
+// Rule: map task_type → cheapest model that reliably handles it.
+// LOW tier tasks → haiku. MID tier → haiku (most) or sonnet for complex.
+// HIGH tier → sonnet. Never default to opus.
+
+const MODELS = {
+  LOW:  'claude-haiku-4-5-20251001',
+  MID:  'claude-haiku-4-5-20251001', // upgrade to sonnet for complex mid tasks
+  HIGH: 'claude-sonnet-4-6',
+};
+
 const MODEL_ROUTES = {
-  reply_classification:    'claude-haiku-4-5-20251001',
-  outreach_draft:          'claude-haiku-4-5-20251001',
-  daily_briefing:          'claude-haiku-4-5-20251001',
-  meeting_summary:         'claude-haiku-4-5-20251001',
-  lead_discovery:          'claude-haiku-4-5-20251001',
-  target_qualification:    'claude-haiku-4-5-20251001',
-  board_analysis:          'claude-haiku-4-5-20251001',
-  crm_health:              'claude-haiku-4-5-20251001',
-  deal_analysis:           'claude-sonnet-4-6',
-  strategy_summary:        'claude-sonnet-4-6',
-  document_generation:     'claude-sonnet-4-6',
-  multi_document_analysis: 'claude-sonnet-4-6',
+  // ── LOW tier ────────────────────────────────────────────────────────────────
+  reply_classification:      MODELS.LOW,
+  document_classification:   MODELS.LOW,
+  short_summary:             MODELS.LOW,
+  field_extraction:          MODELS.LOW,
+  crm_health:                MODELS.LOW,
+  execution_diagnostic:      MODELS.LOW,
+  outreach_small_rewrite:    MODELS.LOW,
+  seller_signal_tagging:     MODELS.LOW,
+  activity_categorization:   MODELS.LOW,
+  subject_line_generation:   MODELS.LOW,
+
+  // ── MID tier ────────────────────────────────────────────────────────────────
+  outreach_draft:             MODELS.MID,
+  daily_briefing:             MODELS.MID,
+  meeting_summary:            MODELS.MID,
+  meeting_prep:               MODELS.MID,
+  board_analysis:             MODELS.MID,
+  board_candidate_ranking:    MODELS.MID,
+  lead_discovery:             MODELS.MID,
+  target_qualification:       MODELS.MID,
+  deal_scout_screening:       MODELS.LOW,  // short screening = low
+  deal_scout_rich:            MODELS.MID,
+  investor_fit_summary:       MODELS.MID,
+  execution_recovery:         MODELS.MID,
+  empire_coach_daily:         MODELS.MID,
+  investor_outreach_draft:    MODELS.MID,
+  execution_brief:            MODELS.MID,
+  memo_section_draft:         MODELS.MID,
+
+  // ── HIGH tier ───────────────────────────────────────────────────────────────
+  deal_analysis:              MODELS.HIGH,
+  strategy_summary:           MODELS.HIGH,
+  empire_coach_strategy:      MODELS.HIGH,
+  document_generation:        MODELS.HIGH,
+  multi_document_analysis:    MODELS.HIGH,
+  underwriter_commentary:     MODELS.HIGH,
+  diligence_synthesis_large:  MODELS.HIGH,
+  capital_stack_commentary:   MODELS.HIGH,
+  board_outreach_draft:       MODELS.HIGH,  // high-stakes personalized invite
+  investor_memo_draft:        MODELS.HIGH,
+  outreach_high_stakes:       MODELS.HIGH,
 };
 
 const FALLBACK_MODEL = 'gpt-4o-mini';
 
-// Max tokens per model tier
+// Max tokens per model
 const MAX_TOKENS = {
-  haiku:  1024,
-  sonnet: 2048,
+  'claude-haiku-4-5-20251001': 1024,
+  'claude-sonnet-4-6':         2048,
+  'claude-opus-4-6':           4096,
+  'gpt-4o-mini':               1024,
+};
+
+// Timeouts per tier (ms)
+const TIMEOUTS = {
+  'claude-haiku-4-5-20251001': 15_000,
+  'claude-sonnet-4-6':         45_000,
+  'gpt-4o-mini':               20_000,
 };
 
 function tierOf(model) {
-  if (model.includes('haiku')) return 'haiku';
-  if (model.includes('sonnet')) return 'sonnet';
-  return 'haiku';
+  if (model.includes('haiku'))  return 'LOW';
+  if (model.includes('sonnet')) return 'HIGH';
+  if (model.includes('opus'))   return 'HIGH';
+  return 'LOW';
 }
 
 // ─── Cost-control flags (read from store.settings, injected at call time) ─────
@@ -134,79 +181,208 @@ function extractJSON(text) {
  */
 export async function run(taskType, input, options = {}) {
   const {
-    entityId = 'global',
-    entityType = null,
+    entityId      = 'global',
+    entityType    = null,
+    agentName     = 'unknown',
+    promptKey     = taskType,
+    promptVersion = '1.0',
+    sourceEntities= [],
     model: overrideModel = null,
-    skipCache = false,
-    costFlags = {},
+    skipCache     = false,
+    costFlags     = {},
     systemPrompt,
     userMessage,
   } = options;
 
-  // 1a. Integration guard — check AI integration is enabled and configured
+  const startMs = Date.now();
+  let modelUsed     = null;
+  let fallbackUsed  = false;
+  let fallbackReason= null;
+  let inputTokens   = 0;
+  let outputTokens  = 0;
+  let parseSuccess  = true;
+  let errorType     = null;
+  let errorMessage  = null;
+
+  // 1a. Integration guard
   const integrationGuard = IntegrationRegistry.guard('ai');
   if (!integrationGuard.ok) {
     throw new AIServiceError(integrationGuard.degradedMessage, 'AI_INTEGRATION_UNAVAILABLE');
   }
 
-  // 1b. Cost-control gate
+  // 1b. Cost-control feature gate
   checkCostFlag(taskType, costFlags);
 
-  const model = resolveModel(taskType, overrideModel);
-  const tier  = tierOf(model);
-  const maxTokens = options.maxTokens ?? MAX_TOKENS[tier];
+  const model     = resolveModel(taskType, overrideModel);
+  modelUsed       = model;
+  const maxTokens = options.maxTokens ?? (MAX_TOKENS[model] ?? 1024);
 
-  // 2. Cache check (priority 2 in execution hierarchy)
-  const cacheKey = CacheService.buildKey(taskType, entityId, input);
+  // 2. Cache check
+  const inputHash = CacheService.buildKey(taskType, entityId, input);
   if (!skipCache) {
-    const cached = CacheService.get(cacheKey);
+    const cached = CacheService.get(inputHash);
     if (cached) {
-      IntegrationRegistry.recordSuccess('ai'); // cache hit still counts as healthy
-      return { content: cached.content, model: cached.model, cached: true, cacheKey };
+      IntegrationRegistry.recordSuccess('ai');
+
+      // Log cache hit
+      AgentRunLogger.logRun({
+        agent_name:     agentName,
+        prompt_key:     promptKey,
+        prompt_version: promptVersion,
+        task_type:      taskType,
+        model_used:     model,
+        fallback_used:  false,
+        input_hash:     inputHash,
+        source_entities: sourceEntities,
+        latency_ms:     Date.now() - startMs,
+        token_usage:    { input: 0, output: 0, total: 0 },
+        estimated_cost: 0,
+        confidence:     'high',
+        cached:         true,
+        parse_success:  true,
+      });
+
+      CostControlService.recordRun({
+        agentName, taskType, model, inputTokens: 0, outputTokens: 0,
+        cached: true, fallbackUsed: false, success: true,
+        latencyMs: Date.now() - startMs,
+      });
+
+      return { content: cached.content, model: cached.model, cached: true, cacheKey: inputHash };
     }
   }
 
-  // 3. Call the model (priority 3/4) with retry
+  // 3. Call the model with retry
   let rawText;
+  let anthropicResponse;
+
   try {
     const client = getClient();
     rawText = await withRetry(async () => {
-      const response = await client.messages.create({
+      anthropicResponse = await client.messages.create({
         model,
         max_tokens: maxTokens,
         system: systemPrompt,
         messages: [{ role: 'user', content: userMessage }],
       });
-      return response.content.find((b) => b.type === 'text')?.text ?? '';
+      inputTokens  = anthropicResponse.usage?.input_tokens  ?? 0;
+      outputTokens = anthropicResponse.usage?.output_tokens ?? 0;
+      return anthropicResponse.content.find((b) => b.type === 'text')?.text ?? '';
     }, {
-      maxRetries:  3,
-      baseDelayMs: 1000,
+      maxRetries:  2, // 3 total attempts
+      baseDelayMs: 1500,
       shouldRetry: (err) => !err.message?.includes('401') && !err.message?.includes('403'),
-      onRetry:     (attempt, err, delay) => console.warn(`[AIService] retry ${attempt} in ${delay}ms — ${err.message}`),
+      onRetry:     (attempt, err, delay) =>
+        console.warn(`[AIService] retry ${attempt}/${2} in ${delay}ms — ${err.message}`),
     });
     IntegrationRegistry.recordSuccess('ai');
+
   } catch (err) {
     IntegrationRegistry.recordError('ai', err.message);
-    // Attempt fallback to GPT-4o-mini if OpenAI key is available
+    errorType    = 'MODEL_ERROR';
+    errorMessage = err.message;
+
+    // Attempt fallback to GPT-4o-mini
     if (process.env.OPENAI_API_KEY) {
-      rawText = await _callOpenAIFallback(taskType, userMessage, systemPrompt);
+      try {
+        rawText       = await _callOpenAIFallback(taskType, userMessage, systemPrompt);
+        modelUsed     = FALLBACK_MODEL;
+        fallbackUsed  = true;
+        fallbackReason= `Primary model failed: ${err.message}`;
+        errorType     = null;
+        errorMessage  = null;
+      } catch (fbErr) {
+        // Both models failed — log and throw
+        const latency = Date.now() - startMs;
+        AgentRunLogger.logRun({
+          agent_name: agentName, prompt_key: promptKey, prompt_version: promptVersion,
+          task_type: taskType, model_used: model, fallback_used: true,
+          fallback_reason: `Both primary and fallback failed: ${fbErr.message}`,
+          input_hash: inputHash, source_entities: sourceEntities, latency_ms: latency,
+          token_usage: { input: 0, output: 0, total: 0 }, estimated_cost: 0,
+          confidence: 'low', cached: false, parse_success: false,
+          error_type: 'FALLBACK_FAILED', error_message: fbErr.message,
+        });
+        CostControlService.recordRun({
+          agentName, taskType, model, inputTokens: 0, outputTokens: 0,
+          cached: false, fallbackUsed: true, success: false, latencyMs: latency,
+        });
+        throw new AIServiceError(`Model call failed: ${err.message}`, 'MODEL_ERROR');
+      }
     } else {
+      const latency = Date.now() - startMs;
+      AgentRunLogger.logRun({
+        agent_name: agentName, prompt_key: promptKey, prompt_version: promptVersion,
+        task_type: taskType, model_used: model, fallback_used: false,
+        input_hash: inputHash, source_entities: sourceEntities, latency_ms: latency,
+        token_usage: { input: 0, output: 0, total: 0 }, estimated_cost: 0,
+        confidence: 'low', cached: false, parse_success: false,
+        error_type: 'MODEL_ERROR', error_message: err.message,
+      });
+      CostControlService.recordRun({
+        agentName, taskType, model, inputTokens: 0, outputTokens: 0,
+        cached: false, fallbackUsed: false, success: false, latencyMs: Date.now() - startMs,
+      });
       throw new AIServiceError(`Model call failed: ${err.message}`, 'MODEL_ERROR');
     }
   }
 
-  // 4. Parse and cache result
+  // 4. Parse result
   let content;
   try {
-    content = extractJSON(rawText);
+    content      = extractJSON(rawText);
+    parseSuccess = true;
   } catch {
-    // Return raw text if JSON parsing fails (non-JSON tasks)
-    content = rawText;
+    content      = rawText;
+    parseSuccess = false;
   }
 
-  CacheService.set(cacheKey, { feature: taskType, entityType, entityId, model }, content);
+  // 5. Cache result
+  CacheService.set(inputHash, { feature: taskType, entityType, entityId, model: modelUsed }, content);
 
-  return { content, model, cached: false, cacheKey };
+  // 6. Estimate cost
+  const estimatedCost = CostControlService.estimateCost(modelUsed, inputTokens, outputTokens);
+  const latencyMs     = Date.now() - startMs;
+
+  // 7. Log run
+  AgentRunLogger.logRun({
+    agent_name:     agentName,
+    prompt_key:     promptKey,
+    prompt_version: promptVersion,
+    task_type:      taskType,
+    model_used:     modelUsed,
+    fallback_used:  fallbackUsed,
+    fallback_reason: fallbackReason,
+    input_hash:     inputHash,
+    source_entities: sourceEntities,
+    latency_ms:     latencyMs,
+    token_usage:    { input: inputTokens, output: outputTokens, total: inputTokens + outputTokens },
+    estimated_cost: estimatedCost,
+    confidence:     parseSuccess ? 'medium' : 'low',
+    cached:         false,
+    parse_success:  parseSuccess,
+    error_type:     errorType,
+    error_message:  errorMessage,
+    output_preview: content,
+  });
+
+  // 8. Record cost
+  CostControlService.recordRun({
+    agentName, taskType, model: modelUsed,
+    inputTokens, outputTokens,
+    cached: false, fallbackUsed, success: true, latencyMs,
+  });
+
+  return {
+    content,
+    model:    modelUsed,
+    cached:   false,
+    cacheKey: inputHash,
+    fallbackUsed,
+    tokenUsage:    { input: inputTokens, output: outputTokens },
+    estimatedCost,
+    latencyMs,
+  };
 }
 
 // ─── OpenAI fallback ──────────────────────────────────────────────────────────

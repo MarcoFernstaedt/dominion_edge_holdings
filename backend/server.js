@@ -53,6 +53,9 @@ import RelationshipFollowUpJob from './jobs/RelationshipFollowUpJob.js';
 
 // ─── Conversation KPI System ──────────────────────────────────────────────────
 import ConversationMetricsService from './services/ConversationMetricsService.js';
+import CostControlService  from './services/CostControlService.js';
+import AgentRunLogger       from './services/AgentRunLogger.js';
+import PromptRegistry       from './services/PromptRegistry.js';
 
 dotenv.config();
 
@@ -1942,6 +1945,54 @@ app.get('/api/audit', (req, res) => {
 // GET /api/cache/stats
 app.get('/api/cache/stats', (_req, res) => {
   res.json({ entries: CacheService.size() });
+});
+
+// ─── AI cost & run analytics routes ──────────────────────────────────────────
+
+// GET /api/ai/cost-summary — usage, cost, cache hit rate
+app.get('/api/ai/cost-summary', (_req, res) => {
+  try {
+    const summary = CostControlService.getUsageSummary();
+    res.json(summary);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/ai/runs — recent agent run logs
+app.get('/api/ai/runs', (req, res) => {
+  try {
+    const { agent_name, task_type, fallback_only, errors_only, limit, offset } = req.query;
+    const result = AgentRunLogger.getRuns({
+      agent_name:    agent_name || null,
+      task_type:     task_type  || null,
+      fallback_only: fallback_only === 'true',
+      errors_only:   errors_only  === 'true',
+      limit:         Math.min(Number(limit)  || 50, 200),
+      offset:        Number(offset) || 0,
+    });
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/ai/metrics — system-wide quality metrics
+app.get('/api/ai/metrics', (_req, res) => {
+  try {
+    res.json(AgentRunLogger.getSystemMetrics());
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/ai/prompt-registry — list all registered prompts
+app.get('/api/ai/prompt-registry', (_req, res) => {
+  try {
+    res.json({ prompts: PromptRegistry.listPromptKeys() });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // DELETE /api/cache — invalidate by prefix

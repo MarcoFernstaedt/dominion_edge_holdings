@@ -1,6 +1,6 @@
 'use client';
 
-import { Search, Bell, Keyboard, Menu } from 'lucide-react';
+import { Search, Bell, Menu } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAppStore } from '@/lib/store';
 
@@ -10,52 +10,49 @@ interface TopBarProps {
   title?: string;
 }
 
-export function TopBar({ onSearchOpen, onMobileMenuOpen, title }: TopBarProps) {
+export function TopBar({ onSearchOpen, onMobileMenuOpen }: TopBarProps) {
   const notifications = useAppStore((s) => s.notifications);
   const unread = notifications.filter((n) => !n.isRead).length;
 
   return (
     <header
-      className="h-12 flex items-center justify-between px-4 border-b border-[#2A2A2E] bg-[#0B0B0C] flex-shrink-0"
+      className="h-11 flex items-center justify-between px-4 border-b border-[#262626] bg-[#0A0A0A] flex-shrink-0"
       role="banner"
     >
+      {/* Left: mobile menu trigger */}
       <div className="flex items-center gap-3">
-        {/* Mobile hamburger — hidden on md+ */}
         <button
           onClick={onMobileMenuOpen}
           className={cn(
-            'md:hidden flex items-center justify-center w-8 h-8 rounded',
-            'text-[#A7A29A] hover:text-[#E8E6E3] hover:bg-[#1B1B1D] transition-colors duration-150',
-            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37]'
+            'md:hidden flex items-center justify-center w-7 h-7 rounded',
+            'text-[#737373] hover:text-[#E5E5E5] hover:bg-[#1A1A1A] transition-colors duration-100',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A227]'
           )}
           aria-label="Open navigation menu"
           aria-haspopup="dialog"
         >
-          <Menu size={16} aria-hidden />
+          <Menu size={15} aria-hidden />
         </button>
-
-        {title && (
-          <span className="text-sm font-medium text-[#A7A29A]">{title}</span>
-        )}
       </div>
 
+      {/* Right: search + notifications */}
       <div className="flex items-center gap-1">
-        {/* Search / Command Palette trigger */}
+        {/* Command palette trigger */}
         <button
           onClick={onSearchOpen}
           className={cn(
-            'flex items-center gap-2 px-3 py-1.5 rounded text-sm text-[#A7A29A]',
-            'hover:text-[#E8E6E3] hover:bg-[#1B1B1D] transition-colors duration-150',
-            'border border-transparent hover:border-[#2A2A2E]',
-            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37]'
+            'flex items-center gap-2 px-2.5 py-1.5 rounded-[7px] text-sm text-[#737373]',
+            'hover:text-[#E5E5E5] hover:bg-[#1A1A1A] transition-colors duration-100',
+            'border border-transparent hover:border-[#262626]',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A227]'
           )}
           aria-label="Open command palette (Ctrl+K)"
           aria-keyshortcuts="Control+k Meta+k"
         >
-          <Search size={14} aria-hidden />
+          <Search size={13} aria-hidden />
           <span className="hidden sm:inline text-xs">Search</span>
           <kbd
-            className="hidden sm:flex items-center gap-0.5 text-[9px] bg-[#1B1B1D] border border-[#2A2A2E] rounded px-1 py-0.5 ml-1"
+            className="hidden sm:flex items-center gap-0.5 text-[9px] bg-[#1A1A1A] border border-[#333333] rounded px-1 py-0.5 ml-1 text-[#737373]"
             aria-hidden="true"
           >
             <span>⌘</span>K
@@ -65,34 +62,20 @@ export function TopBar({ onSearchOpen, onMobileMenuOpen, title }: TopBarProps) {
         {/* Notifications */}
         <button
           className={cn(
-            'relative flex items-center justify-center w-8 h-8 rounded',
-            'text-[#A7A29A] hover:text-[#E8E6E3] hover:bg-[#1B1B1D]',
-            'transition-colors duration-150',
-            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37]'
+            'relative flex items-center justify-center w-7 h-7 rounded-[7px]',
+            'text-[#737373] hover:text-[#E5E5E5] hover:bg-[#1A1A1A]',
+            'transition-colors duration-100',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A227]'
           )}
-          aria-label={`Notifications${unread > 0 ? `, ${unread} unread` : ', none unread'}`}
+          aria-label={`Notifications${unread > 0 ? `, ${unread} unread` : ''}`}
         >
-          <Bell size={15} aria-hidden />
+          <Bell size={13} aria-hidden />
           {unread > 0 && (
             <span
-              className="absolute top-1 right-1 w-2 h-2 rounded-full bg-[#D4AF37]"
+              className="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-[#C9A227]"
               aria-hidden="true"
             />
           )}
-        </button>
-
-        {/* Keyboard shortcuts hint */}
-        <button
-          className={cn(
-            'hidden sm:flex items-center justify-center w-8 h-8 rounded',
-            'text-[#A7A29A] hover:text-[#E8E6E3] hover:bg-[#1B1B1D]',
-            'transition-colors duration-150',
-            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37]'
-          )}
-          aria-label="View keyboard shortcuts"
-          title="Keyboard shortcuts"
-        >
-          <Keyboard size={14} aria-hidden />
         </button>
       </div>
     </header>
