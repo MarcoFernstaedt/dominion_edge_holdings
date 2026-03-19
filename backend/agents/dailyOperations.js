@@ -5,7 +5,7 @@
  * Model: Claude Haiku (daily_briefing task)
  */
 
-import AIService               from '../services/AIService.js';
+import ModelGateway            from '../services/ModelGateway.js';
 import TaskService             from '../services/TaskService.js';
 import PipelinePressureService from '../services/PipelinePressureService.js';
 
@@ -158,12 +158,13 @@ Return ONLY this JSON:
 }`;
 
   try {
-    const result = await AIService.run('daily_briefing', { date, urgentCount: urgentTasks.length, stalledCount: stalledDeals.length }, {
-      entityId:  entityId || `briefing_${new Date(date || Date.now()).toISOString().slice(0, 10)}`,
-      entityType: 'briefing',
+    const result = await ModelGateway.run({
+      taskType: 'daily_briefing',
+      agentName: 'DailyOperationsAgent',
+      entityIds: [entityId || `briefing_${new Date(date || Date.now()).toISOString().slice(0, 10)}`],
       systemPrompt: SYSTEM_PROMPT,
       userMessage,
-      costFlags,
+      outputSchema: null,
     });
     return result.content;
   } catch (err) {

@@ -5,7 +5,7 @@
  * Model: Claude Haiku (lead_discovery task)
  */
 
-import AIService from '../services/AIService.js';
+import ModelGateway from '../services/ModelGateway.js';
 
 const SYSTEM_PROMPT = `You are the Lead Discovery Agent for Dominion Edge Holdings.
 
@@ -47,12 +47,13 @@ Return ONLY this JSON:
   "priorityActions": ["<action>", ...]
 }`;
 
-  const result = await AIService.run('lead_discovery', { targetIndustry, targetGeography }, {
-    entityId: entityId || `lead_discovery_${Date.now()}`,
-    entityType: 'strategy',
+  const result = await ModelGateway.run({
+    taskType: 'lead_discovery',
+    agentName: 'LeadDiscoveryAgent',
+    entityIds: [entityId || `lead_discovery_${Date.now()}`],
     systemPrompt: SYSTEM_PROMPT,
     userMessage,
-    costFlags,
+    outputSchema: null,
   });
 
   return result.content;

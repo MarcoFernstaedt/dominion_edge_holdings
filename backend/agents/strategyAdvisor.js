@@ -5,7 +5,7 @@
  * Model: Claude Sonnet (strategy_summary task — advanced reasoning tier)
  */
 
-import AIService from '../services/AIService.js';
+import ModelGateway from '../services/ModelGateway.js';
 
 const SYSTEM_PROMPT = `You are the Strategy Advisor Agent for Dominion Edge Holdings.
 
@@ -61,13 +61,13 @@ Return ONLY this JSON:
   "scoreboardInsights": ["<insight about scoreboard metrics>", ...]
 }`;
 
-  const result = await AIService.run('strategy_summary', { question: question.slice(0, 100) }, {
-    entityId: entityId || `strategy_${Date.now()}`,
-    entityType: 'strategy',
+  const result = await ModelGateway.run({
+    taskType: 'strategy_summary',
+    agentName: 'StrategyAdvisorAgent',
+    entityIds: [entityId || `strategy_${Date.now()}`],
     systemPrompt: SYSTEM_PROMPT,
     userMessage,
-    maxTokens: 2048,
-    costFlags,
+    outputSchema: null,
   });
 
   return result.content;

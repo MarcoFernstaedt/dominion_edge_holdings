@@ -5,7 +5,7 @@
  * Model: Claude Sonnet (deal_analysis task — advanced reasoning tier)
  */
 
-import AIService from '../services/AIService.js';
+import ModelGateway from '../services/ModelGateway.js';
 import DealService from '../services/DealService.js';
 
 // ─── Numeric-only fallback (deterministic, no AI) ────────────────────────────
@@ -113,13 +113,13 @@ Return ONLY this JSON:
 }`;
 
   try {
-    const result = await AIService.run('deal_analysis', { companyId: company?.id, revenue, sde, askingPrice }, {
-      entityId:  entityId || company?.id || `deal_${Date.now()}`,
-      entityType: 'deal',
+    const result = await ModelGateway.run({
+      taskType: 'deal_analysis',
+      agentName: 'DealAnalysisAgent',
+      entityIds: [entityId || company?.id || `deal_${Date.now()}`],
       systemPrompt: SYSTEM_PROMPT,
       userMessage,
-      maxTokens:  2048,
-      costFlags,
+      outputSchema: null,
     });
     return result.content;
   } catch (err) {

@@ -7,7 +7,7 @@
  * Falls back to deterministic templates if AI is disabled.
  */
 
-import AIService, { AIServiceError } from '../services/AIService.js';
+import ModelGateway, { GatewayError } from '../services/ModelGateway.js';
 
 // ─── Deterministic fallback templates ────────────────────────────────────────
 const FALLBACK_TEMPLATES = {
@@ -103,17 +103,18 @@ Return ONLY this JSON:
   "callToAction": "<the specific ask>"
 }`;
 
-    const result = await AIService.run('outreach_draft', { contactType, companyName, industry }, {
-      entityId: entityId || `outreach_${contactType}_${Date.now()}`,
-      entityType: 'outreach',
+    const result = await ModelGateway.run({
+      taskType: 'outreach_draft',
+      agentName: 'OutreachGenerationAgent',
+      entityIds: [entityId || `outreach_${contactType}_${Date.now()}`],
       systemPrompt: SYSTEM_PROMPT,
       userMessage,
-      costFlags,
+      outputSchema: null,
     });
 
     return result.content;
   } catch (err) {
-    if (err instanceof AIServiceError && err.code === 'FEATURE_DISABLED') {
+    if (err instanceof GatewayError && err.code === 'FEATURE_DISABLED') {
       // Deterministic fallback
       const tpl = FALLBACK_TEMPLATES[contactType] || FALLBACK_TEMPLATES.seller;
       const rendered = applyTemplate(tpl, { contactName: contactName || 'there', companyName: companyName || 'your company' });

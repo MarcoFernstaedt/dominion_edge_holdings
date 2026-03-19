@@ -5,7 +5,7 @@
  * Model: Claude Haiku (crm_health task)
  */
 
-import AIService from '../services/AIService.js';
+import ModelGateway from '../services/ModelGateway.js';
 
 const SYSTEM_PROMPT = `You are the CRM Steward Agent for Dominion Edge Holdings.
 
@@ -69,12 +69,13 @@ Return ONLY this JSON:
   "weeklyFocusAreas": ["<area>", ...]
 }`;
 
-  const result = await AIService.run('crm_health', { companyCount: companies.length, staleCount: staleContacts.length }, {
-    entityId: entityId || `crm_health_${new Date().toISOString().slice(0, 10)}`,
-    entityType: 'crm',
+  const result = await ModelGateway.run({
+    taskType: 'crm_health',
+    agentName: 'CRMStewardAgent',
+    entityIds: [entityId || `crm_health_${new Date().toISOString().slice(0, 10)}`],
     systemPrompt: SYSTEM_PROMPT,
     userMessage,
-    costFlags,
+    outputSchema: null,
   });
 
   return result.content;

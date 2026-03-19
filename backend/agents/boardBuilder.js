@@ -5,7 +5,7 @@
  * Model: Claude Haiku (board_analysis task)
  */
 
-import AIService from '../services/AIService.js';
+import ModelGateway from '../services/ModelGateway.js';
 
 const SYSTEM_PROMPT = `You are the Board Builder Agent for Dominion Edge Holdings.
 
@@ -60,12 +60,13 @@ Return ONLY this JSON:
   "nextOutreachTargets": ["<candidateId>", ...]
 }`;
 
-  const result = await AIService.run('board_analysis', { candidateCount: candidates.length, targetIndustry }, {
-    entityId: entityId || `board_${Date.now()}`,
-    entityType: 'board',
+  const result = await ModelGateway.run({
+    taskType: 'board_analysis',
+    agentName: 'BoardBuilderAgent',
+    entityIds: [entityId || `board_${Date.now()}`],
     systemPrompt: SYSTEM_PROMPT,
     userMessage,
-    costFlags,
+    outputSchema: null,
   });
 
   return result.content;

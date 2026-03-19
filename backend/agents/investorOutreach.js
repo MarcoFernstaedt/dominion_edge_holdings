@@ -1,9 +1,10 @@
 /**
  * InvestorOutreachAgent
  * Generates investor introduction emails, follow-ups, and deal highlight summaries.
- * Model: Claude Haiku (fast, cost-efficient)
- * Fallback: deterministic templates
+ * Routes through ModelGateway — provider-agnostic, cost-controlled, with fallback.
  */
+
+import ModelGateway from '../services/ModelGateway.js';
 
 // ─── Deterministic templates ──────────────────────────────────────────────────
 
@@ -73,7 +74,6 @@ function deterministicFollowUp(investor, dealSummary, _firmMessaging) {
 
 const InvestorOutreachAgent = {
   name: 'InvestorOutreachAgent',
-  model: 'claude-haiku-4-5-20251001',
 
   /**
    * Generate an investor introduction or follow-up email.
@@ -85,13 +85,7 @@ const InvestorOutreachAgent = {
    * @param {object} aiService - Shared AIService instance (may be null)
    * @returns {Promise<{subjectDraft, emailDraft, keyHighlights}>}
    */
-  async run({ mode = 'introduction', investor, dealSummary, firmMessaging }, aiService = null) {
-    if (!aiService) {
-      return mode === 'follow_up'
-        ? deterministicFollowUp(investor, dealSummary, firmMessaging)
-        : deterministicIntroEmail(investor, dealSummary, firmMessaging);
-    }
-
+  async run({ mode = 'introduction', investor, dealSummary, firmMessaging }) {
     const name       = investor?.name || 'the investor';
     const org        = investor?.organization || '';
     const industries = (firmMessaging?.targetIndustries || []).join(', ') || 'small businesses';
@@ -102,79 +96,43 @@ const InvestorOutreachAgent = {
       : 'competitive pricing';
     const mission    = firmMessaging?.missionStatement || '';
 
-    let prompt;
+    const taskType = mode === 'deal_highlights' ? 'deal_snapshot' : 'investor_outreach_draft';
 
-    if (mode === 'deal_highlights') {
-      prompt = `Summarize the key highlights of this acquisition deal in 4-5 bullet points.
+    const systemPrompt = mode === 'deal_highlights'
+      ? 'Summarize the key highlights of this acquisition deal in 4-5 bullet points. Return JSON: { "keyHighlights": ["..."] }'
+      : mode === 'follow_up'
+        ? 'Write a brief, professional follow-up email to an investor. Return JSON: { "subjectDraft": "...", "emailDraft": "...", "keyHighlights": ["..."] }'
+        : 'Write a professional investor introduction email for an acquisition deal. Return JSON: { "subjectDraft": "...", "emailDraft": "...", "keyHighlights": ["..."] }';
 
-Deal: ${company}
-Purchase Price: ${pp}
-Industry: ${industries}
-Deal Size: ${size}
-Mission: ${mission}
-
-Return JSON: { "keyHighlights": ["highlight 1", "highlight 2", ...] }`;
-    } else if (mode === 'follow_up') {
-      prompt = `Write a brief, professional follow-up email to an investor.
-
-Investor: ${name}${org ? ` at ${org}` : ''}
-Deal: ${company}
-Prior context: We previously introduced this deal opportunity to this investor.
-
-Write a warm, concise follow-up. Return JSON:
-{
-  "subjectDraft": "email subject",
-  "emailDraft": "full email body",
-  "keyHighlights": ["1-2 key points to reinforce"]
-}`;
-    } else {
-      prompt = `Write a professional investor introduction email for an acquisition deal.
-
-Investor: ${name}${org ? ` at ${org}` : ''}
-Investor type: ${investor?.investorType || 'general investor'}
-Deal: ${company}
-Purchase Price: ${pp}
-Industry: ${industries}
-Target size: ${size}
-Firm mission: ${mission}
-
-Write a warm, professional email that introduces the deal and requests a brief call.
-Return JSON:
-{
-  "subjectDraft": "email subject line",
-  "emailDraft": "full email body (use plain text, no HTML)",
-  "keyHighlights": ["3-4 key deal highlights"]
-}`;
-    }
+    const userMessage = JSON.stringify({ name, org, company, purchase_price: pp, industries, size, mission, investor_type: investor?.investorType, mode });
 
     try {
-      const response = await aiService.complete(prompt, {
-        model: this.model,
-        maxTokens: 600,
+      const result = await ModelGateway.run({
+        taskType,
+        agentName:    'InvestorOutreachAgent',
+        entityIds:    investor?.id ? [investor.id] : [],
+        systemPrompt,
+        userMessage,
+        approvalRequired: true,
       });
-      const text = response?.content?.[0]?.text || response?.text || '';
-      const jsonMatch = text.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0]);
-        if (mode === 'deal_highlights') {
-          return {
-            subjectDraft: '',
-            emailDraft: '',
-            keyHighlights: parsed.keyHighlights || [],
-          };
-        }
-        return {
-          subjectDraft:  parsed.subjectDraft  || '',
-          emailDraft:    parsed.emailDraft    || '',
-          keyHighlights: parsed.keyHighlights || [],
-        };
-      }
-    } catch { /* fall through */ }
 
-    // Deterministic fallback
-    return mode === 'follow_up'
-      ? deterministicFollowUp(investor, dealSummary, firmMessaging)
-      : deterministicIntroEmail(investor, dealSummary, firmMessaging);
+      const parsed = typeof result.content === 'object' ? result.content : {};
+      if (mode === 'deal_highlights') {
+        return { subjectDraft: '', emailDraft: '', keyHighlights: parsed.keyHighlights || [] };
+      }
+      return {
+        subjectDraft:  parsed.subjectDraft  || '',
+        emailDraft:    parsed.emailDraft    || '',
+        keyHighlights: parsed.keyHighlights || [],
+        provider_used: result.provider_used,
+        fallback_used: result.fallback_used,
+      };
+    } catch {
+      // Deterministic fallback
+      return mode === 'follow_up'
+        ? deterministicFollowUp(investor, dealSummary, firmMessaging)
+        : deterministicIntroEmail(investor, dealSummary, firmMessaging);
+    }
   },
 };
 

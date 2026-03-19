@@ -620,6 +620,308 @@ Be factual. Use only provided data. Do not invent.`,
     fallback: 'field_list_summary',
     stale_hours: 48,
   },
+
+  // ── Classification / extraction (Tier 1) ────────────────────────────────────
+
+  classification: {
+    key: 'classification', version: '1.0', tier: MODEL_TIER.LOW,
+    system: `${GLOBAL_SYSTEM_BASE}\nClassify the provided item into the most appropriate category from the provided list. Return only the JSON schema.`,
+    context_fields: ['item', 'categories', 'context'],
+    output_schema: { category: 'string', subcategory: 'string | null', confidence: 'number', reasoning: 'string' },
+    fallback: 'rules_classification', stale_hours: 168,
+  },
+
+  field_extraction: {
+    key: 'field_extraction', version: '1.0', tier: MODEL_TIER.LOW,
+    system: `${GLOBAL_SYSTEM_BASE}\nExtract the requested fields from the provided text or document. If a field is missing, set it to null. Never invent values.`,
+    context_fields: ['source_text', 'fields_to_extract', 'entity_type'],
+    output_schema: { extracted_fields: 'object', missing_fields: 'string[]', confidence: 'number' },
+    fallback: 'empty_extraction', stale_hours: 168,
+  },
+
+  contact_classification: {
+    key: 'contact_classification', version: '1.0', tier: MODEL_TIER.LOW,
+    system: `${GLOBAL_SYSTEM_BASE}\nClassify the contact based on title, company, and context. Return role classification and relationship tier.`,
+    context_fields: ['contact', 'interaction_history'],
+    output_schema: { classification: 'string', tier: 'number', influence_score: 'number', reasoning: 'string' },
+    fallback: 'title_heuristic_classification', stale_hours: 168,
+  },
+
+  metadata_normalization: {
+    key: 'metadata_normalization', version: '1.0', tier: MODEL_TIER.LOW,
+    system: `${GLOBAL_SYSTEM_BASE}\nNormalize the provided metadata fields to canonical formats. Fix casing, formatting, and inconsistencies. Never change factual values.`,
+    context_fields: ['record', 'field_definitions'],
+    output_schema: { normalized: 'object', changes: 'string[]', skipped_fields: 'string[]' },
+    fallback: 'passthrough_normalization', stale_hours: 168,
+  },
+
+  status_inference: {
+    key: 'status_inference', version: '1.0', tier: MODEL_TIER.LOW,
+    system: `${GLOBAL_SYSTEM_BASE}\nInfer the current status of the entity based on activity history and signals. Use only provided data.`,
+    context_fields: ['entity_type', 'entity_data', 'activity_history', 'signals'],
+    output_schema: { inferred_status: 'string', confidence: 'number', signals_used: 'string[]', reasoning: 'string' },
+    fallback: 'last_known_status', stale_hours: 24,
+  },
+
+  activity_categorization: {
+    key: 'activity_categorization', version: '1.0', tier: MODEL_TIER.LOW,
+    system: `${GLOBAL_SYSTEM_BASE}\nCategorize each activity record by type, intent, and outcome quality. Return structured categorization.`,
+    context_fields: ['activities'],
+    output_schema: { categorized: 'ActivityCategory[]', uncategorized: 'string[]' },
+    fallback: 'type_field_categorization', stale_hours: 168,
+  },
+
+  subject_line_generation: {
+    key: 'subject_line_generation', version: '1.0', tier: MODEL_TIER.LOW,
+    system: `${GLOBAL_SYSTEM_BASE}\nGenerate 3 subject line options for the provided email context. Each should be specific, non-generic, and drive opens.`,
+    context_fields: ['email_body', 'recipient_context', 'tone', 'goal'],
+    output_schema: { subject_lines: 'string[]', recommended: 'string', reasoning: 'string' },
+    fallback: 'template_subject_line', stale_hours: 24,
+  },
+
+  crm_hygiene: {
+    key: 'crm_hygiene', version: '1.0', tier: MODEL_TIER.LOW,
+    system: `${GLOBAL_SYSTEM_BASE}\nIdentify CRM records that need cleanup: duplicates, stale data, missing required fields, and inconsistencies.`,
+    context_fields: ['records', 'field_standards'],
+    output_schema: { stale_records: 'object[]', missing_field_records: 'object[]', duplicates: 'object[][]', action_required: 'string' },
+    fallback: 'age_based_stale_detection', stale_hours: 168,
+  },
+
+  seller_signal_commentary: {
+    key: 'seller_signal_commentary', version: '1.0', tier: MODEL_TIER.LOW,
+    system: `${GLOBAL_SYSTEM_BASE}\nProvide brief, factual commentary on the seller signals present for this target. Do not over-interpret. Use only provided signals.`,
+    context_fields: ['target', 'signals'],
+    output_schema: { summary: 'string', signal_interpretations: 'object[]', overall_likelihood: '"low" | "medium" | "high"', confidence: 'number' },
+    fallback: 'signal_count_summary', stale_hours: 48,
+  },
+
+  // ── Mid-tier drafting and summaries ─────────────────────────────────────────
+
+  outreach_draft: {
+    key: 'outreach_draft', version: '1.0', tier: MODEL_TIER.MID,
+    system: `${GLOBAL_SYSTEM_BASE}\nDraft a specific, non-generic outreach message for the provided target and context. Use the provided template guidance. Be concise, warm, and seller-centric.`,
+    context_fields: ['recipient', 'template_key', 'firm_context', 'deal_context', 'tone'],
+    output_schema: { subject: 'string', body: 'string', tone: 'string', template_used: 'string', approval_required: 'boolean' },
+    fallback: 'template_fill', stale_hours: 24,
+  },
+
+  investor_outreach_draft: {
+    key: 'investor_outreach_draft', version: '1.0', tier: MODEL_TIER.MID,
+    system: `${GLOBAL_SYSTEM_BASE}\nDraft investor outreach based on the provided deal and investor profile. Be specific about fit rationale.`,
+    context_fields: ['investor', 'deal', 'firm_context', 'ask'],
+    output_schema: { subject: 'string', body: 'string', fit_rationale: 'string', approval_required: 'boolean' },
+    fallback: 'investor_outreach_template', stale_hours: 24,
+  },
+
+  investor_update_draft: {
+    key: 'investor_update_draft', version: '1.0', tier: MODEL_TIER.MID,
+    system: `${GLOBAL_SYSTEM_BASE}\nDraft an investor update for the provided period. Be factual, concise, and forward-looking. Use only provided data.`,
+    context_fields: ['fund_name', 'period', 'highlights', 'metrics', 'deals'],
+    output_schema: { subject: 'string', body: 'string', highlights: 'string[]', approval_required: 'boolean' },
+    fallback: 'investor_update_template', stale_hours: 24,
+  },
+
+  meeting_prep: {
+    key: 'meeting_prep', version: '1.0', tier: MODEL_TIER.MID,
+    system: `${GLOBAL_SYSTEM_BASE}\nGenerate a meeting prep brief. Include attendee context, relevant deal/relationship history, talking points, and specific questions. Be tactical.`,
+    context_fields: ['meeting', 'contacts', 'deals', 'recent_interactions', 'objective'],
+    output_schema: { brief: 'string', talking_points: 'string[]', questions: 'string[]', risks: 'string[]', follow_ups: 'string[]' },
+    fallback: 'deterministic_meeting_brief', stale_hours: 6,
+  },
+
+  meeting_summary: {
+    key: 'meeting_summary', version: '1.0', tier: MODEL_TIER.MID,
+    system: `${GLOBAL_SYSTEM_BASE}\nSummarize the meeting notes into a structured brief. Extract outcomes, next steps, and relationship signals.`,
+    context_fields: ['meeting', 'notes', 'attendees'],
+    output_schema: { summary: 'string', outcomes: 'string[]', next_steps: 'string[]', relationship_signals: 'string[]', follow_up_tasks: 'object[]' },
+    fallback: 'notes_passthrough', stale_hours: 24,
+  },
+
+  deal_snapshot: {
+    key: 'deal_snapshot', version: '1.0', tier: MODEL_TIER.MID,
+    system: `${GLOBAL_SYSTEM_BASE}\nGenerate a one-page deal snapshot. Include stage, key metrics, risks, and recommended next action. Use only provided data.`,
+    context_fields: ['deal', 'financials', 'stage_history', 'contacts'],
+    output_schema: { summary: 'string', stage: 'string', key_metrics: 'object', risks: 'string[]', recommended_action: 'string', confidence: 'number' },
+    fallback: 'deal_record_summary', stale_hours: 24,
+  },
+
+  relationship_summary: {
+    key: 'relationship_summary', version: '1.0', tier: MODEL_TIER.MID,
+    system: `${GLOBAL_SYSTEM_BASE}\nSummarize the relationship with this contact. Include recency, warmth, interaction history, and recommended next move.`,
+    context_fields: ['contact', 'interactions', 'deals_linked', 'last_outreach'],
+    output_schema: { summary: 'string', sentiment: 'string', warmth: 'string', next_action: 'string', risk: 'string | null' },
+    fallback: 'interaction_count_summary', stale_hours: 24,
+  },
+
+  execution_brief: {
+    key: 'execution_brief', version: '1.0', tier: MODEL_TIER.MID,
+    system: `${GLOBAL_SYSTEM_BASE}\nGenerate a concise daily execution brief. What must happen today to maintain momentum? What is overdue? What is at risk?`,
+    context_fields: ['overdue_tasks', 'stalled_deals', 'meetings_today', 'open_blockers'],
+    output_schema: { headline: 'string', overdue_tasks: 'object[]', stalled_deals: 'object[]', todays_meetings: 'object[]', priority_actions: 'string[]' },
+    fallback: 'deterministic_execution_brief', stale_hours: 6,
+  },
+
+  execution_recovery: {
+    key: 'execution_recovery', version: '1.0', tier: MODEL_TIER.MID,
+    system: `${GLOBAL_SYSTEM_BASE}\nAnalyze the execution blockers and produce a recovery plan. Be specific about which items to tackle first and why.`,
+    context_fields: ['blockers', 'overdue_items', 'stalled_deals', 'available_time_hours'],
+    output_schema: { recovery_plan: 'string', priority_order: 'object[]', estimated_recovery_days: 'number', risks_if_not_acted: 'string[]' },
+    fallback: 'priority_sort_recovery', stale_hours: 6,
+  },
+
+  memo_section_draft: {
+    key: 'memo_section_draft', version: '1.0', tier: MODEL_TIER.MID,
+    system: `${GLOBAL_SYSTEM_BASE}\nDraft the specified memo section using the provided outline and data. Be factual, structured, and investment-grade in tone.`,
+    context_fields: ['section', 'outline', 'deal_data', 'market_data'],
+    output_schema: { section: 'string', content: 'string', word_count: 'number', missing_data: 'string[]' },
+    fallback: 'outline_to_section', stale_hours: 24,
+  },
+
+  daily_briefing: {
+    key: 'daily_briefing', version: '1.0', tier: MODEL_TIER.MID,
+    system: `${GLOBAL_SYSTEM_BASE}\nGenerate the daily briefing. Synthesize workflow state, top priorities, and key risks into an actionable morning brief.`,
+    context_fields: ['workflow_summary', 'overdue_tasks', 'stalled_deals', 'meetings_today', 'scores'],
+    output_schema: { headline: 'string', top_priorities: 'string[]', risks: 'string[]', single_best_action: 'string', motivation_note: 'string | null' },
+    fallback: 'deterministic_daily_brief', stale_hours: 6,
+  },
+
+  board_analysis: {
+    key: 'board_analysis', version: '1.0', tier: MODEL_TIER.MID,
+    system: `${GLOBAL_SYSTEM_BASE}\nAnalyze the current state of the board build. Identify gaps, prioritize outreach, and recommend next steps.`,
+    context_fields: ['seats', 'candidates', 'outreach_history', 'commitments'],
+    output_schema: { summary: 'string', gaps: 'string[]', priority_candidates: 'object[]', recommended_actions: 'object[]', readiness_score: 'number' },
+    fallback: 'board_readiness_score_summary', stale_hours: 24,
+  },
+
+  diligence_question_generation: {
+    key: 'diligence_question_generation', version: '1.0', tier: MODEL_TIER.MID,
+    system: `${GLOBAL_SYSTEM_BASE}\nGenerate targeted diligence questions for the specified category based on the deal context. Supplement the standard questions with deal-specific questions.`,
+    context_fields: ['category', 'deal', 'standard_questions', 'known_risks'],
+    output_schema: { questions: 'DiligenceQuestion[]', category: 'string', deal_specific_count: 'number' },
+    fallback: 'standard_questions_passthrough', stale_hours: 48,
+  },
+
+  lead_discovery: {
+    key: 'lead_discovery', version: '1.0', tier: MODEL_TIER.MID,
+    system: `${GLOBAL_SYSTEM_BASE}\nEvaluate the provided leads against the thesis and buy box. Score each and recommend priority order.`,
+    context_fields: ['leads', 'thesis', 'buy_box', 'existing_pipeline'],
+    output_schema: { qualified: 'object[]', disqualified: 'object[]', borderline: 'object[]', reasoning: 'string' },
+    fallback: 'buy_box_filter', stale_hours: 24,
+  },
+
+  target_qualification: {
+    key: 'target_qualification', version: '1.0', tier: MODEL_TIER.MID,
+    system: `${GLOBAL_SYSTEM_BASE}\nQualify the target against the thesis. Evaluate fit, signals, and readiness. Recommend go/watch/pass.`,
+    context_fields: ['target', 'thesis', 'buy_box', 'seller_signals'],
+    output_schema: { recommendation: '"go" | "watch" | "pass"', fit_score: 'number', rationale: 'string', risks: 'string[]', next_steps: 'string[]' },
+    fallback: 'buy_box_qualification', stale_hours: 24,
+  },
+
+  crm_health: {
+    key: 'crm_health', version: '1.0', tier: MODEL_TIER.MID,
+    system: `${GLOBAL_SYSTEM_BASE}\nAnalyze CRM health across contacts, deals, and activities. Identify staleness, gaps, and data quality issues.`,
+    context_fields: ['contacts', 'deals', 'activities', 'stale_thresholds'],
+    output_schema: { health_score: 'number', stale_contacts: 'object[]', stale_deals: 'object[]', gaps: 'string[]', action_items: 'string[]' },
+    fallback: 'age_based_health_report', stale_hours: 24,
+  },
+
+  board_objection_handling: {
+    key: 'board_objection_handling', version: '1.0', tier: MODEL_TIER.MID,
+    system: `${GLOBAL_SYSTEM_BASE}\nDraft a response to the provided board candidate objection. Be specific, empathetic, and persuasive without being pushy.`,
+    context_fields: ['candidate', 'objection', 'board_context', 'compensation_details'],
+    output_schema: { response: 'string', tone: 'string', addresses_objection: 'boolean', next_ask: 'string' },
+    fallback: 'objection_response_template', stale_hours: 24,
+  },
+
+  // ── High-tier reasoning and synthesis ───────────────────────────────────────
+
+  deal_structure_commentary: {
+    key: 'deal_structure_commentary', version: '1.0', tier: MODEL_TIER.HIGH,
+    system: `${GLOBAL_SYSTEM_BASE}\nProvide expert commentary on the deal structure. Evaluate viability, risks, and tradeoffs. Reference specific numbers.`,
+    context_fields: ['deal', 'scenarios', 'fatal_flags', 'risk_flags', 'verdict'],
+    output_schema: { commentary: 'string', structure_assessment: 'string', key_risks: 'string[]', recommended_adjustments: 'string[]', confidence: 'number' },
+    fallback: 'deterministic_structure_summary', stale_hours: 24,
+  },
+
+  capital_stack_commentary: {
+    key: 'capital_stack_commentary', version: '1.0', tier: MODEL_TIER.HIGH,
+    system: `${GLOBAL_SYSTEM_BASE}\nProvide expert commentary on the capital stack. Evaluate lender appetite, equity requirements, and structural risks.`,
+    context_fields: ['capital_stack', 'deal', 'underwriting', 'lender_context'],
+    output_schema: { commentary: 'string', lender_readiness: 'string', risks: 'string[]', alternatives: 'string[]' },
+    fallback: 'deterministic_stack_summary', stale_hours: 24,
+  },
+
+  complex_diligence_synthesis: {
+    key: 'complex_diligence_synthesis', version: '1.0', tier: MODEL_TIER.HIGH,
+    system: `${GLOBAL_SYSTEM_BASE}\nSynthesize the diligence findings. Identify patterns, material risks, and interdependencies across categories.`,
+    context_fields: ['completeness', 'grouped_issues', 'deal', 'category_summaries'],
+    output_schema: { synthesis: 'string', material_risks: 'string[]', patterns: 'string[]', recommendation: 'string', confidence: 'number' },
+    fallback: 'grouped_issues_by_severity', stale_hours: 24,
+  },
+
+  strategy_summary: {
+    key: 'strategy_summary', version: '1.0', tier: MODEL_TIER.HIGH,
+    system: `${GLOBAL_SYSTEM_BASE}\nSynthesize the strategic position. Evaluate thesis strength, pipeline health, and recommended strategic adjustments.`,
+    context_fields: ['thesis', 'pipeline', 'board', 'scores', 'competitive_context'],
+    output_schema: { summary: 'string', thesis_assessment: 'string', pipeline_assessment: 'string', strategic_recommendations: 'string[]', priority: 'string' },
+    fallback: 'score_based_strategy_summary', stale_hours: 24,
+  },
+
+  board_strategy_synthesis: {
+    key: 'board_strategy_synthesis', version: '1.0', tier: MODEL_TIER.HIGH,
+    system: `${GLOBAL_SYSTEM_BASE}\nSynthesize the board strategy. Evaluate seat coverage, candidate quality, and recommended sequencing.`,
+    context_fields: ['seats', 'candidates', 'outreach_data', 'firm_stage'],
+    output_schema: { synthesis: 'string', coverage_assessment: 'string', sequencing: 'string[]', gaps: 'string[]' },
+    fallback: 'board_readiness_synthesis', stale_hours: 24,
+  },
+
+  cross_deal_synthesis: {
+    key: 'cross_deal_synthesis', version: '1.0', tier: MODEL_TIER.HIGH,
+    system: `${GLOBAL_SYSTEM_BASE}\nSynthesize patterns and insights across the deal pipeline. Identify common risks, shared opportunities, and strategic implications.`,
+    context_fields: ['deals', 'scores', 'thesis', 'pipeline_stage_distribution'],
+    output_schema: { synthesis: 'string', patterns: 'string[]', risks: 'string[]', opportunities: 'string[]', recommendation: 'string' },
+    fallback: 'deal_list_summary', stale_hours: 24,
+  },
+
+  deal_analysis: {
+    key: 'deal_analysis', version: '1.0', tier: MODEL_TIER.HIGH,
+    system: `${GLOBAL_SYSTEM_BASE}\nPerform a comprehensive deal analysis. Evaluate fit, financials, structure, and strategic alignment. Reference specific data points.`,
+    context_fields: ['deal', 'financials', 'underwriting', 'diligence', 'thesis'],
+    output_schema: { summary: 'string', fit_assessment: 'string', financial_assessment: 'string', risks: 'string[]', recommendation: '"go" | "conditional_go" | "no_go"', confidence: 'number' },
+    fallback: 'deterministic_deal_analysis', stale_hours: 24,
+  },
+
+  document_generation: {
+    key: 'document_generation', version: '1.0', tier: MODEL_TIER.HIGH,
+    system: `${GLOBAL_SYSTEM_BASE}\nGenerate the requested document using the provided structure and data. Be complete, professional, and investment-grade in quality.`,
+    context_fields: ['document_type', 'structure', 'data', 'audience', 'tone'],
+    output_schema: { document: 'string', sections: 'object[]', word_count: 'number', missing_data: 'string[]', approval_required: 'boolean' },
+    fallback: 'outline_document_fallback', stale_hours: 24,
+  },
+
+  multi_document_analysis: {
+    key: 'multi_document_analysis', version: '1.0', tier: MODEL_TIER.HIGH,
+    system: `${GLOBAL_SYSTEM_BASE}\nAnalyze and synthesize the provided documents. Identify key facts, inconsistencies, and gaps. Reference specific documents.`,
+    context_fields: ['documents', 'analysis_goal', 'entity_context'],
+    output_schema: { synthesis: 'string', key_findings: 'string[]', inconsistencies: 'string[]', gaps: 'string[]', documents_reviewed: 'number' },
+    fallback: 'document_list_summary', stale_hours: 24,
+  },
+
+  high_stakes_external_draft: {
+    key: 'high_stakes_external_draft', version: '1.0', tier: MODEL_TIER.HIGH,
+    system: `${GLOBAL_SYSTEM_BASE}\nDraft this high-stakes external communication. Every word matters. Be precise, credible, and compelling. Approval is required before sending.`,
+    context_fields: ['recipient_context', 'purpose', 'key_points', 'tone', 'constraints'],
+    output_schema: { subject: 'string', body: 'string', tone_assessment: 'string', risks: 'string[]', approval_required: 'boolean' },
+    fallback: 'external_draft_template', stale_hours: 12,
+  },
+
+  underwriter_commentary: {
+    key: 'underwriter_commentary', version: '1.0', tier: MODEL_TIER.HIGH,
+    system: `${GLOBAL_SYSTEM_BASE}\nProvide expert underwriting commentary on the deal. Evaluate the structure, scenarios, and risk profile. Be specific and decisive.`,
+    context_fields: ['deal', 'scenarios', 'sde', 'dscr', 'fatal_flags', 'risk_flags', 'verdict'],
+    output_schema: { commentary: 'string', scenario_assessments: 'object[]', key_risks: 'string[]', structure_recommendation: 'string', confidence: 'number' },
+    fallback: 'deterministic_underwriting_summary', stale_hours: 24,
+  },
 };
 
 // ─── Registry API ─────────────────────────────────────────────────────────────
