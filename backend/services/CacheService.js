@@ -94,6 +94,17 @@ export function invalidate(keyOrPrefix) {
 }
 
 /**
+ * Invalidate all keys for which the predicate returns true.
+ * Used by AIArtifactCache for entity-hash-based invalidation.
+ * @param {(key: string) => boolean} predicate
+ */
+export function invalidateWhere(predicate) {
+  for (const k of _store.keys()) {
+    if (predicate(k)) _store.delete(k);
+  }
+}
+
+/**
  * Sweep expired entries (call periodically from BackgroundJobRunner).
  */
 export function sweep() {
@@ -113,5 +124,5 @@ export function size() {
   return _store.size;
 }
 
-export const CacheService = { get, set, invalidate, sweep, size, buildKey, contentHash };
+export const CacheService = { get, set, invalidate, invalidateWhere, sweep, size, buildKey, contentHash };
 export default CacheService;

@@ -16,11 +16,13 @@
  */
 
 import Anthropic from '@anthropic-ai/sdk';
-import CacheService       from './CacheService.js';
-import CostControlService from './CostControlService.js';
-import AgentRunLogger     from './AgentRunLogger.js';
-import OutputValidator    from './OutputValidator.js';
-import { withRetry }      from '../utils/retry.js';
+import CacheService        from './CacheService.js';
+import * as AIArtifactCache from './AIArtifactCache.js';
+import * as AIFallbackService from './AIFallbackService.js';
+import CostControlService  from './CostControlService.js';
+import AgentRunLogger      from './AgentRunLogger.js';
+import OutputValidator     from './OutputValidator.js';
+import { withRetry }       from '../utils/retry.js';
 
 // ─── Provider model map ───────────────────────────────────────────────────────
 
@@ -286,9 +288,11 @@ export async function run({
     throw new GatewayError(`HIGH tier blocked (midTierOnly mode): ${taskType}`, 'TIER_BLOCKED');
   }
 
-  // ── 2. Cache check ────────────────────────────────────────────────────────
+  // ── 2. Cache check (AIArtifactCache) ──────────────────────────────────────
+  const cacheKeyParams = { taskType, promptVersion, modelRoute: tier, entityIds, inputPayload: { systemPrompt, userMessage } };
+
   if (!skipCache && !forceRefresh) {
-    const cached = CacheService.get(inputHash);
+    const cached = AIArtifactCache.get(cacheKeyParams);
     if (cached) {
       _logAndTrack({ agentName, promptKey, promptVersion, taskType, tier,
         provider: 'cache', model: 'cache', inputTokens: 0, outputTokens: 0,
@@ -303,7 +307,7 @@ export async function run({
         fallback_used:   false,
         cached:          true,
         input_hash:      inputHash,
-        generated_at:    cached.generatedAt ?? new Date().toISOString(),
+        generated_at:    cached.meta?.createdAt ?? new Date().toISOString(),
         stale_after:     staleAt,
         token_usage:     { input: 0, output: 0, total: 0 },
         estimated_cost:  0,
@@ -348,21 +352,60 @@ export async function run({
         fallbackUsed = true;
       } catch (fbErr) {
         const latencyMs = Date.now() - startMs;
-        _logAndTrack({ agentName, promptKey, promptVersion, taskType, tier,
-          provider: 'none', model: 'none', inputTokens: 0, outputTokens: 0,
-          cached: false, fallbackUsed: true, parseSuccess: false, approvalRequired,
-          latencyMs, inputHash, entityIds, errorType: 'BOTH_FAILED', errorMessage: fbErr.message });
+        const detFallback = AIFallbackService.buildFallback(taskType, { systemPrompt, userMessage, entityIds });
 
-        throw new GatewayError(`Both providers failed. Primary: ${errorInfo}. Fallback: ${fbErr.message}`, 'ALL_PROVIDERS_FAILED');
+        _logAndTrack({ agentName, promptKey, promptVersion, taskType, tier,
+          provider: 'deterministic', model: 'none', inputTokens: 0, outputTokens: 0,
+          cached: false, fallbackUsed: true, parseSuccess: true, approvalRequired,
+          latencyMs, inputHash, entityIds, errorType: 'BOTH_PROVIDERS_FAILED',
+          errorMessage: `Primary: ${errorInfo}. OpenAI: ${fbErr.message}` });
+
+        return {
+          content:          detFallback.content,
+          provider_used:    'deterministic_fallback',
+          model_used:       'none',
+          tier_used:        tier,
+          fallback_used:    true,
+          fallback_type:    'deterministic',
+          fallback_reason:  detFallback.fallback_reason,
+          cached:           false,
+          input_hash:       inputHash,
+          generated_at:     new Date().toISOString(),
+          stale_after:      staleAt,
+          token_usage:      { input: 0, output: 0, total: 0 },
+          estimated_cost:   0,
+          confidence:       'low',
+          parse_success:    true,
+          approval_required: approvalRequired,
+        };
       }
     } else {
       const latencyMs = Date.now() - startMs;
+      const detFallback = AIFallbackService.buildFallback(taskType, { systemPrompt, userMessage, entityIds });
+
       _logAndTrack({ agentName, promptKey, promptVersion, taskType, tier,
-        provider: 'anthropic', model: anthropicModel, inputTokens: 0, outputTokens: 0,
-        cached: false, fallbackUsed: false, parseSuccess: false, approvalRequired,
+        provider: 'deterministic', model: anthropicModel, inputTokens: 0, outputTokens: 0,
+        cached: false, fallbackUsed: true, parseSuccess: true, approvalRequired,
         latencyMs, inputHash, entityIds, errorType: 'MODEL_ERROR', errorMessage: primaryErr.message });
 
-      throw new GatewayError(`Model call failed: ${primaryErr.message}`, 'MODEL_ERROR');
+      return {
+        content:          detFallback.content,
+        provider_used:    'deterministic_fallback',
+        model_used:       'none',
+        tier_used:        tier,
+        fallback_used:    true,
+        fallback_type:    'deterministic',
+        fallback_reason:  detFallback.fallback_reason,
+        cached:           false,
+        input_hash:       inputHash,
+        generated_at:     new Date().toISOString(),
+        stale_after:      staleAt,
+        token_usage:      { input: 0, output: 0, total: 0 },
+        estimated_cost:   0,
+        confidence:       'low',
+        parse_success:    true,
+        approval_required: approvalRequired,
+      };
     }
   }
 
@@ -386,11 +429,12 @@ export async function run({
     }
   }
 
-  // ── 7. Cache result ───────────────────────────────────────────────────────
-  CacheService.set(inputHash, {
-    feature: taskType, entityType, entityId: entityIds.join(','),
-    model: callResult.model, generatedAt: new Date().toISOString(),
-  }, content);
+  // ── 7. Cache result (AIArtifactCache) ─────────────────────────────────────
+  AIArtifactCache.set(
+    cacheKeyParams,
+    { provider: callResult.provider, model: callResult.model, entityType, agentName, generatedAt: new Date().toISOString() },
+    content
+  );
 
   // ── 8. Cost + log ─────────────────────────────────────────────────────────
   const latencyMs      = Date.now() - startMs;
