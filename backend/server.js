@@ -56,6 +56,9 @@ import ConversationMetricsService from './services/ConversationMetricsService.js
 import CostControlService  from './services/CostControlService.js';
 import AgentRunLogger       from './services/AgentRunLogger.js';
 import PromptRegistry       from './services/PromptRegistry.js';
+import ModelGateway         from './services/ModelGateway.js';
+import OutputValidator      from './services/OutputValidator.js';
+import ApprovalService      from './services/ApprovalService.js';
 
 dotenv.config();
 
@@ -1992,6 +1995,68 @@ app.get('/api/ai/prompt-registry', (_req, res) => {
     res.json({ prompts: PromptRegistry.listPromptKeys() });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/ai/task-routes — full task → tier → model routing table
+app.get('/api/ai/task-routes', (_req, res) => {
+  try {
+    res.json({ routes: ModelGateway.listTaskRoutes(), providers: ModelGateway.getProviderModels() });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── Approval routes ──────────────────────────────────────────────────────────
+
+// GET /api/approvals — list with optional filters
+app.get('/api/approvals', (req, res) => {
+  const { status, actionType, entityId, recipientType, limit, offset } = req.query;
+  try {
+    res.json(ApprovalService.query({
+      status, actionType, entityId, recipientType,
+      limit:  Math.min(Number(limit)  || 50, 200),
+      offset: Number(offset) || 0,
+    }));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/approvals/:id
+app.get('/api/approvals/:id', (req, res) => {
+  const rec = ApprovalService.getById(req.params.id);
+  if (!rec) return res.status(404).json({ error: 'Approval not found' });
+  res.json(rec);
+});
+
+// POST /api/approvals/:id/approve
+app.post('/api/approvals/:id/approve', validate(z.object({ notes: z.string().max(500).optional() })), (req, res) => {
+  try {
+    const rec = ApprovalService.approve(req.params.id, { notes: req.validated.notes });
+    res.json(rec);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// POST /api/approvals/:id/reject
+app.post('/api/approvals/:id/reject', validate(z.object({ reason: z.string().max(500).optional() })), (req, res) => {
+  try {
+    const rec = ApprovalService.reject(req.params.id, { reason: req.validated.reason });
+    res.json(rec);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// POST /api/approvals/:id/revise
+app.post('/api/approvals/:id/revise', validate(z.object({ notes: z.string().min(1).max(1000) })), (req, res) => {
+  try {
+    const rec = ApprovalService.requestRevision(req.params.id, { notes: req.validated.notes });
+    res.json(rec);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
   }
 });
 
