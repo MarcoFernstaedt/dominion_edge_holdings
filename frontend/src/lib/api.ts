@@ -577,3 +577,249 @@ export const conversationsApi = {
   getAgentContext: () =>
     api.get<unknown>('/api/conversations/agent-context'),
 };
+
+// ─── Board Intelligence (Spec 3) ──────────────────────────────────────────────
+
+export const boardIntelApi = {
+  getSeatHealth: () =>
+    api.get<{
+      score: number;
+      label: string;
+      analyzed_seats: unknown[];
+      weakest_seat: unknown | null;
+      alerts: unknown[];
+      components: Record<string, number>;
+    }>('/api/board/seats/health'),
+
+  getSeatCandidates: (seatType: string) =>
+    api.get<{ seat_type: string; ranked_candidates: unknown[]; best_to_act_on: unknown | null }>(
+      `/api/board/seats/${encodeURIComponent(seatType)}/candidates`
+    ),
+
+  getCandidateFit: (candidateId: string) =>
+    api.get<{ candidate_id: string; fit: unknown; commitment: unknown }>(
+      `/api/board/candidates/${candidateId}/fit`
+    ),
+};
+
+// ─── Network Intelligence (Spec 3) ───────────────────────────────────────────
+
+export const networkApi = {
+  getAlerts: () =>
+    api.get<{ alerts: unknown[]; critical_count: number; high_count: number; total: number }>(
+      '/api/network/alerts'
+    ),
+
+  getCommandCenterSummary: () =>
+    api.get<{
+      weakest_board_seat: unknown;
+      best_board_candidate_to_act_on_now: unknown;
+      high_value_relationship_cooling: unknown[];
+      best_available_warm_intro_path: unknown | null;
+      top_investor_opportunity: unknown | null;
+      credibility_index: unknown;
+      network_leverage_alerts: unknown[];
+      critical_alert_count: number;
+      high_alert_count: number;
+      total_alert_count: number;
+    }>('/api/command-center/network'),
+
+  findIntroPaths: (sourceId: string, targetId: string) =>
+    api.get<unknown>(`/api/network/intro-paths?sourceId=${sourceId}&targetId=${targetId}`),
+
+  getRelationshipGraph: () =>
+    api.get<{ nodes: unknown[]; edges: unknown[]; adjacency_summary: unknown }>(
+      '/api/relationships/graph'
+    ),
+
+  getHighValueContacts: () =>
+    api.get<{ contacts: unknown[]; total: number }>('/api/relationships/high-value'),
+
+  getNetworkContext: (contactId: string) =>
+    api.get<unknown>(`/api/relationships/${contactId}/network-context`),
+
+  getNextMove: (contactId: string) =>
+    api.post<unknown>(`/api/relationships/${contactId}/next-move`, {}),
+
+  addEdge: (data: unknown) =>
+    api.post<{ edge: unknown }>('/api/relationships/edges', data),
+
+  listEdges: () =>
+    api.get<{ edges: unknown[] }>('/api/relationships/edges'),
+};
+
+// ─── Credibility Index (Spec 3) ───────────────────────────────────────────────
+
+export const credibilityApi = {
+  get: () =>
+    api.get<{
+      score: number;
+      label: string;
+      components: Record<string, number>;
+      downstream: Record<string, unknown>;
+      gaps: string[];
+    }>('/api/credibility'),
+};
+
+// ─── Investor Scoring (Spec 3) ────────────────────────────────────────────────
+
+export const investorScoringApi = {
+  getFunnel: () =>
+    api.get<{ stages: unknown[]; total: number; active: number }>('/api/investors/funnel'),
+
+  getHighFit: (minFit?: number, limit?: number) => {
+    const qs = new URLSearchParams();
+    if (minFit  != null) qs.set('minFit',  String(minFit));
+    if (limit   != null) qs.set('limit',   String(limit));
+    const q = qs.toString();
+    return api.get<{ investors: unknown[]; total: number }>(`/api/investors/high-fit${q ? `?${q}` : ''}`);
+  },
+
+  getInvestorFit: (investorId: string) =>
+    api.get<unknown>(`/api/investors/${investorId}/fit`),
+
+  getReadinessGaps: () =>
+    api.get<{ gaps: string[]; gap_count: number; ready: boolean; critical_gaps: string[]; credibility_score: number; credibility_label: string }>(
+      '/api/investors/readiness-gaps'
+    ),
+
+  getIntroPaths: (investorId: string) =>
+    api.get<unknown>(`/api/investors/${investorId}/intro-paths`),
+};
+
+// ─── Notifications (Spec 4) ───────────────────────────────────────────────────
+
+export interface Notification {
+  id: string;
+  type: string;
+  title: string;
+  body: string;
+  severity: 'info' | 'watch' | 'important' | 'critical';
+  pinned: boolean;
+  read_at: string | null;
+  dismissed_at: string | null;
+  createdAt: string;
+  action_label?: string;
+  action_url?: string;
+  linked_entity_type?: string;
+  linked_entity_id?: string;
+}
+
+export const notificationsApi = {
+  list: (params?: { unread?: boolean; pinned?: boolean; severity?: string; type?: string }) => {
+    const qs = new URLSearchParams(
+      Object.entries(params ?? {}).reduce((a, [k, v]) => v != null ? { ...a, [k]: String(v) } : a, {} as Record<string, string>)
+    ).toString();
+    return api.get<{ notifications: Notification[]; total: number }>(
+      `/api/notifications${qs ? `?${qs}` : ''}`
+    );
+  },
+
+  markRead: (id: string) =>
+    api.post<{ id: string; read_at: string }>(`/api/notifications/${id}/read`, {}),
+
+  dismiss: (id: string) =>
+    api.post<{ id: string; dismissed_at: string }>(`/api/notifications/${id}/dismiss`, {}),
+
+  markAllRead: () =>
+    api.post<{ marked_read: number }>('/api/notifications/mark-all-read', {}),
+};
+
+// ─── Artifacts (Spec 4) ───────────────────────────────────────────────────────
+
+export const artifactsApi = {
+  list: (params?: { artifactStatus?: string; artifactType?: string; includeArchived?: boolean }) => {
+    const qs = new URLSearchParams(
+      Object.entries(params ?? {}).reduce((a, [k, v]) => v != null ? { ...a, [k]: String(v) } : a, {} as Record<string, string>)
+    ).toString();
+    return api.get<{ artifacts: unknown[]; total: number }>(`/api/artifacts${qs ? `?${qs}` : ''}`);
+  },
+
+  get: (id: string) => api.get<unknown>(`/api/artifacts/${id}`),
+
+  getSummary: (id: string) => api.get<unknown>(`/api/artifacts/${id}/summary`),
+
+  getStaleness: (id: string) => api.get<unknown>(`/api/artifacts/${id}/staleness`),
+
+  getVersions: (id: string) => api.get<{ versions: unknown[]; total: number }>(`/api/artifacts/${id}/versions`),
+
+  generate: (data: {
+    artifact_type: string;
+    entity_ids?: string[];
+    context?: Record<string, unknown>;
+    requested_by?: string;
+    format?: string;
+    approval_required?: boolean;
+  }) => api.post<{ artifact: unknown }>('/api/artifacts/generate', data),
+
+  regenerate: (id: string, data?: { requested_by?: string; revision_notes?: string }) =>
+    api.post<{ artifact: unknown; previous_version_id: string }>(`/api/artifacts/${id}/regenerate`, data ?? {}),
+
+  archive: (id: string, by: string, reason?: string) =>
+    api.post<{ id: string; status: string }>(`/api/artifacts/${id}/archive`, { by, reason }),
+
+  export: (id: string, data: {
+    export_type: string;
+    requested_by: string;
+    destination?: string;
+    export_options?: Record<string, unknown>;
+  }) => api.post<{ export_id: string; status: string; warnings: string[] }>(`/api/artifacts/${id}/export`, data),
+
+  setApproval: (id: string, data: { approvalStatus: string; reviewedBy: string; reviewNote?: string }) =>
+    api.post<unknown>(`/api/artifacts/${id}/approve`, data),
+};
+
+// ─── Export Service (Spec 4) ──────────────────────────────────────────────────
+
+export const exportsApi = {
+  list: (params?: { status?: string; export_type?: string; stale_only?: boolean }) => {
+    const qs = new URLSearchParams(
+      Object.entries(params ?? {}).reduce((a, [k, v]) => v != null ? { ...a, [k]: String(v) } : a, {} as Record<string, string>)
+    ).toString();
+    return api.get<{ exports: unknown[] }>(`/api/exports${qs ? `?${qs}` : ''}`);
+  },
+
+  get: (id: string) => api.get<unknown>(`/api/exports/${id}`),
+
+  getAudit: (id: string) => api.get<unknown>(`/api/exports/${id}/audit`),
+
+  complete: (id: string, data: { by: string; destination?: string; note?: string }) =>
+    api.post<{ export_id: string; status: string; completed_at: string }>(`/api/exports/${id}/complete`, data),
+
+  cancel: (id: string, data: { by: string; reason?: string }) =>
+    api.post<{ export_id: string; status: string }>(`/api/exports/${id}/cancel`, data),
+};
+
+// ─── Quick Actions (Spec 4) ───────────────────────────────────────────────────
+
+export const quickActionsApi = {
+  quickLog: (data: {
+    entity_type: 'contact' | 'deal' | 'investor' | 'board_candidate';
+    entity_id: string;
+    interaction_type: 'call' | 'email' | 'meeting' | 'text' | 'note' | 'linkedin';
+    notes?: string;
+    sentiment?: string;
+    logged_by?: string;
+  }) => api.post<{ quick_log: unknown }>('/api/quick-log', data),
+
+  openNextAction: (task_id: string, opened_by?: string) =>
+    api.post<{ task_id: string; status: string; started_at: string }>('/api/quick-action/next-action/open', { task_id, opened_by }),
+
+  submitProof: (data: {
+    task_id: string;
+    proof_type: string;
+    proof_url?: string;
+    notes?: string;
+    submitted_by?: string;
+  }) => api.post<{ task_id: string; proof_status: string; submitted_at: string }>('/api/quick-action/proof-submit', data),
+
+  approveAndSend: (data: {
+    artifact_id: string;
+    approved_by: string;
+    export_type: string;
+    destination?: string;
+    approval_note?: string;
+  }) => api.post<{ artifact_id: string; approved: boolean; export_id: string; export_status: string; warnings: string[] }>(
+    '/api/quick-action/approve-and-send', data
+  ),
+};

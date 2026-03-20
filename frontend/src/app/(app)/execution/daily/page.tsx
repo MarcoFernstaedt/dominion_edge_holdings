@@ -89,7 +89,7 @@ export default function DailyPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Metric overview */}
           <div className="space-y-5">
-            <h2 className="font-medium text-[var(--color-text-primary)]">Today's Progress</h2>
+            <h2 className="font-medium text-[var(--color-text-primary)]">Today&apos;s Progress</h2>
             <div className="grid grid-cols-2 gap-3">
               <ExecutionMetricCard label="Calls Made"       value={stat?.ownersCalled ?? 0}          target={callsTarget} />
               <ExecutionMetricCard label="Emails Sent"      value={stat?.ownersEmailed ?? 0}         />

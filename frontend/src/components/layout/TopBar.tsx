@@ -1,8 +1,8 @@
 'use client';
 
-import { Search, Bell, Menu } from 'lucide-react';
+import { Search, Menu } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useAppStore } from '@/lib/store';
+import { NotificationsPanel } from './NotificationsPanel';
 
 interface TopBarProps {
   onSearchOpen: () => void;
@@ -11,9 +11,6 @@ interface TopBarProps {
 }
 
 export function TopBar({ onSearchOpen, onMobileMenuOpen }: TopBarProps) {
-  const notifications = useAppStore((s) => s.notifications);
-  const unread = notifications.filter((n) => !n.isRead).length;
-
   return (
     <header
       className="h-11 flex items-center justify-between px-4 border-b border-[#262626] bg-[#0A0A0A] flex-shrink-0"
@@ -59,24 +56,8 @@ export function TopBar({ onSearchOpen, onMobileMenuOpen }: TopBarProps) {
           </kbd>
         </button>
 
-        {/* Notifications */}
-        <button
-          className={cn(
-            'relative flex items-center justify-center w-7 h-7 rounded-[7px]',
-            'text-[#737373] hover:text-[#E5E5E5] hover:bg-[#1A1A1A]',
-            'transition-colors duration-100',
-            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A227]'
-          )}
-          aria-label={`Notifications${unread > 0 ? `, ${unread} unread` : ''}`}
-        >
-          <Bell size={13} aria-hidden />
-          {unread > 0 && (
-            <span
-              className="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-[#C9A227]"
-              aria-hidden="true"
-            />
-          )}
-        </button>
+        {/* Notifications — live panel with real API data */}
+        <NotificationsPanel />
       </div>
     </header>
   );

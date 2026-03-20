@@ -1,14 +1,15 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAppStore } from '@/lib/store';
 import { cn, generateId, nowIso, formatDate, statusLabel } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
 import { Badge, StatusBadge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
 import { Input, Select, Textarea } from '@/components/ui/Input';
-import { Plus, Briefcase, Users, PieChart, ArrowRight } from 'lucide-react';
+import { Plus, Briefcase, Users, PieChart, ArrowRight, AlertCircle, AlertTriangle, RefreshCw, Network } from 'lucide-react';
 import type { BoardCandidate, CandidateStatus, CapTableEntry, StakeholderType } from '@/lib/types';
+import { boardIntelApi } from '@/lib/api';
 
 const CANDIDATE_STATUSES: { value: CandidateStatus; label: string }[] = [
   { value: 'identified', label: 'Identified' },
@@ -218,6 +219,36 @@ function CapTableModal({ open, onClose }: { open: boolean; onClose: () => void }
   );
 }
 
+interface SeatHealth {
+  score: number;
+  label: string;
+  analyzed_seats: Array<{
+    seat_type: string;
+    health_state: string;
+    risk_level: string;
+    candidate_count: number;
+    confirmed_count: number;
+  }>;
+  alerts: Array<{ severity: string; message: string }>;
+  components: Record<string, number>;
+}
+
+function healthColor(state: string) {
+  if (state === 'secured')    return 'text-green-400';
+  if (state === 'active')     return 'text-blue-400';
+  if (state === 'developing') return 'text-[#C9A227]';
+  if (state === 'weak')       return 'text-orange-400';
+  return 'text-red-400';
+}
+
+function healthDot(state: string) {
+  if (state === 'secured')    return 'bg-green-500';
+  if (state === 'active')     return 'bg-blue-500';
+  if (state === 'developing') return 'bg-[#C9A227]';
+  if (state === 'weak')       return 'bg-orange-500';
+  return 'bg-red-500';
+}
+
 export default function BoardPage() {
   const boardSeats = useAppStore((s) => s.boardSeats);
   const boardCandidates = useAppStore((s) => s.boardCandidates);
@@ -229,11 +260,23 @@ export default function BoardPage() {
   const [selectedSeatId, setSelectedSeatId] = useState<string | undefined>(undefined);
   const [showCapTable, setShowCapTable] = useState(false);
   const [expandedSeat, setExpandedSeat] = useState<string | null>(null);
+  const [seatHealth, setSeatHealth] = useState<SeatHealth | null>(null);
+  const [healthLoading, setHealthLoading] = useState(false);
 
   const filledSeats = boardSeats.filter((s) => boardCandidates.some((c) => c.seatId === s.id && c.status === 'confirmed'));
   const totalEquity = capTable.reduce((sum, e) => sum + e.equityPercent, 0);
-
   const candidatesForSeat = (seatId: string) => boardCandidates.filter((c) => c.seatId === seatId);
+
+  async function loadSeatHealth() {
+    setHealthLoading(true);
+    try {
+      const data = await boardIntelApi.getSeatHealth();
+      setSeatHealth(data as SeatHealth);
+    } catch { /* silent — health panel is optional enrichment */ }
+    finally { setHealthLoading(false); }
+  }
+
+  useEffect(() => { loadSeatHealth(); }, []);
 
   return (
     <div className="max-w-5xl mx-auto px-6 py-6 space-y-6">
@@ -249,12 +292,63 @@ export default function BoardPage() {
             <PieChart size={13} aria-hidden />
             Cap Table ({totalEquity.toFixed(1)}%)
           </Button>
+          <Button variant="ghost" size="sm" onClick={loadSeatHealth} disabled={healthLoading} title="Refresh health scores">
+            <RefreshCw size={12} aria-hidden />
+          </Button>
           <Button variant="primary" onClick={() => { setSelectedSeatId(undefined); setShowAdd(true); }}>
             <Plus size={14} aria-hidden />
             Add Candidate
           </Button>
         </div>
       </header>
+
+      {/* Board readiness health panel */}
+      {seatHealth && (
+        <div className="bg-[#141414] border border-[#2A2A2E] rounded-md overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-[#2A2A2E]">
+            <div className="flex items-center gap-2">
+              <Network size={13} className="text-[#737373]" aria-hidden />
+              <span className="text-xs font-medium text-[#E8E6E3]">Board Readiness Score</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className={cn('text-lg font-bold tabular-nums',
+                seatHealth.score >= 70 ? 'text-green-400' : seatHealth.score >= 50 ? 'text-[#C9A227]' : 'text-red-400'
+              )}>{seatHealth.score}</span>
+              <span className="text-xs text-[#737373] capitalize">{seatHealth.label}</span>
+              <a href="/network" className="text-[10px] text-[#C9A227] hover:underline">Full intel →</a>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 divide-x divide-[#1A1A1A] divide-y sm:divide-y-0">
+            {seatHealth.analyzed_seats.map((seat) => (
+              <div key={seat.seat_type} className="px-4 py-3">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <span className={cn('w-1.5 h-1.5 rounded-full flex-shrink-0', healthDot(seat.health_state))} aria-hidden />
+                  <span className="text-[11px] text-[#A7A29A] capitalize truncate">{seat.seat_type.replace(/_/g, ' ')}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className={cn('text-xs font-medium capitalize', healthColor(seat.health_state))}>{seat.health_state}</span>
+                  {seat.risk_level === 'critical' && (
+                    <AlertCircle size={10} className="text-red-400" aria-label="Critical risk" />
+                  )}
+                  {seat.risk_level === 'high' && seat.health_state !== 'secured' && (
+                    <AlertTriangle size={10} className="text-[#C9A227]" aria-label="High risk" />
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+          {seatHealth.alerts.length > 0 && (
+            <div className="border-t border-[#2A2A2E] px-4 py-2">
+              {seatHealth.alerts.slice(0, 2).map((alert, i) => (
+                <div key={i} className={cn('flex items-start gap-2 text-[11px] py-0.5', alert.severity === 'critical' ? 'text-red-400' : 'text-[#C9A227]')}>
+                  {alert.severity === 'critical' ? <AlertCircle size={10} className="flex-shrink-0 mt-0.5" aria-hidden /> : <AlertTriangle size={10} className="flex-shrink-0 mt-0.5" aria-hidden />}
+                  {alert.message}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Seat overview */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3" role="list" aria-label="Board seats">
@@ -306,7 +400,7 @@ export default function BoardPage() {
                   </div>
                   <div>
                     <div className="text-[9px] tracking-widest uppercase text-[#D4AF37] mb-1">Pitch script</div>
-                    <div className="text-xs text-[#E8E6E3] italic">"{seat.pitch}"</div>
+                    <div className="text-xs text-[#E8E6E3] italic">&ldquo;{seat.pitch}&rdquo;</div>
                   </div>
                   <Button
                     variant="outline"

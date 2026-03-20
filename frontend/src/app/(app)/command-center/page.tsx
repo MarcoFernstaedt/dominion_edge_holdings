@@ -327,7 +327,7 @@ function AffirmationStrip() {
     <div className="bg-[#111111] border border-[#262626] rounded-[10px] px-5 py-4 flex items-center gap-4" style={{ borderLeftWidth: 2, borderLeftColor: '#C9A22760' }}>
       <div className="flex-1 min-w-0">
         <div className="text-[10px] tracking-[0.12em] uppercase text-[#C9A227] mb-1.5">{aff.theme}</div>
-        <blockquote className="font-serif text-base italic text-[#A3A3A3] leading-relaxed">"{aff.text}"</blockquote>
+        <blockquote className="font-serif text-base italic text-[#A3A3A3] leading-relaxed">&ldquo;{aff.text}&rdquo;</blockquote>
       </div>
       <div className="flex gap-1 flex-shrink-0">
         <button onClick={() => setIdx((idx - 1 + AFFIRMATIONS.length) % AFFIRMATIONS.length)} className="w-6 h-6 flex items-center justify-center text-[#737373] hover:text-[#E5E5E5] rounded transition-colors" aria-label="Previous">

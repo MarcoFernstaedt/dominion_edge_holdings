@@ -31,6 +31,8 @@ import {
   Zap,
   Map,
   ShieldCheck,
+  Network,
+  Layers,
   type LucideIcon,
 } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
@@ -98,7 +100,9 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: 'Intelligence',
     items: [
+      { id: 'network',          label: 'Network Intel',   href: '/network',          icon: Network,   matchPrefix: true },
       { id: 'agents',           label: 'AI Agents',       href: '/agents',           icon: Bot,       matchPrefix: true },
+      { id: 'artifacts',        label: 'Artifacts',       href: '/artifacts',        icon: Layers,    matchPrefix: true },
       { id: 'documents',        label: 'Documents',       href: '/documents',        icon: FileText,  matchPrefix: true },
       { id: 'post-acquisition', label: 'Post-Acquisition',href: '/post-acquisition', icon: Building2, matchPrefix: true },
       { id: 'reports',          label: 'Reports',         href: '/reports',          icon: BarChart3, matchPrefix: true },

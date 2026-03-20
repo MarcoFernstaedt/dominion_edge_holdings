@@ -77,7 +77,7 @@ export default function WeeklyPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Metrics */}
           <div className="space-y-5">
-            <h2 className="font-medium text-[var(--color-text-primary)]">This Week's Progress</h2>
+            <h2 className="font-medium text-[var(--color-text-primary)]">This Week&apos;s Progress</h2>
             <div className="grid grid-cols-2 gap-3">
               <ExecutionMetricCard label="Owners Contacted"     value={stat?.ownersContacted ?? 0}       target={targets?.weekly_owner_contacts} />
               <ExecutionMetricCard label="Conversations"        value={stat?.ownerConversations ?? 0}    />

@@ -75,7 +75,7 @@ export default function MonthlyPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Metrics */}
           <div className="space-y-5">
-            <h2 className="font-medium text-[var(--color-text-primary)]">This Month's Results</h2>
+            <h2 className="font-medium text-[var(--color-text-primary)]">This Month&apos;s Results</h2>
             <div className="grid grid-cols-2 gap-3">
               <ExecutionMetricCard label="Owners Contacted"     value={stat?.ownersContacted ?? 0}       />
               <ExecutionMetricCard label="Conversations"        value={stat?.ownerConversations ?? 0}    />
