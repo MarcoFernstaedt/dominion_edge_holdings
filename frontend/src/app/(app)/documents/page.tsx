@@ -9,6 +9,7 @@ import { Modal } from '@/components/ui/Modal';
 import { Input, Select, Textarea } from '@/components/ui/Input';
 import { FileText, Plus, Download, Eye } from 'lucide-react';
 import type { Document, DocumentType, DocumentStatus } from '@/lib/types';
+import { useFormField } from '@/hooks/useFormField';
 
 const DOC_TYPES: { value: DocumentType; label: string }[] = [
   { value: 'loi', label: 'Letter of Intent (LOI)' },
@@ -143,8 +144,7 @@ function GenerateLOIModal({ open, onClose }: { open: boolean; onClose: () => voi
     onClose();
   }
 
-  const f = (field: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
-    setForm((p) => ({ ...p, [field]: e.target.value }));
+  const f = useFormField(setForm);
 
   return (
     <Modal open={open} onClose={onClose} title="Generate LOI Draft" size="lg">

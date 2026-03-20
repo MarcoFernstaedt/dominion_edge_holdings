@@ -10,17 +10,10 @@ import { Input, Select, Textarea } from '@/components/ui/Input';
 import { Plus, Briefcase, Users, PieChart, ArrowRight, AlertCircle, AlertTriangle, RefreshCw, Network } from 'lucide-react';
 import type { BoardCandidate, CandidateStatus, CapTableEntry, StakeholderType } from '@/lib/types';
 import { boardIntelApi } from '@/lib/api';
+import { useFormField } from '@/hooks/useFormField';
+import { CANDIDATE_STATUS_OPTIONS } from '@/lib/constants';
 
-const CANDIDATE_STATUSES: { value: CandidateStatus; label: string }[] = [
-  { value: 'identified', label: 'Identified' },
-  { value: 'researched', label: 'Researched' },
-  { value: 'outreach_sent', label: 'Outreach Sent' },
-  { value: 'meeting_scheduled', label: 'Meeting Scheduled' },
-  { value: 'interested', label: 'Interested' },
-  { value: 'negotiating', label: 'Negotiating' },
-  { value: 'confirmed', label: 'Confirmed' },
-  { value: 'passed', label: 'Passed' },
-];
+const CANDIDATE_STATUSES = [...CANDIDATE_STATUS_OPTIONS];
 
 function AddCandidateModal({ open, onClose, seatId }: { open: boolean; onClose: () => void; seatId?: string }) {
   const boardSeats = useAppStore((s) => s.boardSeats);
@@ -68,8 +61,7 @@ function AddCandidateModal({ open, onClose, seatId }: { open: boolean; onClose: 
     setErrors({});
   }
 
-  const f = (field: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
-    setForm((p) => ({ ...p, [field]: e.target.value }));
+  const f = useFormField(setForm);
 
   return (
     <Modal open={open} onClose={onClose} title="Add Board Candidate" size="lg">

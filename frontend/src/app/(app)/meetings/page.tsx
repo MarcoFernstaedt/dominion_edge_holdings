@@ -11,6 +11,7 @@ import { Calendar, Plus, Clock, CheckCircle, XCircle, AlertTriangle, BookOpen, R
 import { meetingPrepApi } from '@/lib/api';
 import type { MeetingPrepPacket } from '@/lib/types';
 import type { Meeting, MeetingStatus, MeetingType } from '@/lib/types';
+import { useFormField } from '@/hooks/useFormField';
 
 const MEETING_TYPE_LABELS: Record<MeetingType, string> = {
   seller_discovery: 'Seller Discovery',
@@ -89,9 +90,7 @@ function CreateMeetingModal({ open, onClose }: { open: boolean; onClose: () => v
     linkedCompanyId: '',
   });
 
-  const f = (field: keyof CreateMeetingForm) =>
-    (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
-      setForm((p) => ({ ...p, [field]: e.target.value }));
+  const f = useFormField(setForm);
 
   function handleTypeChange(type: MeetingType) {
     setForm((p) => ({

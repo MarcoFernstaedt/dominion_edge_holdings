@@ -10,6 +10,7 @@ import { Input, Select, Textarea } from '@/components/ui/Input';
 import { Plus, Search, Users } from 'lucide-react';
 import type { Contact, ContactType } from '@/lib/types';
 import Link from 'next/link';
+import { useFormField } from '@/hooks/useFormField';
 
 const CONTACT_TYPE_OPTIONS: { value: ContactType; label: string }[] = [
   { value: 'seller', label: 'Seller' },
@@ -74,8 +75,7 @@ function AddContactModal({ open, onClose }: { open: boolean; onClose: () => void
     setErrors({});
   }
 
-  const f = (field: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
-    setForm((prev) => ({ ...prev, [field]: e.target.value }));
+  const f = useFormField(setForm);
 
   return (
     <Modal open={open} onClose={onClose} title="Add Contact">

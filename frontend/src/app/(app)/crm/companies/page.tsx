@@ -10,54 +10,17 @@ import { Input, Select, Textarea } from '@/components/ui/Input';
 import { Plus, Search, Building2, Phone, Mail, Globe, Star, Filter } from 'lucide-react';
 import type { Company, CompanyStatus } from '@/lib/types';
 import Link from 'next/link';
+import { COMPANY_STATUS_OPTIONS, PRIORITY_OPTIONS } from '@/lib/constants';
+import { DEFAULT_COMPANY_FORM } from '@/lib/defaults';
+import { useFormField } from '@/hooks/useFormField';
 
-const STATUS_OPTIONS: { value: CompanyStatus | ''; label: string }[] = [
-  { value: '', label: 'All Statuses' },
-  { value: 'target', label: 'Target' },
-  { value: 'contacted', label: 'Contacted' },
-  { value: 'conversation', label: 'Conversation' },
-  { value: 'interested', label: 'Interested' },
-  { value: 'diligence', label: 'Diligence' },
-  { value: 'under_loi', label: 'Under LOI' },
-  { value: 'under_contract', label: 'Under Contract' },
-  { value: 'closed', label: 'Closed' },
-  { value: 'lost', label: 'Lost' },
-  { value: 'archived', label: 'Archived' },
-];
-
-const PRIORITY_OPTIONS = [
-  { value: '', label: 'All Priorities' },
-  { value: 'critical', label: 'Critical' },
-  { value: 'high', label: 'High' },
-  { value: 'medium', label: 'Medium' },
-  { value: 'low', label: 'Low' },
-];
+// Alias for backwards-compat within this file
+const STATUS_OPTIONS = COMPANY_STATUS_OPTIONS;
 
 function AddCompanyModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const addCompany = useAppStore((s) => s.addCompany);
 
-  const [form, setForm] = useState({
-    name: '',
-    industry: 'Pest Control',
-    website: '',
-    phone: '',
-    email: '',
-    city: 'Phoenix',
-    state: 'AZ',
-    ownerName: '',
-    ownerAgeSignal: '',
-    estimatedRevenueLow: '',
-    estimatedRevenueHigh: '',
-    estimatedSDELow: '',
-    estimatedSDEHigh: '',
-    yearsInBusiness: '',
-    status: 'target' as CompanyStatus,
-    priority: 'medium' as Company['priority'],
-    source: '',
-    notes: '',
-    retirementSignal: false,
-    noWebsiteSignal: false,
-  });
+  const [form, setForm] = useState(DEFAULT_COMPANY_FORM);
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -97,12 +60,11 @@ function AddCompanyModal({ open, onClose }: { open: boolean; onClose: () => void
       updatedAt: nowIso(),
     });
     onClose();
-    setForm({ name: '', industry: 'Pest Control', website: '', phone: '', email: '', city: 'Phoenix', state: 'AZ', ownerName: '', ownerAgeSignal: '', estimatedRevenueLow: '', estimatedRevenueHigh: '', estimatedSDELow: '', estimatedSDEHigh: '', yearsInBusiness: '', status: 'target', priority: 'medium', source: '', notes: '', retirementSignal: false, noWebsiteSignal: false });
+    setForm(DEFAULT_COMPANY_FORM);
     setErrors({});
   }
 
-  const f = (field: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
-    setForm((prev) => ({ ...prev, [field]: e.target.value }));
+  const f = useFormField(setForm);
 
   return (
     <Modal open={open} onClose={onClose} title="Add Company" size="lg">

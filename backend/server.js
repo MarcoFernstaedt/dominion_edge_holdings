@@ -8,6 +8,22 @@ import dotenv from 'dotenv';
 import crypto from 'crypto';
 import { z } from 'zod';
 
+// ─── Schemas ──────────────────────────────────────────────────────────────────
+import {
+  CompanySchema, ContactSchema, InteractionSchema, DealSchema, TaskSchema,
+  BoardCandidateSchema, DocumentSchema, ComposeSchema, SettingsPatchSchema,
+  UnderwritingCalcSchema, ChatSchema, OutreachGenerateSchema, ReplySuggestionSchema,
+  MeetingSchema, AgentModelSchema, ResponseAnalysisSchema, CalendarSchedulingSchema,
+  DailyOperationsSchema, BoardBuilderSchema, OutreachGenerationSchema, DealAnalysisSchema,
+  LeadDiscoverySchema, TargetQualificationSchema, StrategyAdvisorSchema,
+  IntegrationPatchSchema, InvestorSchema, CapitalStackSchema, InvestorMemoSchema,
+  FirmMessagingSchema, DealFeedListingSchema, DealFeedListingPatchSchema,
+  SaveListingSchema, ImportListingSchema, CsvIngestSchema,
+  RelationshipSchema, RelationshipPatchSchema, RelationshipInteractionSchema,
+  ScheduleFollowUpSchema, ConversationSchema, ConversationPatchSchema,
+  ConversationTargetSchema,
+} from './schemas/index.js';
+
 // ─── Services ─────────────────────────────────────────────────────────────────
 import AgentOrchestrator       from './services/AgentOrchestrator.js';
 import AutomationRuleEngine    from './services/AutomationRuleEngine.js';
@@ -148,8 +164,10 @@ app.use((req, _res, next) => {
 });
 
 // ─── Rate limiting ────────────────────────────────────────────────────────────
+// Window/cap values live in RATE_LIMITS constant (defined later with other domain constants).
+// They are referenced here via object literals so the limiter is created after the constants.
 const generalLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
+  windowMs: 15 * 60 * 1000,
   max: 500,
   standardHeaders: true,
   legacyHeaders: false,
@@ -157,7 +175,7 @@ const generalLimiter = rateLimit({
 });
 
 const aiLimiter = rateLimit({
-  windowMs: 60 * 1000, // 1 minute
+  windowMs: 60 * 1000,
   max: 20,
   standardHeaders: true,
   legacyHeaders: false,
@@ -187,7 +205,7 @@ function errorResponse(res, status, code, message, details = undefined) {
   return res.status(status).json(body);
 }
 
-// ─── Zod validation helpers ───────────────────────────────────────────────────
+// ─── Zod validation middleware ────────────────────────────────────────────────
 function validate(schema) {
   return (req, res, next) => {
     const result = schema.safeParse(req.body);
@@ -197,6 +215,17 @@ function validate(schema) {
     req.validated = result.data;
     next();
   };
+}
+
+/**
+ * Wraps an async route handler so unhandled promise rejections are forwarded
+ * to the Express error handler instead of crashing the process.
+ * Eliminates the need for try/catch in every async route.
+ *
+ * @param {Function} fn  Async (req, res, next) handler
+ */
+function asyncRoute(fn) {
+  return (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 }
 
 // ─── In-memory data store (upgrade to MongoDB Atlas later) ───────────────────
@@ -313,207 +342,64 @@ function findById(collection, id) {
   return collection.find((item) => item.id === id) ?? null;
 }
 
-// ─── Zod schemas ──────────────────────────────────────────────────────────────
-const CompanySchema = z.object({
-  name: z.string().min(1).max(200).trim(),
-  industry: z.string().max(100).trim().optional(),
-  subIndustry: z.string().max(100).trim().optional(),
-  website: z.string().url().optional().or(z.literal('')),
-  phone: z.string().max(30).trim().optional(),
-  email: z.string().email().optional().or(z.literal('')),
-  city: z.string().max(100).trim().optional(),
-  state: z.string().max(50).trim().optional(),
-  ownerName: z.string().max(200).trim().optional(),
-  estimatedRevenueLow: z.number().min(0).optional(),
-  estimatedRevenueHigh: z.number().min(0).optional(),
-  estimatedSDELow: z.number().min(0).optional(),
-  estimatedSDEHigh: z.number().min(0).optional(),
-  yearsInBusiness: z.number().min(0).max(500).optional(),
-  notes: z.string().max(5000).trim().optional(),
-  priority: z.enum(['critical', 'high', 'medium', 'low']).optional(),
-  source: z.string().max(100).trim().optional(),
-  status: z.enum(['target', 'contacted', 'conversation', 'interested', 'diligence', 'under_loi', 'under_contract', 'closed', 'lost', 'archived']).optional(),
-  retirementSignal: z.boolean().optional(),
-  noWebsiteSignal: z.boolean().optional(),
-  // Seller signal detection (System 3)
-  reviewDeclineSignal:   z.boolean().optional(),
-  websiteOutdatedSignal: z.boolean().optional(),
-  hiringSlowdownSignal:  z.boolean().optional(),
-  linkedinInactiveSignal: z.boolean().optional(),
-  sellerSignalScore:     z.number().min(0).max(10).optional(),
-  // Owner conversation pipeline (System 8)
-  sellerConversationStatus: z.enum(['not_contacted', 'contacted', 'conversation_started', 'meeting_scheduled', 'negotiation']).optional(),
-  // Pipeline pressure (System 1) — read-only computed fields, accepted on PATCH for direct overrides
-  lastInteractionAt:         z.string().datetime().optional().or(z.literal('')),
-  pipelinePressureLevel:     z.enum(['active', 'cooling', 'stalled']).optional(),
-  daysSinceLastInteraction:  z.number().min(0).optional(),
+// ─── Domain constants ─────────────────────────────────────────────────────────
+
+/** Boolean fields on Company that collectively produce sellerSignalScore. */
+const SELLER_SIGNAL_FIELDS = Object.freeze([
+  'retirementSignal', 'noWebsiteSignal', 'reviewDeclineSignal',
+  'websiteOutdatedSignal', 'hiringSlowdownSignal', 'linkedinInactiveSignal',
+]);
+
+/** Rate-limit windows and caps — single source of truth. */
+const RATE_LIMITS = Object.freeze({
+  GENERAL_WINDOW_MS:  15 * 60 * 1000,   // 15 min
+  GENERAL_MAX:        500,
+  AI_WINDOW_MS:       60 * 1000,         // 1 min
+  AI_MAX:             20,
 });
 
-const ContactSchema = z.object({
-  firstName: z.string().min(1).max(100).trim(),
-  lastName: z.string().max(100).trim().optional(),
-  title: z.string().max(200).trim().optional(),
-  companyId: z.string().uuid().optional().or(z.literal('')),
-  contactType: z.enum(['seller', 'board_candidate', 'banker', 'attorney', 'cpa', 'capital_partner', 'operator', 'networking_contact', 'vendor', 'employee_candidate']).optional(),
-  email: z.string().email().optional().or(z.literal('')),
-  phone: z.string().max(30).trim().optional(),
-  notes: z.string().max(5000).trim().optional(),
-  // Relationship intelligence (System 2)
-  influenceScore:           z.number().min(1).max(10).optional(),
-  relationshipWarmth:       z.enum(['cold', 'cooling', 'warm', 'hot']).optional(),
-  relationshipStage:        z.enum(['cold', 'aware', 'engaged', 'relationship', 'trusted']).optional(),
-  lastConversationSummary:  z.string().max(2000).trim().optional(),
-  relationshipNotes:        z.string().max(5000).trim().optional(),
-  // Pipeline pressure (System 1)
-  lastInteractionAt:        z.string().datetime().optional().or(z.literal('')),
-  pipelinePressureLevel:    z.enum(['active', 'cooling', 'stalled']).optional(),
-  daysSinceLastInteraction: z.number().min(0).optional(),
+/** Financial thresholds used across underwriting routes. */
+const FINANCIAL_RULES = Object.freeze({
+  DSCR_MINIMUM:              1.25,
+  SBA_MIN_DOWN_PAYMENT_PCT:  10,
+  DEFAULT_SENIOR_RATE_PCT:   6.5,
+  DEFAULT_SELLER_NOTE_RATE:  6,
 });
 
-const InteractionSchema = z.object({
-  type: z.enum(['email', 'call', 'meeting', 'note', 'document_sent', 'proposal', 'loi', 'follow_up', 'research']),
-  direction: z.enum(['inbound', 'outbound', 'internal']).optional(),
-  companyId: z.string().uuid().optional().or(z.literal('')),
-  contactId: z.string().uuid().optional().or(z.literal('')),
-  dealId: z.string().uuid().optional().or(z.literal('')),
-  subject: z.string().max(500).trim().optional(),
-  notes: z.string().max(10000).trim().optional(),
-  outcome: z.string().max(500).trim().optional(),
-  requiresFollowUp: z.boolean().optional(),
-  followUpDate: z.string().datetime().optional().or(z.literal('')),
-  // Conversation intelligence (System 4)
-  conversationSummary:  z.string().max(5000).trim().optional(),
-  sellerMotivation:     z.enum(['retirement', 'burnout', 'expansion_capital', 'family_transition', 'unknown']).optional(),
-  sellerTimeline:       z.enum(['immediate', '6_months', '1_year', 'unknown']).optional(),
-  sellerConcerns:       z.string().max(2000).trim().optional(),
-  nextConversationGoal: z.string().max(1000).trim().optional(),
-});
+// ─── Domain helpers ───────────────────────────────────────────────────────────
 
-const DealSchema = z.object({
-  companyName: z.string().min(1).max(200).trim(),
-  companyId: z.string().uuid().optional().or(z.literal('')),
-  dealType: z.enum(['platform', 'add_on', 'other']).optional(),
-  estimatedRevenue: z.number().min(0).optional(),
-  estimatedSDE: z.number().min(0).optional(),
-  askingPrice: z.number().min(0).optional(),
-  notes: z.string().max(10000).trim().optional(),
-  dealThesis: z.string().max(2000).trim().optional(),
-  riskLevel: z.enum(['low', 'medium', 'high', 'critical']).optional(),
-  confidenceLevel: z.number().min(0).max(100).optional(),
-  source: z.string().max(100).trim().optional(),
-  // Deal velocity tracking (System 7)
-  stage:           z.string().max(50).trim().optional(),
-  status:          z.string().max(50).trim().optional(),
-  stageEnteredAt:  z.string().datetime().optional().or(z.literal('')),
-  stageDurationDays: z.number().min(0).optional(),
-  // Deal Probability Scoring
-  probabilityScore:     z.number().min(0).max(100).optional(),
-  probabilityBand:      z.enum(['very_low', 'low', 'medium', 'high', 'very_high']).optional(),
-  probabilityUpdatedAt: z.string().datetime().optional().or(z.literal('')),
-  probabilityNotes:     z.string().max(1000).trim().optional(),
-  // Pipeline pressure (System 1)
-  lastInteractionAt:        z.string().datetime().optional().or(z.literal('')),
-  pipelinePressureLevel:    z.enum(['active', 'cooling', 'stalled']).optional(),
-  daysSinceLastInteraction: z.number().min(0).optional(),
-});
+/**
+ * Returns the seat type from a candidate record, tolerating both camelCase
+ * (`seatType`) and legacy snake_case (`seat_type`) field names.
+ * Use this everywhere instead of writing `candidateSeatType(c)`.
+ *
+ * @param {object} candidate
+ * @returns {string}
+ */
+function candidateSeatType(candidate) {
+  return candidate.seatType ?? candidate.seat_type ?? '';
+}
 
-const TaskSchema = z.object({
-  title: z.string().min(1).max(500).trim(),
-  description: z.string().max(5000).trim().optional(),
-  priority: z.enum(['critical', 'high', 'medium', 'low']).optional(),
-  dueDate: z.string().datetime().optional().or(z.literal('')),
-  linkedEntityType: z.string().max(50).trim().optional(),
-  linkedEntityId: z.string().uuid().optional().or(z.literal('')),
-  status: z.enum(['todo', 'in_progress', 'blocked', 'done', 'archived']).optional(),
-});
-
-const BoardCandidateSchema = z.object({
-  name: z.string().min(1).max(200).trim(),
-  seatId: z.string().uuid().optional().or(z.literal('')),
-  source: z.string().max(200).trim().optional(),
-  status: z.enum(['identified', 'researched', 'outreach_sent', 'meeting_scheduled', 'interested', 'negotiating', 'confirmed', 'passed']).optional(),
-  equityOffered: z.number().min(0).max(100).optional(),
-  bio: z.string().max(5000).trim().optional(),
-  notes: z.string().max(5000).trim().optional(),
-});
-
-const DocumentSchema = z.object({
-  title: z.string().min(1).max(500).trim(),
-  content: z.string().max(100000),
-  documentType: z.enum(['loi', 'board_invite', 'outreach_letter', 'follow_up_email', 'meeting_agenda', 'meeting_summary', 'deal_memo', 'diligence_checklist', 'board_update', 'post_acquisition_plan']),
-  entityType: z.string().max(50).optional(),
-  entityId: z.string().uuid().optional().or(z.literal('')),
-  status: z.enum(['draft', 'approved', 'sent', 'signed', 'archived']).optional(),
-});
-
-const ComposeSchema = z.object({
-  to: z.string().email(),
-  subject: z.string().min(1).max(1000).trim(),
-  body: z.string().max(50000).optional(),
-  companyId: z.string().uuid().optional().or(z.literal('')),
-  contactId: z.string().uuid().optional().or(z.literal('')),
-});
-
-const SettingsPatchSchema = z.object({
-  fromName: z.string().max(200).trim().optional(),
-  fromEmail: z.string().email().optional().or(z.literal('')),
-  smtpHost: z.string().max(300).trim().optional(),
-  smtpPort: z.number().int().min(1).max(65535).optional(),
-  smtpUser: z.string().max(300).trim().optional(),
-  emailMode: z.enum(['smtp_only', 'imap_smtp', 'gmail_api']).optional(),
-  primaryModel: z.string().max(100).trim().optional(),
-  reducedMotion: z.boolean().optional(),
-  highContrast: z.boolean().optional(),
-  keyboardShortcutsEnabled: z.boolean().optional(),
-  density: z.enum(['compact', 'standard', 'spacious']).optional(),
-  aiDraftingEnabled: z.boolean().optional(),
-  aiReplyEnabled: z.boolean().optional(),
-  aiBriefingEnabled: z.boolean().optional(),
-  // Contact frequency targets (System 6)
-  ownersContactedPerWeek: z.number().int().min(0).max(500).optional(),
-  followUpsPerDay:        z.number().int().min(0).max(100).optional(),
-  boardOutreachPerWeek:   z.number().int().min(0).max(100).optional(),
-  // Sourcing Radar
-  sourcingRadarEnabled:          z.boolean().optional(),
-  sourcingTargetIndustries:      z.array(z.string().max(100)).max(10).optional(),
-  sourcingTargetStates:          z.array(z.string().max(50)).max(60).optional(),
-  sourcingMinRelevanceThreshold: z.number().int().min(0).max(100).optional(),
-  sourcingNotifyHighPriority:    z.boolean().optional(),
-  // Meeting Prep
-  autoGeneratePrepPackets:  z.boolean().optional(),
-  enableMeetingPrepAI:      z.boolean().optional(),
-  prepPacketReminderHours:  z.number().int().min(1).max(168).optional(),
-  // Deal Probability
-  enableProbabilityScoring:          z.boolean().optional(),
-  enableDealProbabilityCommentary:   z.boolean().optional(),
-  probabilityHighThreshold:          z.number().int().min(0).max(100).optional(),
-  probabilityLowRescueThreshold:     z.number().int().min(0).max(100).optional(),
-}).strict();
-
-const UnderwritingCalcSchema = z.object({
-  netIncome: z.number().finite().optional().default(0),
-  ownerSalary: z.number().finite().optional().default(0),
-  personalAddbacks: z.number().finite().optional().default(0),
-  oneTimeAdjustments: z.number().finite().optional().default(0),
-  marketRateManagement: z.number().finite().optional().default(0),
-  askingPrice: z.number().min(0).finite().optional().default(0),
-  downPaymentPct: z.number().min(0).max(100).optional().default(10),
-  sellerNotePct: z.number().min(0).max(100).optional().default(0),
-  seniorDebtRatePct: z.number().min(0).max(50).optional().default(6.5),
-  seniorDebtTermMonths: z.number().int().min(1).max(360).optional().default(120),
-  sellerNoteRatePct: z.number().min(0).max(50).optional().default(6),
-  sellerNoteTermMonths: z.number().int().min(1).max(360).optional().default(60),
-});
-
-const ChatSchema = z.object({
-  messages: z.array(
-    z.object({
-      role: z.enum(['user', 'assistant']),
-      content: z.string().max(20000),
-    })
-  ).min(1).max(50),
-  system: z.string().max(5000).optional(),
-});
+/**
+ * Stamps `lastInteractionAt`, `updatedAt`, `pipelinePressureLevel = 'active'`,
+ * and `daysSinceLastInteraction = 0` on an entity in the given store collection.
+ * Eliminates the 3× copy-paste in the POST /api/interactions handler.
+ *
+ * @param {object[]} collection  Reference to the store array (e.g. store.companies)
+ * @param {string}   id          Entity ID to update
+ * @param {string}   now         ISO timestamp string
+ */
+function touchEntity(collection, id, now) {
+  const idx = collection.findIndex((e) => e.id === id);
+  if (idx === -1) return;
+  collection[idx] = {
+    ...collection[idx],
+    updatedAt:                now,
+    lastInteractionAt:        now,
+    pipelinePressureLevel:    'active',
+    daysSinceLastInteraction: 0,
+  };
+}
 
 // ─── Anthropic client ─────────────────────────────────────────────────────────
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -738,16 +624,7 @@ app.get('/api/companies', (req, res) => {
 app.post('/api/companies', validate(CompanySchema), (req, res) => {
   try {
     const validated = req.validated;
-    // Compute sellerSignalScore from boolean signals
-    const signals = [
-      validated.retirementSignal,
-      validated.noWebsiteSignal,
-      validated.reviewDeclineSignal,
-      validated.websiteOutdatedSignal,
-      validated.hiringSlowdownSignal,
-      validated.linkedinInactiveSignal,
-    ];
-    const sellerSignalScore = signals.filter(Boolean).length;
+    const sellerSignalScore = SELLER_SIGNAL_FIELDS.filter((f) => validated[f]).length;
     const company = {
       id: uid(),
       createdAt: nowIso(),
@@ -787,10 +664,8 @@ app.patch('/api/companies/:id', validate(CompanySchema.partial()), (req, res) =>
     const idx = store.companies.findIndex((c) => c.id === req.params.id);
     if (idx === -1) return errorResponse(res, 404, 'NOT_FOUND', 'Company not found');
     const merged = { ...store.companies[idx], ...req.validated, updatedAt: nowIso() };
-    // Recompute sellerSignalScore if any signal field was changed
-    const SIGNAL_FIELDS = ['retirementSignal','noWebsiteSignal','reviewDeclineSignal','websiteOutdatedSignal','hiringSlowdownSignal','linkedinInactiveSignal'];
-    if (SIGNAL_FIELDS.some((f) => f in req.validated)) {
-      merged.sellerSignalScore = SIGNAL_FIELDS.filter((f) => merged[f]).length;
+    if (SELLER_SIGNAL_FIELDS.some((f) => f in req.validated)) {
+      merged.sellerSignalScore = SELLER_SIGNAL_FIELDS.filter((f) => merged[f]).length;
     }
     store.companies[idx] = merged;
     res.json(store.companies[idx]);
@@ -884,43 +759,9 @@ app.post('/api/interactions', validate(InteractionSchema), (req, res) => {
     store.interactions.push(interaction);
 
     const now = nowIso();
-    if (interaction.companyId) {
-      const idx = store.companies.findIndex((c) => c.id === interaction.companyId);
-      if (idx !== -1) {
-        const days  = 0;
-        store.companies[idx] = {
-          ...store.companies[idx],
-          updatedAt:        now,
-          lastInteractionAt: now,
-          pipelinePressureLevel: 'active',
-          daysSinceLastInteraction: days,
-        };
-      }
-    }
-    if (interaction.contactId) {
-      const idx = store.contacts.findIndex((c) => c.id === interaction.contactId);
-      if (idx !== -1) {
-        store.contacts[idx] = {
-          ...store.contacts[idx],
-          updatedAt:        now,
-          lastInteractionAt: now,
-          pipelinePressureLevel: 'active',
-          daysSinceLastInteraction: 0,
-        };
-      }
-    }
-    if (interaction.dealId) {
-      const idx = store.deals.findIndex((d) => d.id === interaction.dealId);
-      if (idx !== -1) {
-        store.deals[idx] = {
-          ...store.deals[idx],
-          updatedAt:        now,
-          lastInteractionAt: now,
-          pipelinePressureLevel: 'active',
-          daysSinceLastInteraction: 0,
-        };
-      }
-    }
+    if (interaction.companyId) touchEntity(store.companies, interaction.companyId, now);
+    if (interaction.contactId) touchEntity(store.contacts,  interaction.contactId,  now);
+    if (interaction.dealId)    touchEntity(store.deals,     interaction.dealId,     now);
 
     res.status(201).json(interaction);
   } catch (err) {
@@ -1152,7 +993,7 @@ app.get('/api/board/seats/:seatType/candidates', (req, res) => {
     const { seatType } = req.params;
     const { includeScores } = req.query;
     let candidates = store.boardCandidates.filter(
-      (c) => c.seatType === seatType || c.seat_type === seatType
+      (c) => candidateSeatType(c) === seatType
     );
     if (includeScores !== 'false') {
       candidates = BoardCandidateScoring.rankCandidates(candidates, seatType);
@@ -1169,7 +1010,7 @@ app.get('/api/board/candidates/:id/fit', (req, res) => {
   try {
     const candidate = store.boardCandidates.find((c) => c.id === req.params.id);
     if (!candidate) return errorResponse(res, 404, 'NOT_FOUND', 'Candidate not found');
-    const seatType = candidate.seatType ?? candidate.seat_type ?? req.query.seatType ?? '';
+    const seatType = candidateSeatType(candidate) || String(req.query.seatType ?? '');
     const scored   = BoardCandidateScoring.scoreCandidateFull(candidate, seatType);
     res.json(scored);
   } catch (err) {
@@ -1183,7 +1024,7 @@ app.post('/api/board/candidates/:id/rank-commentary', async (req, res) => {
   try {
     const candidate = store.boardCandidates.find((c) => c.id === req.params.id);
     if (!candidate) return errorResponse(res, 404, 'NOT_FOUND', 'Candidate not found');
-    const seatType = candidate.seatType ?? candidate.seat_type ?? req.body.seatType ?? '';
+    const seatType = candidateSeatType(candidate) || String(req.body.seatType ?? '');
     const scored   = BoardCandidateScoring.scoreCandidateFull(candidate, seatType);
     const prompt   = `You are evaluating a board candidate for a ${seatType} seat.\n\nCandidate: ${candidate.name}\nFit Score: ${scored.fit_score} (${scored.fit_label})\nCommitment Probability: ${scored.commitment_probability}%\nFit Components: ${JSON.stringify(scored.fit_components)}\nBio: ${candidate.bio ?? 'Not provided'}\nNotes: ${candidate.notes ?? ''}\n\nProvide a concise (2-3 sentence) ranking commentary explaining why this candidate ranks where they do, what would improve their score, and the one best next step to advance them. Be direct and specific.`;
     const commentary = await ModelGateway.callAnthropic({ prompt, maxTokens: 300, model: 'LOW' });
@@ -1412,7 +1253,7 @@ app.get('/api/network/alerts', (req, res) => {
     const result = NetworkAlerts.generateNetworkAlerts({
       contacts:        enrichedContacts,
       boardCandidates: (store.boardCandidates ?? []).map((c) =>
-        BoardCandidateScoring.scoreCandidateFull(c, c.seatType ?? c.seat_type)
+        BoardCandidateScoring.scoreCandidateFull(c, candidateSeatType(c))
       ),
       boardSeats:      boardState.analyzed_seats,
       investors:       enrichedInvestors,
@@ -1600,7 +1441,7 @@ app.get('/api/command-center/network', (req, res) => {
     });
 
     const scoredCandidates = (store.boardCandidates ?? []).map((c) =>
-      BoardCandidateScoring.scoreCandidateFull(c, c.seatType ?? c.seat_type)
+      BoardCandidateScoring.scoreCandidateFull(c, candidateSeatType(c))
     );
 
     const summary = NetworkAlerts.buildCommandCenterSummary({
@@ -1827,13 +1668,6 @@ app.get('/api/outreach/templates', (req, res) => {
   }
 });
 
-const OutreachGenerateSchema = z.object({
-  templateType: z.enum(['seller_outreach', 'seller_follow_up', 'board_outreach', 'lender_outreach', 'networking_outreach']),
-  companyName: z.string().max(200).trim().optional(),
-  ownerName: z.string().max(200).trim().optional(),
-  context: z.string().max(1000).trim().optional(),
-});
-
 app.post('/api/outreach/generate', validate(OutreachGenerateSchema), async (req, res) => {
   if (!store.settings.aiDraftingEnabled) {
     return errorResponse(res, 403, 'FEATURE_DISABLED', 'AI drafting is disabled in settings');
@@ -1993,12 +1827,6 @@ app.patch('/api/settings', validate(SettingsPatchSchema), (req, res) => {
 });
 
 // ─── AI Reply Suggestion ──────────────────────────────────────────────────────
-const ReplySuggestionSchema = z.object({
-  threadSubject: z.string().max(500).trim().optional(),
-  lastMessage: z.string().min(1).max(5000),
-  senderName: z.string().max(200).trim().optional(),
-  companyName: z.string().max(200).trim().optional(),
-});
 
 app.post('/api/ai/reply-suggestion', validate(ReplySuggestionSchema), async (req, res) => {
   if (!store.settings.aiReplyEnabled) {
@@ -2035,21 +1863,6 @@ app.post('/api/ai/reply-suggestion', validate(ReplySuggestionSchema), async (req
 });
 
 // ─── Meetings ────────────────────────────────────────────────────────────────
-const MeetingSchema = z.object({
-  meetingType: z.enum(['seller_discovery', 'seller_followup', 'board_intro', 'banker_intro', 'attorney_intro', 'cpa_intro', 'capital_intro', 'diligence_review', 'post_acquisition_transition', 'internal_planning']),
-  title: z.string().min(1).max(500).trim(),
-  startsAt: z.string().datetime(),
-  endsAt: z.string().datetime(),
-  durationMinutes: z.number().int().min(5).max(480),
-  locationType: z.enum(['phone', 'google_meet', 'zoom', 'in_person', 'other']).optional(),
-  locationValue: z.string().max(1000).trim().optional(),
-  linkedCompanyId: z.string().uuid().optional().or(z.literal('')),
-  linkedDealId: z.string().uuid().optional().or(z.literal('')),
-  linkedContactIds: z.array(z.string().uuid()).optional(),
-  agenda: z.string().max(10000).optional(),
-  meetingNotes: z.string().max(10000).optional(),
-  status: z.enum(['draft', 'proposed', 'awaiting_confirmation', 'confirmed', 'scheduled', 'completed', 'cancelled', 'rescheduled', 'no_show']).optional(),
-});
 
 store.meetings = [];
 
@@ -2226,83 +2039,6 @@ Return a numbered list of agenda items only. Be specific and actionable.`,
 });
 
 // ─── Agent routes ─────────────────────────────────────────────────────────────
-const AgentModelSchema = z.string().regex(/^claude-(opus|sonnet|haiku|instant)-[0-9][-\w]*$/).optional();
-
-const ResponseAnalysisSchema = z.object({
-  emailBody: z.string().min(1).max(20000).trim(),
-  senderName: z.string().max(200).trim().optional(),
-  senderEmail: z.string().email().optional().or(z.literal('')),
-  companyName: z.string().max(200).trim().optional(),
-  threadContext: z.string().max(5000).trim().optional(),
-  model: AgentModelSchema,
-});
-
-const CalendarSchedulingSchema = z.object({
-  meetingType: z.enum(['seller_discovery', 'seller_followup', 'board_intro', 'banker_intro',
-    'attorney_intro', 'cpa_intro', 'capital_intro', 'diligence_review',
-    'post_acquisition_transition', 'internal_planning']),
-  durationMinutes: z.number().int().min(15).max(180).optional(),
-  contactName: z.string().max(200).trim().optional(),
-  contactTimezone: z.string().max(50).trim().optional(),
-  preferredDays: z.array(z.string()).max(7).optional(),
-  preferredTimes: z.array(z.string()).max(5).optional(),
-  model: AgentModelSchema,
-});
-
-const DailyOperationsSchema = z.object({
-  date: z.string().datetime().optional(),
-  model: AgentModelSchema,
-});
-
-const BoardBuilderSchema = z.object({
-  targetIndustry: z.string().max(200).trim().optional(),
-  dealContext: z.string().max(2000).trim().optional(),
-  model: AgentModelSchema,
-});
-
-const OutreachGenerationSchema = z.object({
-  contactType: z.enum(['seller', 'board_candidate', 'banker', 'attorney', 'cpa',
-    'capital_partner', 'operator', 'networking_contact', 'vendor']).optional(),
-  contactName: z.string().max(200).trim().optional(),
-  companyName: z.string().max(200).trim().optional(),
-  industry: z.string().max(100).trim().optional(),
-  context: z.string().max(2000).trim().optional(),
-  templateType: z.string().max(100).trim().optional(),
-  customInstructions: z.string().max(1000).trim().optional(),
-  model: AgentModelSchema,
-});
-
-const DealAnalysisSchema = z.object({
-  companyId: z.string().uuid().optional(),
-  financials: z.object({
-    revenue: z.number().min(0).optional(),
-    sde: z.number().min(0).optional(),
-    askingPrice: z.number().min(0).optional(),
-  }).optional(),
-  notes: z.string().max(5000).trim().optional(),
-  model: AgentModelSchema,
-});
-
-const LeadDiscoverySchema = z.object({
-  targetIndustry: z.string().max(200).trim().optional(),
-  targetGeography: z.string().max(200).trim().optional(),
-  model: AgentModelSchema,
-});
-
-const TargetQualificationSchema = z.object({
-  companyId: z.string().uuid().optional(),
-  researchNotes: z.string().max(5000).trim().optional(),
-  linkedinData: z.string().max(2000).trim().optional(),
-  websiteSignals: z.string().max(2000).trim().optional(),
-  model: AgentModelSchema,
-});
-
-const StrategyAdvisorSchema = z.object({
-  question: z.string().min(10).max(2000).trim(),
-  context: z.string().max(5000).trim().optional(),
-  dealId: z.string().uuid().optional(),
-  model: AgentModelSchema,
-});
 
 // ─── Agent execution helper (all routes via AgentOrchestrator) ───────────────
 async function runAgent(agentName, input, req, res) {
@@ -2881,13 +2617,6 @@ app.get('/api/integrations/:name', (req, res) => {
   res.json({ name, config: safeConfig, status });
 });
 
-const IntegrationPatchSchema = z.object({
-  enabled:           z.boolean().optional(),
-  apolloApiKey:      z.string().max(200).optional(),
-  calendarProvider:  z.enum(['google', 'outlook', 'none']).optional(),
-  calendarEnabled:   z.boolean().optional(),
-}).strict();
-
 // PATCH /api/integrations/:name — update integration settings
 app.patch('/api/integrations/:name', validate(IntegrationPatchSchema), (req, res) => {
   const { name } = req.params;
@@ -3367,24 +3096,6 @@ app.get('/api/dashboard/prep-summary', (req, res) => {
 
 // ─── Capital Raising: Investor CRM ───────────────────────────────────────────
 
-const investorSchema = z.object({
-  name:                z.string().min(1),
-  organization:        z.string().optional().default(''),
-  investorType:        z.enum(['angel','family_office','private_equity','operator_investor','private_lender','bank','search_fund_investor']).optional().default('angel'),
-  email:               z.string().email().optional().or(z.literal('')).default(''),
-  phone:               z.string().optional().default(''),
-  location:            z.string().optional().default(''),
-  checkSizeMin:        z.number().nullable().optional(),
-  checkSizeMax:        z.number().nullable().optional(),
-  industriesPreferred: z.array(z.string()).optional().default([]),
-  dealStagePreference: z.string().optional().default(''),
-  riskTolerance:       z.string().optional().default('moderate'),
-  priorDeals:          z.string().optional().default(''),
-  relationshipStage:   z.enum(['cold','aware','engaged','relationship','active_investor']).optional().default('cold'),
-  notes:               z.string().optional().default(''),
-  lastInteractionAt:   z.string().nullable().optional(),
-});
-
 app.get('/api/capital-raising/investors', (req, res) => {
   try {
     const { investorType, relationshipStage, minCheckSize, industry } = req.query;
@@ -3400,7 +3111,7 @@ app.get('/api/capital-raising/investors', (req, res) => {
   }
 });
 
-app.post('/api/capital-raising/investors', validate(investorSchema), (req, res) => {
+app.post('/api/capital-raising/investors', validate(InvestorSchema), (req, res) => {
   try {
     const investor = InvestorCRMService.createInvestor(req.validated);
     AuditLogService.log('investor_created', { investorId: investor.id, name: investor.name });
@@ -3449,25 +3160,12 @@ app.post('/api/capital-raising/investors/:id/mark-interested', (req, res) => {
 
 // ─── Capital Raising: Capital Stack ──────────────────────────────────────────
 
-const capitalStackSchema = z.object({
-  dealId:              z.string().optional().nullable(),
-  purchasePrice:       z.number().default(0),
-  seniorDebtAmount:    z.number().default(0),
-  sellerNoteAmount:    z.number().default(0),
-  operatorEquity:      z.number().default(0),
-  investorEquity:      z.number().default(0),
-  debtInterestRate:    z.number().default(0),
-  debtTermMonths:      z.number().default(0),
-  sellerNoteRate:      z.number().default(0),
-  sellerNoteTermMonths:z.number().default(0),
-});
-
 app.get('/api/capital-raising/capital-stacks', (req, res) => {
   const list = CapitalStackService.listStacks(req.query.dealId || null);
   res.json({ capitalStacks: list });
 });
 
-app.post('/api/capital-raising/capital-stacks', validate(capitalStackSchema), (req, res) => {
+app.post('/api/capital-raising/capital-stacks', validate(CapitalStackSchema), (req, res) => {
   try {
     const stack = CapitalStackService.createStack(req.validated.dealId, req.validated);
     res.status(201).json(stack);
@@ -3500,25 +3198,12 @@ app.delete('/api/capital-raising/capital-stacks/:id', (req, res) => {
 
 // ─── Capital Raising: Investor Memos ─────────────────────────────────────────
 
-const investorMemoSchema = z.object({
-  dealId:             z.string().optional().nullable(),
-  title:              z.string().optional().default(''),
-  summary:            z.string().optional().default(''),
-  purchasePrice:      z.number().default(0),
-  revenue:            z.number().default(0),
-  ebitda:             z.number().default(0),
-  dealStructure:      z.string().optional().default(''),
-  expectedReturns:    z.string().optional().default(''),
-  riskFactors:        z.string().optional().default(''),
-  operatorBackground: z.string().optional().default(''),
-});
-
 app.get('/api/capital-raising/memos', (req, res) => {
   const list = InvestorMemoService.listMemos(req.query.dealId || null);
   res.json({ memos: list });
 });
 
-app.post('/api/capital-raising/memos', validate(investorMemoSchema), (req, res) => {
+app.post('/api/capital-raising/memos', validate(InvestorMemoSchema), (req, res) => {
   try {
     const memo = InvestorMemoService.createMemo(req.validated);
     res.status(201).json(memo);
@@ -3561,21 +3246,12 @@ app.post('/api/capital-raising/memos/generate', async (req, res) => {
 
 // ─── Capital Raising: Firm Messaging ─────────────────────────────────────────
 
-const firmMessagingSchema = z.object({
-  missionStatement:      z.string().optional().default(''),
-  investmentThesis:      z.string().optional().default(''),
-  targetIndustries:      z.array(z.string()).optional().default([]),
-  targetDealSize:        z.string().optional().default(''),
-  geographicFocus:       z.string().optional().default(''),
-  valueCreationStrategy: z.string().optional().default(''),
-});
-
 app.get('/api/capital-raising/messaging', (req, res) => {
   const list = FirmMessagingService.list();
   res.json({ firmMessaging: list, latest: list[0] || null });
 });
 
-app.post('/api/capital-raising/messaging', validate(firmMessagingSchema), (req, res) => {
+app.post('/api/capital-raising/messaging', validate(FirmMessagingSchema), (req, res) => {
   try {
     const record = FirmMessagingService.create(req.validated);
     res.status(201).json(record);
@@ -4014,43 +3690,7 @@ AutomationRuleEngine.register({
 // ═══════════════════════════════════════════════════════════════════════════════
 
 // ─── Zod schemas ───────────────────────────────────────────────────────────────
-const DealFeedListingSchema = z.object({
-  companyName:           z.string().min(1).max(200).trim(),
-  industry:              z.string().max(100).trim().optional(),
-  location:              z.string().max(200).trim().optional(),
-  revenueEstimate:       z.number().min(0).optional(),
-  ebitdaEstimate:        z.number().min(0).optional(),
-  yearsInBusiness:       z.number().min(0).max(200).optional(),
-  listingPrice:          z.number().min(0).optional(),
-  source:                z.string().max(100).trim().optional(),
-  sourceUrl:             z.string().url().optional().or(z.literal('')),
-  contactName:           z.string().max(200).trim().optional(),
-  contactEmail:          z.string().email().optional().or(z.literal('')),
-  contactPhone:          z.string().max(50).trim().optional(),
-  ownerRetirementSignal: z.boolean().optional(),
-  noWebsiteSignal:       z.boolean().optional(),
-  notes:                 z.string().max(2000).trim().optional(),
-  externalId:            z.string().max(200).trim().optional(),
-});
 
-const DealFeedListingPatchSchema = DealFeedListingSchema.extend({
-  listingStatus: z.enum(['active', 'archived', 'imported']).optional(),
-}).partial();
-
-const SaveListingSchema = z.object({
-  listingId: z.string().uuid(),
-  userId:    z.string().min(1).max(100).optional().default('default'),
-});
-
-const ImportListingSchema = z.object({
-  listingId: z.string().uuid(),
-  userId:    z.string().min(1).max(100).optional().default('default'),
-});
-
-const CsvIngestSchema = z.object({
-  rows:   z.array(z.record(z.string())).min(1).max(500),
-  source: z.string().max(100).trim().optional().default('csv'),
-});
 
 // ─── GET /api/deal-feed — list with filters + pagination ──────────────────────
 app.get('/api/deal-feed', (req, res) => {
@@ -4229,29 +3869,7 @@ app.post('/api/deal-feed/:id/score', (req, res) => {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 // ─── Zod schemas ──────────────────────────────────────────────────────────────
-const RelationshipSchema = z.object({
-  entityType:            z.enum(['seller', 'board_member', 'investor']),
-  entityId:              z.string().uuid().optional().or(z.literal('')),
-  name:                  z.string().min(1).max(200).trim(),
-  company:               z.string().max(200).trim().optional(),
-  relationshipStatus:    z.enum(['new', 'warming', 'active', 'long_term', 'closed', 'not_interested']).optional(),
-  interestLevel:         z.enum(['low', 'medium', 'high', 'ready']).optional(),
-  lastContactDate:       z.string().datetime().optional().or(z.literal('')),
-  nextFollowUpDate:      z.string().optional(),
-  followUpFrequencyDays: z.number().int().min(1).max(365).optional(),
-  notes:                 z.string().max(2000).trim().optional(),
-});
 
-const RelationshipPatchSchema = RelationshipSchema.partial();
-
-const RelationshipInteractionSchema = z.object({
-  interactionType:    z.enum(['call', 'email', 'meeting', 'note']),
-  interactionSummary: z.string().max(2000).trim().optional(),
-});
-
-const ScheduleFollowUpSchema = z.object({
-  daysFromNow: z.number().int().min(1).max(365),
-});
 
 // ─── GET /api/relationships/dashboard ─────────────────────────────────────────
 app.get('/api/relationships/dashboard', (req, res) => {
@@ -4411,22 +4029,6 @@ app.get('/api/relationships/execution-counts', (req, res) => {
 // CONVERSATION KPI SYSTEM
 // ═══════════════════════════════════════════════════════════════════════════════
 
-const ConversationSchema = z.object({
-  entityType:          z.enum(['seller', 'board_member', 'investor']),
-  entityId:            z.string().uuid().optional().or(z.literal('')),
-  entityName:          z.string().min(1).max(200).trim(),
-  company:             z.string().max(200).trim().optional(),
-  conversationType:    z.enum(['phone', 'zoom', 'meeting', 'email_thread']),
-  conversationSummary: z.string().max(2000).trim().optional(),
-  date:                z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-});
-
-const ConversationPatchSchema = ConversationSchema.omit({ entityType: true, entityId: true }).partial();
-
-const ConversationTargetSchema = z.object({
-  entityType:   z.enum(['seller', 'board_member', 'investor']),
-  weeklyTarget: z.number().int().min(0).max(100),
-});
 
 // ─── GET /api/conversations/kpi ───────────────────────────────────────────────
 app.get('/api/conversations/kpi', (req, res) => {
@@ -4585,7 +4187,6 @@ AutomationRuleEngine.register({
   },
   enabled: true,
 });
-
 
 // ── Spec 4: Notifications ─────────────────────────────────────────────────
 
@@ -4977,8 +4578,6 @@ app.post('/api/exports/:id/cancel', validate(z.object({
     errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to cancel export');
   }
 });
-
-
 
 // ─── 404 ──────────────────────────────────────────────────────────────────────
 app.use((req, res) => {

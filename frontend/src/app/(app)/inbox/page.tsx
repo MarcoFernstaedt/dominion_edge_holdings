@@ -9,6 +9,7 @@ import { Modal } from '@/components/ui/Modal';
 import { Input, Textarea, Select } from '@/components/ui/Input';
 import { Mail, Plus, Filter, Search, AlertCircle, Clock, CheckCheck } from 'lucide-react';
 import type { EmailThread } from '@/lib/types';
+import { useFormField } from '@/hooks/useFormField';
 
 const THREAD_TYPES = [
   { value: '', label: 'All Threads' },
@@ -60,8 +61,7 @@ function ComposeModal({ open, onClose }: { open: boolean; onClose: () => void })
     if (announcer) announcer.textContent = 'Email sent (simulated)';
   }
 
-  const f = (field: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
-    setForm((p) => ({ ...p, [field]: e.target.value }));
+  const f = useFormField(setForm);
 
   return (
     <Modal open={open} onClose={onClose} title="Compose Email" size="lg">

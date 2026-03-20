@@ -10,20 +10,10 @@ import { Input, Select, Textarea } from '@/components/ui/Input';
 import { Plus, AlertTriangle, ArrowRight, Radar } from 'lucide-react';
 import type { Deal, DealStage } from '@/lib/types';
 import Link from 'next/link';
+import { useFormField } from '@/hooks/useFormField';
+import { DEAL_STAGE_COLORS } from '@/lib/constants';
 
-const STAGE_COLORS: Record<string, string> = {
-  identified: '#A7A29A',
-  contacted: '#4D7EA8',
-  discovery: '#4D7EA8',
-  financial_review: '#D9A441',
-  loi_discussion: '#C9A227',
-  loi_signed: '#C9A227',
-  due_diligence: '#D9A441',
-  financing: '#D9A441',
-  closing: '#3FA66B',
-  closed: '#3FA66B',
-  lost: '#C35B5B',
-};
+const STAGE_COLORS = DEAL_STAGE_COLORS;
 
 function AddDealModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const addDeal = useAppStore((s) => s.addDeal);
@@ -82,8 +72,7 @@ function AddDealModal({ open, onClose }: { open: boolean; onClose: () => void })
     setErrors({});
   }
 
-  const f = (field: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
-    setForm((prev) => ({ ...prev, [field]: e.target.value }));
+  const f = useFormField(setForm);
 
   return (
     <Modal open={open} onClose={onClose} title="Create Deal" size="lg">
