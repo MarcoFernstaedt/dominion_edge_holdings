@@ -23,6 +23,7 @@ export const ARTIFACT_TYPES = new Set([
   'follow_up_sequence',
 
   // Deal artifacts
+  'deal_memo',
   'deal_summary',
   'underwriting_commentary',
   'diligence_summary',

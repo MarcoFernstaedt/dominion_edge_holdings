@@ -1157,7 +1157,7 @@ app.get('/api/board/seats/:seatType/candidates', (req, res) => {
     if (includeScores !== 'false') {
       candidates = BoardCandidateScoring.rankCandidates(candidates, seatType);
     }
-    res.json({ seat_type: seatType, candidates, total: candidates.length });
+    res.json({ seat_type: seatType, ranked_candidates: candidates, total: candidates.length });
   } catch (err) {
     console.error('[board/seats/:seatType/candidates]', err);
     errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to rank candidates');
@@ -1296,10 +1296,10 @@ app.post('/api/relationships/:id/intro-request-draft', async (req, res) => {
 
 // POST /api/relationships/edges — create a graph edge
 app.post('/api/relationships/edges', validate(z.object({
-  from_contact_id: z.string().uuid(),
-  to_contact_id:   z.string().uuid(),
+  from_contact_id: z.string().min(1),
+  to_contact_id:   z.string().min(1),
   edge_type:       z.enum(['knows','worked_with','introduced','advises','invested_in','referred','met_with','board_relationship','banking_relationship','legal_relationship','operator_relationship']),
-  strength:        z.enum(['weak','moderate','strong','trusted']).optional(),
+  strength:        z.union([z.enum(['weak','moderate','strong','trusted']), z.number().min(0).max(10)]).optional(),
   confidence:      z.number().min(0).max(100).optional(),
   source:          z.string().max(100).optional(),
   notes:           z.string().max(2000).optional(),
@@ -1309,7 +1309,7 @@ app.post('/api/relationships/edges', validate(z.object({
     const edge = { id: uid(), ...req.validated, created_at: nowIso(), updated_at: nowIso() };
     if (!store.relationshipEdges) store.relationshipEdges = [];
     store.relationshipEdges.push(edge);
-    res.status(201).json(edge);
+    res.status(201).json({ edge });
   } catch (err) {
     errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to create relationship edge');
   }
@@ -1613,6 +1613,10 @@ app.get('/api/command-center/network', (req, res) => {
       introPathResults:[],
     });
 
+    // Ensure credibility_index is the full object (not just score number)
+    if (typeof summary.credibility_index === 'number') {
+      summary.credibility_index = credIdx;
+    }
     res.json(summary);
   } catch (err) {
     console.error('[command-center/network]', err);
@@ -2645,26 +2649,39 @@ app.post('/api/approvals/:id/apply', (req, res) => {
 
 // GET /api/artifacts — query with filters
 app.get('/api/artifacts', (req, res) => {
-  const { artifactType, approvalStatus, linkedEntityId, generatedByAgent, approvalRequired, latestOnly, limit, offset } = req.query;
+  const { artifactType, artifactStatus, approvalStatus, linkedEntityId, generatedByAgent, approvalRequired, latestOnly, limit, offset } = req.query;
   try {
-    res.json(ArtifactStore.query({
-      artifactType,
-      approvalStatus,
+    const result = ArtifactStore.query({
+      artifactType:     artifactType ?? req.query.type,
+      artifactStatus:   artifactStatus,
+      approvalStatus:   approvalStatus,
       linkedEntityId,
       generatedByAgent,
       approvalRequired: approvalRequired !== undefined ? approvalRequired === 'true' : null,
       latestOnly:       latestOnly !== 'false',
       limit:            Math.min(Number(limit) || 50, 200),
       offset:           Number(offset) || 0,
-    }));
+    });
+    // Normalise: wrap in { artifacts, total } if ArtifactStore returns a plain array
+    if (Array.isArray(result)) {
+      res.json({ artifacts: result, total: result.length });
+    } else if (result && Array.isArray(result.artifacts)) {
+      res.json(result);
+    } else {
+      const items = result?.items ?? result?.results ?? [];
+      res.json({ artifacts: items, total: items.length });
+    }
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// POST /api/artifacts — create a new artifact
+// POST /api/artifacts — create a new artifact (accepts both camelCase and snake_case)
 app.post('/api/artifacts', validate(z.object({
-  artifactType:      z.string().min(1),
+  // snake_case aliases (test-facing)
+  type:              z.string().min(1).optional(),
+  // camelCase fields (original)
+  artifactType:      z.string().min(1).optional(),
   title:             z.string().min(1).max(300),
   linkedEntityTypes: z.array(z.string()).optional().default([]),
   linkedEntityIds:   z.array(z.string()).optional().default([]),
@@ -2676,10 +2693,17 @@ app.post('/api/artifacts', validate(z.object({
   approvalRequired:  z.boolean().optional().default(false),
   groupId:           z.string().optional(),
   staleHours:        z.number().optional(),
-})), (req, res) => {
+}).refine((d) => d.type || d.artifactType, { message: 'type is required', path: ['type'] })), (req, res) => {
   try {
-    const artifact = ArtifactStore.create(req.validated);
-    res.status(201).json(artifact);
+    const data = req.validated;
+    const artifact = ArtifactStore.create({
+      ...data,
+      artifactType: data.artifactType ?? data.type,
+    });
+    // Normalise: wrap in { artifact } with consistent shape for tests
+    const normalised = { ...artifact };
+    if (!normalised.artifactId && normalised.id) normalised.artifactId = normalised.id;
+    res.status(201).json({ artifact: normalised });
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
@@ -4562,6 +4586,400 @@ AutomationRuleEngine.register({
   enabled: true,
 });
 
+
+// ── Spec 4: Notifications ─────────────────────────────────────────────────
+
+// GET /api/notifications — list all notifications, optionally filtered
+app.get('/api/notifications', (req, res) => {
+  try {
+    let notifs = [...(store.notifications ?? [])];
+    const { unread, pinned, severity, type } = req.query;
+
+    if (unread === 'true')  notifs = notifs.filter((n) => !n.read_at);
+    if (pinned === 'true')  notifs = notifs.filter((n) => n.pinned);
+    if (severity)           notifs = notifs.filter((n) => n.severity === severity);
+    if (type)               notifs = notifs.filter((n) => n.type === type);
+
+    notifs.sort((a, b) => new Date(b.createdAt ?? b.created_at) - new Date(a.createdAt ?? a.created_at));
+    res.json({ notifications: notifs, total: notifs.length });
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to retrieve notifications');
+  }
+});
+
+// POST /api/notifications/:id/read — mark a notification as read
+app.post('/api/notifications/:id/read', (req, res) => {
+  const notif = (store.notifications ?? []).find((n) => n.id === req.params.id);
+  if (!notif) return errorResponse(res, 404, 'NOT_FOUND', 'Notification not found');
+  NotificationService.markRead(notif);
+  res.json({ id: notif.id, read_at: notif.read_at });
+});
+
+// POST /api/notifications/:id/dismiss — dismiss (soft-delete) a notification
+app.post('/api/notifications/:id/dismiss', (req, res) => {
+  const notif = (store.notifications ?? []).find((n) => n.id === req.params.id);
+  if (!notif) return errorResponse(res, 404, 'NOT_FOUND', 'Notification not found');
+  NotificationService.markDismissed(notif);
+  res.json({ id: notif.id, dismissed_at: notif.dismissed_at });
+});
+
+// POST /api/notifications/mark-all-read — bulk mark all unread as read
+app.post('/api/notifications/mark-all-read', (req, res) => {
+  const unread = (store.notifications ?? []).filter((n) => !n.read_at && !n.dismissed_at);
+  unread.forEach((n) => NotificationService.markRead(n));
+  res.json({ marked_read: unread.length });
+});
+
+// ── Spec 4: Quick actions (mobile-first) ──────────────────────────────────
+
+// POST /api/quick-log — log a quick touch/interaction on any entity
+app.post('/api/quick-log', validate(z.object({
+  entity_type:   z.enum(['contact', 'deal', 'investor', 'board_candidate']),
+  entity_id:     z.string().min(1),
+  interaction_type: z.enum(['call', 'email', 'meeting', 'text', 'note', 'linkedin']),
+  notes:         z.string().max(2000).optional(),
+  sentiment:     z.enum(['positive', 'neutral', 'negative', 'hot', 'warm', 'cold']).optional(),
+  logged_by:     z.string().max(200).optional(),
+})), (req, res) => {
+  try {
+    const { entity_type, entity_id, interaction_type, notes, sentiment, logged_by } = req.validated;
+    const entry = {
+      id:               uid(),
+      entity_type,
+      entity_id,
+      interaction_type,
+      notes:            notes ?? '',
+      sentiment:        sentiment ?? 'neutral',
+      logged_by:        logged_by ?? 'user',
+      logged_at:        nowIso(),
+    };
+
+    // Persist into relevant store based on entity_type
+    if (entity_type === 'contact') {
+      store.interactions.push({ ...entry, contactId: entity_id });
+    } else {
+      store.interactions.push(entry);
+    }
+
+    res.status(201).json({ quick_log: entry });
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to log quick interaction');
+  }
+});
+
+// POST /api/quick-action/next-action/open — mark current next action as open/started
+app.post('/api/quick-action/next-action/open', validate(z.object({
+  task_id:    z.string().min(1),
+  opened_by:  z.string().max(200).optional(),
+  notes:      z.string().max(1000).optional(),
+})), (req, res) => {
+  try {
+    const { task_id, opened_by, notes } = req.validated;
+    const task = (store.tasks ?? []).find((t) => t.id === task_id);
+    if (!task) return errorResponse(res, 404, 'NOT_FOUND', 'Task not found');
+    task.status     = 'in_progress';
+    task.started_at = nowIso();
+    task.started_by = opened_by ?? 'user';
+    if (notes) task.notes = notes;
+    res.json({ task_id, status: 'in_progress', started_at: task.started_at });
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to open next action');
+  }
+});
+
+// POST /api/quick-action/proof-submit — submit proof for a task
+app.post('/api/quick-action/proof-submit', validate(z.object({
+  task_id:    z.string().min(1),
+  proof_type: z.enum(['screenshot', 'email_thread', 'doc_link', 'verbal_confirm', 'system_event']),
+  proof_url:  z.string().url().optional().or(z.literal('')),
+  notes:      z.string().max(2000).optional(),
+  submitted_by: z.string().max(200).optional(),
+})), (req, res) => {
+  try {
+    const { task_id, proof_type, proof_url, notes, submitted_by } = req.validated;
+    const task = (store.tasks ?? []).find((t) => t.id === task_id);
+    if (!task) return errorResponse(res, 404, 'NOT_FOUND', 'Task not found');
+
+    task.proof_status   = 'submitted';
+    task.proof_type     = proof_type;
+    task.proof_url      = proof_url ?? null;
+    task.proof_notes    = notes ?? '';
+    task.proof_submitted_at = nowIso();
+    task.proof_submitted_by = submitted_by ?? 'user';
+
+    res.json({ task_id, proof_status: 'submitted', submitted_at: task.proof_submitted_at });
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to submit proof');
+  }
+});
+
+// POST /api/quick-action/approve-and-send — approve artifact and immediately queue export
+app.post('/api/quick-action/approve-and-send', validate(z.object({
+  artifact_id:  z.string().min(1),
+  approved_by:  z.string().min(1),
+  export_type:  z.string().min(1),
+  destination:  z.string().optional(),
+  approval_note: z.string().max(1000).optional(),
+})), (req, res) => {
+  try {
+    const { artifact_id, approved_by, export_type, destination, approval_note } = req.validated;
+
+    // 1. Approve the artifact
+    ArtifactStore.setApprovalStatus(artifact_id, 'approved', {
+      reviewedBy:  approved_by,
+      reviewNote:  approval_note ?? 'Approved via quick action',
+      requestedBy: approved_by,
+    });
+
+    // 2. Queue the export
+    const exportResult = ExportService.queueExport({
+      artifactId:    artifact_id,
+      exportType:    export_type,
+      requestedBy:   approved_by,
+      destination:   destination ?? null,
+      exportOptions: { quick_action: true },
+    });
+
+    if (!exportResult.eligible) {
+      return errorResponse(res, 422, 'EXPORT_NOT_ELIGIBLE', exportResult.reason ?? 'Export not eligible', { detail: exportResult.detail });
+    }
+
+    // 3. Immediately mark exported (optimistic for quick actions)
+    ExportService.markReady(exportResult.export.export_id, { by: approved_by });
+    ExportService.markExported(exportResult.export.export_id, { by: approved_by, destination });
+
+    res.json({
+      artifact_id,
+      approved: true,
+      export_id: exportResult.export.export_id,
+      export_status: 'exported',
+      warnings: exportResult.warnings,
+    });
+  } catch (err) {
+    console.error('[quick-action/approve-and-send]', err);
+    errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to approve and send artifact');
+  }
+});
+
+// ── Spec 4: Enhanced Artifact Routes ──────────────────────────────────────
+
+// POST /api/artifacts/generate — generate a new AI artifact
+app.post('/api/artifacts/generate', validate(z.object({
+  artifact_type:    z.string().min(1),
+  entity_ids:       z.array(z.string()).optional(),
+  context:          z.record(z.unknown()).optional(),
+  requested_by:     z.string().max(200).optional(),
+  format:           z.string().optional(),
+  approval_required: z.boolean().optional(),
+})), async (req, res) => {
+  try {
+    const { artifact_type, entity_ids = [], context = {}, requested_by, format, approval_required } = req.validated;
+
+    const artifact = ArtifactStore.create({
+      type:              artifact_type,
+      title:             `Generated ${artifact_type}`,
+      content:           '',
+      generatedBySystem: true,
+      createdBy:         requested_by ?? 'system',
+      format:            format ?? 'markdown',
+      entity_ids,
+      approvalRequired:  approval_required,
+      metadata:          { context, generation_requested_at: nowIso() },
+    });
+
+    // Trigger AI generation
+    try {
+      const result = await ModelGateway.run({
+        taskType:     artifact_type,
+        agentName:    'ArtifactGeneratorAgent',
+        entityIds:    entity_ids,
+        systemPrompt: `You are a document generation assistant for a private equity acquisition firm. Generate a ${artifact_type} document. Return structured content appropriate for the document type.`,
+        userMessage:  JSON.stringify({ artifact_type, context }),
+      });
+
+      ArtifactStore.update(artifact.id, {
+        content:       result.content,
+        provider_used: result.provider_used,
+        model_used:    result.model_used,
+        generated_at:  nowIso(),
+      });
+      artifact.content       = result.content;
+      artifact.provider_used = result.provider_used;
+    } catch (aiErr) {
+      console.warn('[artifacts/generate] AI generation failed, artifact saved as draft', aiErr.message);
+    }
+
+    res.status(201).json({ artifact: ArtifactStore.getSummary(artifact.id) });
+  } catch (err) {
+    console.error('[artifacts/generate]', err);
+    errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to generate artifact');
+  }
+});
+
+// POST /api/artifacts/:id/regenerate — regenerate content for an existing artifact
+app.post('/api/artifacts/:id/regenerate', async (req, res) => {
+  try {
+    const existing = ArtifactStore.getById(req.params.id);
+    if (!existing) return errorResponse(res, 404, 'NOT_FOUND', 'Artifact not found');
+    if (existing.status === 'archived') return errorResponse(res, 409, 'ARCHIVED', 'Cannot regenerate an archived artifact');
+
+    // Create a new version in the same group
+    const newVersion = ArtifactStore.create({
+      type:              existing.artifactType,
+      title:             existing.title,
+      content:           '',
+      generatedBySystem: true,
+      createdBy:         req.body?.requested_by ?? 'system',
+      format:            existing.format ?? 'markdown',
+      groupId:           existing.groupId,
+      metadata:          { ...existing.metadata, regenerated_from: existing.id, regenerated_at: nowIso() },
+      approvalRequired:  existing.approvalRequired,
+    });
+
+    try {
+      const result = await ModelGateway.run({
+        taskType:     existing.artifactType,
+        agentName:    'ArtifactGeneratorAgent',
+        entityIds:    existing.entityIds ?? [],
+        systemPrompt: `You are a document generation assistant. Regenerate the following document type with fresh content: ${existing.artifactType}`,
+        userMessage:  JSON.stringify({ artifact_type: existing.artifactType, context: existing.metadata?.context ?? {}, revision_notes: req.body?.revision_notes ?? '' }),
+      });
+
+      ArtifactStore.update(newVersion.id, {
+        content:      result.content,
+        provider_used: result.provider_used,
+        model_used:   result.model_used,
+        generated_at: nowIso(),
+      });
+    } catch (aiErr) {
+      console.warn('[artifacts/regenerate] AI failed, new version saved as empty draft', aiErr.message);
+    }
+
+    res.status(201).json({ artifact: ArtifactStore.getSummary(newVersion.id), previous_version_id: existing.id });
+  } catch (err) {
+    console.error('[artifacts/regenerate]', err);
+    errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to regenerate artifact');
+  }
+});
+
+// POST /api/artifacts/:id/archive — archive an artifact
+app.post('/api/artifacts/:id/archive', validate(z.object({
+  by:     z.string().min(1),
+  reason: z.string().max(500).optional(),
+})), (req, res) => {
+  try {
+    const artifact = ArtifactStore.getById(req.params.id);
+    if (!artifact) return errorResponse(res, 404, 'NOT_FOUND', 'Artifact not found');
+    ArtifactStore.archive(req.params.id, { by: req.validated.by, reason: req.validated.reason });
+    res.json({ id: req.params.id, status: 'archived' });
+  } catch (err) {
+    console.error('[artifacts/archive]', err);
+    errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to archive artifact');
+  }
+});
+
+// POST /api/artifacts/:id/export — queue artifact for export
+app.post('/api/artifacts/:id/export', validate(z.object({
+  export_type:    z.string().min(1),
+  requested_by:   z.string().min(1),
+  destination:    z.string().optional(),
+  export_options: z.record(z.unknown()).optional(),
+})), (req, res) => {
+  try {
+    const { export_type, requested_by, destination, export_options } = req.validated;
+
+    const result = ExportService.queueExport({
+      artifactId:    req.params.id,
+      exportType:    export_type,
+      requestedBy:   requested_by,
+      destination:   destination ?? null,
+      exportOptions: export_options ?? {},
+    });
+
+    if (!result.eligible) {
+      return errorResponse(res, 422, 'EXPORT_NOT_ELIGIBLE', result.reason ?? 'Export not eligible', { detail: result.detail, warnings: result.warnings });
+    }
+
+    res.status(202).json({
+      export_id:    result.export.export_id,
+      status:       result.export.status,
+      warnings:     result.warnings,
+      artifact_id:  req.params.id,
+    });
+  } catch (err) {
+    console.error('[artifacts/export]', err);
+    errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to queue artifact export');
+  }
+});
+
+// ── Spec 4: Export management ────────────────────────────────────────────────
+
+// GET /api/exports — list export records
+app.get('/api/exports', (req, res) => {
+  try {
+    const filters = {};
+    if (req.query.status)      filters.status      = req.query.status;
+    if (req.query.export_type) filters.exportType   = req.query.export_type;
+    if (req.query.stale_only)  filters.staleOnly    = req.query.stale_only === 'true';
+    res.json({ exports: ExportService.query(filters) });
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to retrieve exports');
+  }
+});
+
+// GET /api/exports/:id — get a single export record
+app.get('/api/exports/:id', (req, res) => {
+  const record = ExportService.getById(req.params.id);
+  if (!record) return errorResponse(res, 404, 'NOT_FOUND', 'Export not found');
+  res.json(record);
+});
+
+// GET /api/exports/:id/audit — full provenance audit trail
+app.get('/api/exports/:id/audit', (req, res) => {
+  const trail = ExportService.getAuditTrail(req.params.id);
+  if (!trail) return errorResponse(res, 404, 'NOT_FOUND', 'Export not found');
+  res.json(trail);
+});
+
+// POST /api/exports/:id/complete — mark export as completed/delivered
+app.post('/api/exports/:id/complete', validate(z.object({
+  by:          z.string().min(1),
+  destination: z.string().optional(),
+  note:        z.string().max(500).optional(),
+})), (req, res) => {
+  try {
+    const { by, destination, note } = req.validated;
+    ExportService.markReady(req.params.id, { by });
+    const record = ExportService.markExported(req.params.id, { by, note, destination });
+    if (!record) return errorResponse(res, 404, 'NOT_FOUND', 'Export not found');
+    res.json({ export_id: record.export_id, status: record.status, completed_at: record.completed_at });
+  } catch (err) {
+    if (err.message?.includes('invalid transition')) {
+      return errorResponse(res, 409, 'INVALID_TRANSITION', err.message);
+    }
+    errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to complete export');
+  }
+});
+
+// POST /api/exports/:id/cancel — cancel a queued export
+app.post('/api/exports/:id/cancel', validate(z.object({
+  by:     z.string().min(1),
+  reason: z.string().max(500).optional(),
+})), (req, res) => {
+  try {
+    const record = ExportService.cancelExport(req.params.id, { by: req.validated.by, reason: req.validated.reason });
+    if (!record) return errorResponse(res, 404, 'NOT_FOUND', 'Export not found');
+    res.json({ export_id: record.export_id, status: record.status });
+  } catch (err) {
+    if (err.message?.includes('invalid transition')) {
+      return errorResponse(res, 409, 'INVALID_TRANSITION', err.message);
+    }
+    errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to cancel export');
+  }
+});
+
+
+
 // ─── 404 ──────────────────────────────────────────────────────────────────────
 app.use((req, res) => {
   errorResponse(res, 404, 'NOT_FOUND', `Route not found: ${req.method} ${req.path}`);
@@ -5306,397 +5724,6 @@ if (process.env.NODE_ENV !== 'test') {
       res.json({ template_key, draft: result.content, provider_used: result.provider_used, fallback_used: result.fallback_used });
     } catch (e) {
       res.status(500).json({ error: e.message });
-    }
-  });
-
-  // ── Spec 4: Notifications ─────────────────────────────────────────────────
-
-  // GET /api/notifications — list all notifications, optionally filtered
-  app.get('/api/notifications', (req, res) => {
-    try {
-      let notifs = [...(store.notifications ?? [])];
-      const { unread, pinned, severity, type } = req.query;
-
-      if (unread === 'true')  notifs = notifs.filter((n) => !n.read_at);
-      if (pinned === 'true')  notifs = notifs.filter((n) => n.pinned);
-      if (severity)           notifs = notifs.filter((n) => n.severity === severity);
-      if (type)               notifs = notifs.filter((n) => n.type === type);
-
-      notifs.sort((a, b) => new Date(b.createdAt ?? b.created_at) - new Date(a.createdAt ?? a.created_at));
-      res.json({ notifications: notifs, total: notifs.length });
-    } catch (err) {
-      errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to retrieve notifications');
-    }
-  });
-
-  // POST /api/notifications/:id/read — mark a notification as read
-  app.post('/api/notifications/:id/read', (req, res) => {
-    const notif = (store.notifications ?? []).find((n) => n.id === req.params.id);
-    if (!notif) return errorResponse(res, 404, 'NOT_FOUND', 'Notification not found');
-    NotificationService.markRead(notif);
-    res.json({ id: notif.id, read_at: notif.read_at });
-  });
-
-  // POST /api/notifications/:id/dismiss — dismiss (soft-delete) a notification
-  app.post('/api/notifications/:id/dismiss', (req, res) => {
-    const notif = (store.notifications ?? []).find((n) => n.id === req.params.id);
-    if (!notif) return errorResponse(res, 404, 'NOT_FOUND', 'Notification not found');
-    NotificationService.markDismissed(notif);
-    res.json({ id: notif.id, dismissed_at: notif.dismissed_at });
-  });
-
-  // POST /api/notifications/mark-all-read — bulk mark all unread as read
-  app.post('/api/notifications/mark-all-read', (req, res) => {
-    const unread = (store.notifications ?? []).filter((n) => !n.read_at && !n.dismissed_at);
-    unread.forEach((n) => NotificationService.markRead(n));
-    res.json({ marked_read: unread.length });
-  });
-
-  // ── Spec 4: Quick actions (mobile-first) ──────────────────────────────────
-
-  // POST /api/quick-log — log a quick touch/interaction on any entity
-  app.post('/api/quick-log', validate(z.object({
-    entity_type:   z.enum(['contact', 'deal', 'investor', 'board_candidate']),
-    entity_id:     z.string().min(1),
-    interaction_type: z.enum(['call', 'email', 'meeting', 'text', 'note', 'linkedin']),
-    notes:         z.string().max(2000).optional(),
-    sentiment:     z.enum(['positive', 'neutral', 'negative', 'hot', 'warm', 'cold']).optional(),
-    logged_by:     z.string().max(200).optional(),
-  })), (req, res) => {
-    try {
-      const { entity_type, entity_id, interaction_type, notes, sentiment, logged_by } = req.validated;
-      const entry = {
-        id:               uid(),
-        entity_type,
-        entity_id,
-        interaction_type,
-        notes:            notes ?? '',
-        sentiment:        sentiment ?? 'neutral',
-        logged_by:        logged_by ?? 'user',
-        logged_at:        nowIso(),
-      };
-
-      // Persist into relevant store based on entity_type
-      if (entity_type === 'contact') {
-        store.interactions.push({ ...entry, contactId: entity_id });
-      } else {
-        store.interactions.push(entry);
-      }
-
-      res.status(201).json({ quick_log: entry });
-    } catch (err) {
-      errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to log quick interaction');
-    }
-  });
-
-  // POST /api/quick-action/next-action/open — mark current next action as open/started
-  app.post('/api/quick-action/next-action/open', validate(z.object({
-    task_id:    z.string().min(1),
-    opened_by:  z.string().max(200).optional(),
-    notes:      z.string().max(1000).optional(),
-  })), (req, res) => {
-    try {
-      const { task_id, opened_by, notes } = req.validated;
-      const task = (store.tasks ?? []).find((t) => t.id === task_id);
-      if (!task) return errorResponse(res, 404, 'NOT_FOUND', 'Task not found');
-      task.status     = 'in_progress';
-      task.started_at = nowIso();
-      task.started_by = opened_by ?? 'user';
-      if (notes) task.notes = notes;
-      res.json({ task_id, status: 'in_progress', started_at: task.started_at });
-    } catch (err) {
-      errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to open next action');
-    }
-  });
-
-  // POST /api/quick-action/proof-submit — submit proof for a task
-  app.post('/api/quick-action/proof-submit', validate(z.object({
-    task_id:    z.string().min(1),
-    proof_type: z.enum(['screenshot', 'email_thread', 'doc_link', 'verbal_confirm', 'system_event']),
-    proof_url:  z.string().url().optional().or(z.literal('')),
-    notes:      z.string().max(2000).optional(),
-    submitted_by: z.string().max(200).optional(),
-  })), (req, res) => {
-    try {
-      const { task_id, proof_type, proof_url, notes, submitted_by } = req.validated;
-      const task = (store.tasks ?? []).find((t) => t.id === task_id);
-      if (!task) return errorResponse(res, 404, 'NOT_FOUND', 'Task not found');
-
-      task.proof_status   = 'submitted';
-      task.proof_type     = proof_type;
-      task.proof_url      = proof_url ?? null;
-      task.proof_notes    = notes ?? '';
-      task.proof_submitted_at = nowIso();
-      task.proof_submitted_by = submitted_by ?? 'user';
-
-      res.json({ task_id, proof_status: 'submitted', submitted_at: task.proof_submitted_at });
-    } catch (err) {
-      errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to submit proof');
-    }
-  });
-
-  // POST /api/quick-action/approve-and-send — approve artifact and immediately queue export
-  app.post('/api/quick-action/approve-and-send', validate(z.object({
-    artifact_id:  z.string().min(1),
-    approved_by:  z.string().min(1),
-    export_type:  z.string().min(1),
-    destination:  z.string().optional(),
-    approval_note: z.string().max(1000).optional(),
-  })), (req, res) => {
-    try {
-      const { artifact_id, approved_by, export_type, destination, approval_note } = req.validated;
-
-      // 1. Approve the artifact
-      ArtifactStore.setApprovalStatus(artifact_id, 'approved', {
-        reviewedBy:  approved_by,
-        reviewNote:  approval_note ?? 'Approved via quick action',
-        requestedBy: approved_by,
-      });
-
-      // 2. Queue the export
-      const exportResult = ExportService.queueExport({
-        artifactId:    artifact_id,
-        exportType:    export_type,
-        requestedBy:   approved_by,
-        destination:   destination ?? null,
-        exportOptions: { quick_action: true },
-      });
-
-      if (!exportResult.eligible) {
-        return errorResponse(res, 422, 'EXPORT_NOT_ELIGIBLE', exportResult.reason ?? 'Export not eligible', { detail: exportResult.detail });
-      }
-
-      // 3. Immediately mark exported (optimistic for quick actions)
-      ExportService.markReady(exportResult.export.export_id, { by: approved_by });
-      ExportService.markExported(exportResult.export.export_id, { by: approved_by, destination });
-
-      res.json({
-        artifact_id,
-        approved: true,
-        export_id: exportResult.export.export_id,
-        export_status: 'exported',
-        warnings: exportResult.warnings,
-      });
-    } catch (err) {
-      console.error('[quick-action/approve-and-send]', err);
-      errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to approve and send artifact');
-    }
-  });
-
-  // ── Spec 4: Enhanced Artifact Routes ──────────────────────────────────────
-
-  // POST /api/artifacts/generate — generate a new AI artifact
-  app.post('/api/artifacts/generate', validate(z.object({
-    artifact_type:    z.string().min(1),
-    entity_ids:       z.array(z.string()).optional(),
-    context:          z.record(z.unknown()).optional(),
-    requested_by:     z.string().max(200).optional(),
-    format:           z.string().optional(),
-    approval_required: z.boolean().optional(),
-  })), async (req, res) => {
-    try {
-      const { artifact_type, entity_ids = [], context = {}, requested_by, format, approval_required } = req.validated;
-
-      const artifact = ArtifactStore.create({
-        type:              artifact_type,
-        title:             `Generated ${artifact_type}`,
-        content:           '',
-        generatedBySystem: true,
-        createdBy:         requested_by ?? 'system',
-        format:            format ?? 'markdown',
-        entity_ids,
-        approvalRequired:  approval_required,
-        metadata:          { context, generation_requested_at: nowIso() },
-      });
-
-      // Trigger AI generation
-      try {
-        const result = await ModelGateway.run({
-          taskType:     artifact_type,
-          agentName:    'ArtifactGeneratorAgent',
-          entityIds:    entity_ids,
-          systemPrompt: `You are a document generation assistant for a private equity acquisition firm. Generate a ${artifact_type} document. Return structured content appropriate for the document type.`,
-          userMessage:  JSON.stringify({ artifact_type, context }),
-        });
-
-        ArtifactStore.update(artifact.id, {
-          content:       result.content,
-          provider_used: result.provider_used,
-          model_used:    result.model_used,
-          generated_at:  nowIso(),
-        });
-        artifact.content       = result.content;
-        artifact.provider_used = result.provider_used;
-      } catch (aiErr) {
-        console.warn('[artifacts/generate] AI generation failed, artifact saved as draft', aiErr.message);
-      }
-
-      res.status(201).json({ artifact: ArtifactStore.getSummary(artifact.id) });
-    } catch (err) {
-      console.error('[artifacts/generate]', err);
-      errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to generate artifact');
-    }
-  });
-
-  // POST /api/artifacts/:id/regenerate — regenerate content for an existing artifact
-  app.post('/api/artifacts/:id/regenerate', async (req, res) => {
-    try {
-      const existing = ArtifactStore.getById(req.params.id);
-      if (!existing) return errorResponse(res, 404, 'NOT_FOUND', 'Artifact not found');
-      if (existing.status === 'archived') return errorResponse(res, 409, 'ARCHIVED', 'Cannot regenerate an archived artifact');
-
-      // Create a new version in the same group
-      const newVersion = ArtifactStore.create({
-        type:              existing.artifactType,
-        title:             existing.title,
-        content:           '',
-        generatedBySystem: true,
-        createdBy:         req.body?.requested_by ?? 'system',
-        format:            existing.format ?? 'markdown',
-        groupId:           existing.groupId,
-        metadata:          { ...existing.metadata, regenerated_from: existing.id, regenerated_at: nowIso() },
-        approvalRequired:  existing.approvalRequired,
-      });
-
-      try {
-        const result = await ModelGateway.run({
-          taskType:     existing.artifactType,
-          agentName:    'ArtifactGeneratorAgent',
-          entityIds:    existing.entityIds ?? [],
-          systemPrompt: `You are a document generation assistant. Regenerate the following document type with fresh content: ${existing.artifactType}`,
-          userMessage:  JSON.stringify({ artifact_type: existing.artifactType, context: existing.metadata?.context ?? {}, revision_notes: req.body?.revision_notes ?? '' }),
-        });
-
-        ArtifactStore.update(newVersion.id, {
-          content:      result.content,
-          provider_used: result.provider_used,
-          model_used:   result.model_used,
-          generated_at: nowIso(),
-        });
-      } catch (aiErr) {
-        console.warn('[artifacts/regenerate] AI failed, new version saved as empty draft', aiErr.message);
-      }
-
-      res.status(201).json({ artifact: ArtifactStore.getSummary(newVersion.id), previous_version_id: existing.id });
-    } catch (err) {
-      console.error('[artifacts/regenerate]', err);
-      errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to regenerate artifact');
-    }
-  });
-
-  // POST /api/artifacts/:id/archive — archive an artifact
-  app.post('/api/artifacts/:id/archive', validate(z.object({
-    by:     z.string().min(1),
-    reason: z.string().max(500).optional(),
-  })), (req, res) => {
-    try {
-      const artifact = ArtifactStore.getById(req.params.id);
-      if (!artifact) return errorResponse(res, 404, 'NOT_FOUND', 'Artifact not found');
-      ArtifactStore.archive(req.params.id, { by: req.validated.by, reason: req.validated.reason });
-      res.json({ id: req.params.id, status: 'archived' });
-    } catch (err) {
-      console.error('[artifacts/archive]', err);
-      errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to archive artifact');
-    }
-  });
-
-  // POST /api/artifacts/:id/export — queue artifact for export
-  app.post('/api/artifacts/:id/export', validate(z.object({
-    export_type:    z.string().min(1),
-    requested_by:   z.string().min(1),
-    destination:    z.string().optional(),
-    export_options: z.record(z.unknown()).optional(),
-  })), (req, res) => {
-    try {
-      const { export_type, requested_by, destination, export_options } = req.validated;
-
-      const result = ExportService.queueExport({
-        artifactId:    req.params.id,
-        exportType:    export_type,
-        requestedBy:   requested_by,
-        destination:   destination ?? null,
-        exportOptions: export_options ?? {},
-      });
-
-      if (!result.eligible) {
-        return errorResponse(res, 422, 'EXPORT_NOT_ELIGIBLE', result.reason ?? 'Export not eligible', { detail: result.detail, warnings: result.warnings });
-      }
-
-      res.status(202).json({
-        export_id:    result.export.export_id,
-        status:       result.export.status,
-        warnings:     result.warnings,
-        artifact_id:  req.params.id,
-      });
-    } catch (err) {
-      console.error('[artifacts/export]', err);
-      errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to queue artifact export');
-    }
-  });
-
-  // ── Spec 4: Export management ────────────────────────────────────────────────
-
-  // GET /api/exports — list export records
-  app.get('/api/exports', (req, res) => {
-    try {
-      const filters = {};
-      if (req.query.status)      filters.status      = req.query.status;
-      if (req.query.export_type) filters.exportType   = req.query.export_type;
-      if (req.query.stale_only)  filters.staleOnly    = req.query.stale_only === 'true';
-      res.json({ exports: ExportService.query(filters) });
-    } catch (err) {
-      errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to retrieve exports');
-    }
-  });
-
-  // GET /api/exports/:id — get a single export record
-  app.get('/api/exports/:id', (req, res) => {
-    const record = ExportService.getById(req.params.id);
-    if (!record) return errorResponse(res, 404, 'NOT_FOUND', 'Export not found');
-    res.json(record);
-  });
-
-  // GET /api/exports/:id/audit — full provenance audit trail
-  app.get('/api/exports/:id/audit', (req, res) => {
-    const trail = ExportService.getAuditTrail(req.params.id);
-    if (!trail) return errorResponse(res, 404, 'NOT_FOUND', 'Export not found');
-    res.json(trail);
-  });
-
-  // POST /api/exports/:id/complete — mark export as completed/delivered
-  app.post('/api/exports/:id/complete', validate(z.object({
-    by:          z.string().min(1),
-    destination: z.string().optional(),
-    note:        z.string().max(500).optional(),
-  })), (req, res) => {
-    try {
-      const { by, destination, note } = req.validated;
-      ExportService.markReady(req.params.id, { by });
-      const record = ExportService.markExported(req.params.id, { by, note, destination });
-      if (!record) return errorResponse(res, 404, 'NOT_FOUND', 'Export not found');
-      res.json({ export_id: record.export_id, status: record.status, completed_at: record.completed_at });
-    } catch (err) {
-      if (err.message?.includes('invalid transition')) {
-        return errorResponse(res, 409, 'INVALID_TRANSITION', err.message);
-      }
-      errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to complete export');
-    }
-  });
-
-  // POST /api/exports/:id/cancel — cancel a queued export
-  app.post('/api/exports/:id/cancel', validate(z.object({
-    by:     z.string().min(1),
-    reason: z.string().max(500).optional(),
-  })), (req, res) => {
-    try {
-      const record = ExportService.cancelExport(req.params.id, { by: req.validated.by, reason: req.validated.reason });
-      if (!record) return errorResponse(res, 404, 'NOT_FOUND', 'Export not found');
-      res.json({ export_id: record.export_id, status: record.status });
-    } catch (err) {
-      if (err.message?.includes('invalid transition')) {
-        return errorResponse(res, 409, 'INVALID_TRANSITION', err.message);
-      }
-      errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to cancel export');
     }
   });
 
