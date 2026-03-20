@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { Search, Menu } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { NotificationsPanel } from './NotificationsPanel';
@@ -13,24 +14,37 @@ interface TopBarProps {
 export function TopBar({ onSearchOpen, onMobileMenuOpen }: TopBarProps) {
   return (
     <header
-      className="h-11 flex items-center justify-between px-4 border-b border-[#262626] bg-[#0A0A0A] flex-shrink-0"
+      className="h-12 flex items-center justify-between px-3 border-b border-[#262626] bg-[#0A0A0A] flex-shrink-0 sticky top-0 z-20"
       role="banner"
     >
       {/* Left: mobile menu trigger */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center w-9">
         <button
           onClick={onMobileMenuOpen}
           className={cn(
-            'md:hidden flex items-center justify-center w-7 h-7 rounded',
-            'text-[#737373] hover:text-[#E5E5E5] hover:bg-[#1A1A1A] transition-colors duration-100',
+            'md:hidden flex items-center justify-center w-8 h-8 rounded-lg',
+            'text-[#737373] hover:text-[#E5E5E5] hover:bg-[#1A1A1A] transition-colors duration-150',
             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A227]'
           )}
           aria-label="Open navigation menu"
           aria-haspopup="dialog"
         >
-          <Menu size={15} aria-hidden />
+          <Menu size={16} aria-hidden />
         </button>
       </div>
+
+      {/* Center: brand name — mobile only */}
+      <Link
+        href="/command-center"
+        className={cn(
+          'md:hidden absolute left-1/2 -translate-x-1/2',
+          'text-[11px] font-bold tracking-[0.14em] text-[#C9A227] uppercase',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A227] rounded px-1'
+        )}
+        aria-label="Dominion Edge Holdings — go to Command Center"
+      >
+        DOMINION EDGE HOLDINGS
+      </Link>
 
       {/* Right: search + notifications */}
       <div className="flex items-center gap-1">
@@ -39,7 +53,7 @@ export function TopBar({ onSearchOpen, onMobileMenuOpen }: TopBarProps) {
           onClick={onSearchOpen}
           className={cn(
             'flex items-center gap-2 px-2.5 py-1.5 rounded-[7px] text-sm text-[#737373]',
-            'hover:text-[#E5E5E5] hover:bg-[#1A1A1A] transition-colors duration-100',
+            'hover:text-[#E5E5E5] hover:bg-[#1A1A1A] transition-colors duration-150',
             'border border-transparent hover:border-[#262626]',
             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A227]'
           )}

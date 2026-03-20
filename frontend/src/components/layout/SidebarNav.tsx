@@ -162,31 +162,39 @@ export function SidebarNav({ collapsed, onToggle, isMobile = false }: SidebarNav
           collapsed && !isMobile ? 'px-4 justify-center' : 'px-4'
         )}
       >
-        {/* Logo mark */}
-        <div
-          className="w-6 h-6 rounded-[4px] flex items-center justify-center flex-shrink-0 font-bold text-[11px] text-black"
-          style={{ background: '#C9A227' }}
-          aria-hidden="true"
+        {/* Logo — clickable, navigates to command center */}
+        <Link
+          href="/command-center"
+          className={cn(
+            'flex items-center gap-2.5 min-w-0 flex-1',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A227] rounded',
+            collapsed && !isMobile && 'flex-initial'
+          )}
+          aria-label="Dominion Edge Holdings — go to Command Center"
         >
-          D
-        </div>
-
-        {showLabel && (
-          <div className="flex-1 min-w-0">
-            <div className="text-[11px] font-bold tracking-[0.12em] text-[#C9A227] leading-tight truncate">
-              DOMINION EDGE
-            </div>
-            <div className="text-[9px] tracking-[0.18em] text-[#737373] uppercase leading-tight mt-0.5">
-              Holdings · AOS
-            </div>
+          {/* D logo mark */}
+          <div
+            className="w-6 h-6 rounded-[4px] flex items-center justify-center flex-shrink-0 font-bold text-[11px] text-black"
+            style={{ background: '#C9A227' }}
+            aria-hidden="true"
+          >
+            D
           </div>
-        )}
+
+          {showLabel && (
+            <div className="min-w-0">
+              <div className="text-[11px] font-bold tracking-[0.12em] text-[#C9A227] leading-tight truncate">
+                DOMINION EDGE HOLDINGS
+              </div>
+            </div>
+          )}
+        </Link>
 
         {/* Mobile close */}
         {isMobile && (
           <button
             onClick={onToggle}
-            className="ml-auto text-[#737373] hover:text-[#E5E5E5] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A227] rounded p-1"
+            className="ml-auto flex-shrink-0 text-[#737373] hover:text-[#E5E5E5] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A227] rounded p-1"
             aria-label="Close navigation"
           >
             <X size={14} aria-hidden />
