@@ -167,7 +167,7 @@ export default function CompaniesPage() {
   );
 
   return (
-    <div className="max-w-6xl mx-auto px-6 py-6 space-y-5">
+    <div className="page-container space-y-5">
       <header className="flex items-start justify-between gap-4">
         <div>
           <h1 className="font-serif text-3xl font-semibold text-[#E8E6E3]">Companies</h1>

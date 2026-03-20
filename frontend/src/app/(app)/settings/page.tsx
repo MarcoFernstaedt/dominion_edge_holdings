@@ -14,7 +14,7 @@ export default function SettingsPage() {
   const u = (updates: Partial<typeof settings>) => updateSettings(updates);
 
   return (
-    <div className="max-w-3xl mx-auto px-6 py-6 space-y-8">
+    <div className="page-container-narrow space-y-8">
       <header>
         <h1 className="font-serif text-3xl font-semibold text-[#E8E6E3]">Settings</h1>
         <p className="text-sm text-[#A7A29A] mt-1">Platform configuration · AI, email, accessibility, appearance</p>

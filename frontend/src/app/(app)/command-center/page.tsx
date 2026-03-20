@@ -547,7 +547,7 @@ export default function CommandCenterPage() {
       <PageHeader
         title="Command Center"
         subtitle={today}
-        context="Dominion Edge Holdings · AOS"
+        context="Dominion Edge Holdings"
       />
 
       {/* ── Zone 1: Hero action ─────────────────────────────────────────── */}

@@ -11,6 +11,8 @@ import {
   Radar, RefreshCw, CheckCircle2, XCircle, AlertTriangle,
   ChevronRight, Filter, Download, Upload, Globe, Zap,
 } from 'lucide-react';
+import { SkeletonRadarPage } from '@/components/ui/Skeleton';
+import { PageHeader } from '@/components/ui/PageHeader';
 import type { SourceAdapter, SourcingCandidate, SourcingRadarRun } from '@/lib/types';
 import Link from 'next/link';
 
@@ -413,28 +415,17 @@ export default function SourcingRadarPage() {
   });
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64 text-[#A7A29A]" aria-busy="true" aria-label="Loading sourcing radar">
-        <Radar size={24} className="animate-pulse mr-2" aria-hidden />
-        Loading sourcing radar…
-      </div>
-    );
+    return <SkeletonRadarPage />;
   }
 
   return (
-    <main className="space-y-8" aria-label="Sourcing Radar">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-[#E8E6E3] flex items-center gap-2">
-            <Radar size={22} className="text-[#C9A227]" aria-hidden />
-            Sourcing Radar
-          </h1>
-          <p className="text-sm text-[#A7A29A] mt-1">
-            Continuously monitors configured sources for new acquisition targets.
-          </p>
-        </div>
-      </div>
+    <main className="page-container space-y-8" aria-label="Sourcing Radar">
+      <PageHeader
+        title="Sourcing Radar"
+        subtitle="Continuously monitors configured sources for new acquisition targets."
+        icon={Radar}
+        context="Pipeline"
+      />
 
       {error && (
         <div className="bg-[#2A1A1A] border border-[#C35B5B] rounded-md p-3 text-sm text-[#C35B5B]" role="alert">

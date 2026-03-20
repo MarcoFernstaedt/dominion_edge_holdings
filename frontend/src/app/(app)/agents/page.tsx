@@ -316,8 +316,8 @@ const AGENTS: AgentCard[] = [
 // ─── Page ─────────────────────────────────────────────────────────────────────
 export default function AgentsPage() {
   return (
-    <div className="h-full overflow-y-auto bg-[#0F0F10]">
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6">
+    <div className="h-full overflow-y-auto">
+      <div className="page-container-narrow">
         {/* Header */}
         <div className="mb-6">
           <div className="flex items-center gap-3 mb-1">

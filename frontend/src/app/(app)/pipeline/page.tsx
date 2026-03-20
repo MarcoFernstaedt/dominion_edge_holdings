@@ -232,22 +232,22 @@ export default function PipelinePage() {
   const totalValue = deals.reduce((sum, d) => sum + (d.estimatedSDE ?? 0), 0);
 
   return (
-    <div className="px-6 py-6 space-y-5">
-      <header className="flex items-start justify-between gap-4">
+    <div className="page-container space-y-5">
+      <header className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
         <div>
-          <h1 className="font-serif text-3xl font-semibold text-[#E8E6E3]">Pipeline</h1>
-          <p className="text-sm text-[#A7A29A] mt-1">
+          <h1 className="font-serif text-3xl font-semibold text-[#E5E5E5]">Pipeline</h1>
+          <p className="text-sm text-[#737373] mt-1">
             {totalActive} active deal{totalActive !== 1 ? 's' : ''}
             {totalValue > 0 && ` · ${formatCurrency(totalValue)} total SDE`}
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="flex border border-[#2A2A2E] rounded overflow-hidden">
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex border border-[#262626] rounded-[8px] overflow-hidden">
             <button
               onClick={() => setView('kanban')}
               className={cn(
                 'px-3 py-1.5 text-xs transition-colors',
-                view === 'kanban' ? 'bg-[#C9A227] text-black font-semibold' : 'text-[#A7A29A] hover:text-[#E8E6E3]'
+                view === 'kanban' ? 'bg-[#C9A227] text-black font-semibold' : 'text-[#737373] hover:text-[#E5E5E5]'
               )}
               aria-pressed={view === 'kanban'}
             >
@@ -257,14 +257,14 @@ export default function PipelinePage() {
               onClick={() => setView('list')}
               className={cn(
                 'px-3 py-1.5 text-xs transition-colors',
-                view === 'list' ? 'bg-[#C9A227] text-black font-semibold' : 'text-[#A7A29A] hover:text-[#E8E6E3]'
+                view === 'list' ? 'bg-[#C9A227] text-black font-semibold' : 'text-[#737373] hover:text-[#E5E5E5]'
               )}
               aria-pressed={view === 'list'}
             >
               List
             </button>
           </div>
-          <Link href="/pipeline/sourcing-radar">
+          <Link href="/pipeline/sourcing-radar" className="hidden sm:block">
             <Button variant="outline">
               <Radar size={14} className="mr-1.5" aria-hidden />
               Sourcing Radar

@@ -96,7 +96,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
         <main
           id="main-content"
-          className="flex-1 overflow-y-auto bg-[#0D0D0D]"
+          className="flex-1 overflow-y-auto overflow-x-hidden bg-[#0D0D0D]"
           tabIndex={-1}
         >
           <ErrorBoundary>

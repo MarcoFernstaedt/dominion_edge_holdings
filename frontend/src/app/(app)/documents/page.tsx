@@ -238,7 +238,7 @@ export default function DocumentsPage() {
   const [viewDoc, setViewDoc] = useState<Document | null>(null);
 
   return (
-    <div className="max-w-4xl mx-auto px-6 py-6 space-y-6">
+    <div className="page-container space-y-6">
       <header className="flex items-start justify-between gap-4">
         <div>
           <h1 className="font-serif text-3xl font-semibold text-[#E8E6E3]">Documents</h1>

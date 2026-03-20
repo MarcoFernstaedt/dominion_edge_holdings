@@ -113,7 +113,7 @@ export default function OutreachPage() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-6 py-6 space-y-6">
+    <div className="page-container space-y-6">
       <header>
         <h1 className="font-serif text-3xl font-semibold text-[#E8E6E3]">Outreach</h1>
         <p className="text-sm text-[#A7A29A] mt-1">

@@ -215,7 +215,7 @@ export default function ChecklistPage() {
   const currentPhaseName = phases.find((p) => p.items.some((i) => !i.isComplete))?.name ?? 'Complete';
 
   return (
-    <div className="max-w-3xl mx-auto px-6 py-6 space-y-6">
+    <div className="page-container-narrow space-y-6">
       <header>
         <h1 className="font-serif text-3xl font-semibold text-[#E8E6E3] mb-1">
           Acquisition Checklist
