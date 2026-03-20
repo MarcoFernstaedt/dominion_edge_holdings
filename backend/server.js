@@ -71,6 +71,15 @@ import TimingEngine         from './services/TimingEngine.js';
 import RecoveryEngine       from './services/RecoveryEngine.js';
 import ALL_THRESHOLDS       from './services/CadenceThresholds.js';
 
+// ─── Credibility & Network Intelligence ───────────────────────────────────────
+import BoardSeatEngine        from './services/BoardSeatEngine.js';
+import BoardCandidateScoring  from './services/BoardCandidateScoring.js';
+import RelationshipGraph      from './services/RelationshipGraph.js';
+import RelationshipScoring    from './services/RelationshipScoring.js';
+import InvestorScoring        from './services/InvestorScoring.js';
+import CredibilityIndex       from './services/CredibilityIndex.js';
+import NetworkAlerts          from './services/NetworkAlerts.js';
+
 dotenv.config();
 
 // ─── Environment validation ───────────────────────────────────────────────────
@@ -234,6 +243,7 @@ const store = {
   // Relationship Management Engine
   relationships:             [],
   relationshipInteractions:  [],
+  relationshipEdges:         [],   // graph edges: { id, from_contact_id, to_contact_id, edge_type, strength, recency, confidence, source, notes, last_verified_at }
   // Conversation KPI System
   relationshipConversations: [],
   conversationTargets:       [],
@@ -1119,6 +1129,524 @@ app.delete('/api/board/cap-table/:id', (req, res) => {
     res.status(204).end();
   } catch (err) {
     errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to remove cap table entry');
+  }
+});
+
+// ─── Board Intelligence ───────────────────────────────────────────────────────
+
+// GET /api/board/seats/health — board readiness score + all seat analyses
+app.get('/api/board/seats/health', (req, res) => {
+  try {
+    const result = BoardSeatEngine.calcBoardReadinessScore(store.boardSeats, store.boardCandidates);
+    res.json(result);
+  } catch (err) {
+    console.error('[board/seats/health]', err);
+    errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to compute board seat health');
+  }
+});
+
+// GET /api/board/seats/:seatType/candidates — ranked candidates for a seat
+app.get('/api/board/seats/:seatType/candidates', (req, res) => {
+  try {
+    const { seatType } = req.params;
+    const { includeScores } = req.query;
+    let candidates = store.boardCandidates.filter(
+      (c) => c.seatType === seatType || c.seat_type === seatType
+    );
+    if (includeScores !== 'false') {
+      candidates = BoardCandidateScoring.rankCandidates(candidates, seatType);
+    }
+    res.json({ seat_type: seatType, candidates, total: candidates.length });
+  } catch (err) {
+    console.error('[board/seats/:seatType/candidates]', err);
+    errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to rank candidates');
+  }
+});
+
+// GET /api/board/candidates/:id/fit — fit score for a single candidate
+app.get('/api/board/candidates/:id/fit', (req, res) => {
+  try {
+    const candidate = store.boardCandidates.find((c) => c.id === req.params.id);
+    if (!candidate) return errorResponse(res, 404, 'NOT_FOUND', 'Candidate not found');
+    const seatType = candidate.seatType ?? candidate.seat_type ?? req.query.seatType ?? '';
+    const scored   = BoardCandidateScoring.scoreCandidateFull(candidate, seatType);
+    res.json(scored);
+  } catch (err) {
+    console.error('[board/candidates/:id/fit]', err);
+    errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to compute fit score');
+  }
+});
+
+// POST /api/board/candidates/:id/rank-commentary — AI commentary on ranking
+app.post('/api/board/candidates/:id/rank-commentary', async (req, res) => {
+  try {
+    const candidate = store.boardCandidates.find((c) => c.id === req.params.id);
+    if (!candidate) return errorResponse(res, 404, 'NOT_FOUND', 'Candidate not found');
+    const seatType = candidate.seatType ?? candidate.seat_type ?? req.body.seatType ?? '';
+    const scored   = BoardCandidateScoring.scoreCandidateFull(candidate, seatType);
+    const prompt   = `You are evaluating a board candidate for a ${seatType} seat.\n\nCandidate: ${candidate.name}\nFit Score: ${scored.fit_score} (${scored.fit_label})\nCommitment Probability: ${scored.commitment_probability}%\nFit Components: ${JSON.stringify(scored.fit_components)}\nBio: ${candidate.bio ?? 'Not provided'}\nNotes: ${candidate.notes ?? ''}\n\nProvide a concise (2-3 sentence) ranking commentary explaining why this candidate ranks where they do, what would improve their score, and the one best next step to advance them. Be direct and specific.`;
+    const commentary = await ModelGateway.callAnthropic({ prompt, maxTokens: 300, model: 'LOW' });
+    res.json({ candidate_id: candidate.id, fit_score: scored.fit_score, fit_label: scored.fit_label, commentary: commentary?.content ?? '' });
+  } catch (err) {
+    console.error('[board/candidates/:id/rank-commentary]', err);
+    errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to generate commentary');
+  }
+});
+
+// ─── Relationship Graph ───────────────────────────────────────────────────────
+
+// GET /api/relationships/graph — adjacency summary + high-value nodes
+app.get('/api/relationships/graph', (req, res) => {
+  try {
+    const contacts = store.contacts ?? [];
+    const edges    = store.relationshipEdges ?? [];
+    const highValue = RelationshipGraph.getHighValueNodes(contacts, edges, {
+      limit: parseInt(req.query.limit ?? '20', 10),
+      minCentrality: parseInt(req.query.minCentrality ?? '30', 10),
+    });
+    res.json({
+      node_count:       contacts.length,
+      edge_count:       edges.length,
+      high_value_nodes: highValue,
+    });
+  } catch (err) {
+    console.error('[relationships/graph]', err);
+    errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to build relationship graph');
+  }
+});
+
+// GET /api/relationships/high-value — contacts enriched with leverage scores
+app.get('/api/relationships/high-value', (req, res) => {
+  try {
+    const contacts = store.contacts ?? [];
+    const edges    = store.relationshipEdges ?? [];
+    const minScore = parseInt(req.query.minScore ?? '40', 10);
+    const limit    = parseInt(req.query.limit ?? '20', 10);
+    const adjacency  = RelationshipGraph.buildAdjacencyMap(edges);
+    const contactMap = new Map(contacts.map((c) => [c.id, c]));
+    const enriched = contacts
+      .map((c) => {
+        const { centrality_score, components } = RelationshipGraph.calcCentrality(c.id, adjacency, contactMap);
+        const interactions = (store.interactions ?? []).filter((i) => i.contactId === c.id);
+        const scored = RelationshipScoring.enrichContactLeverage(c, interactions, centrality_score);
+        return { ...scored, centrality_score, centrality_components: components };
+      })
+      .filter((c) => c.leverage_score >= minScore)
+      .sort((a, b) => b.leverage_score - a.leverage_score)
+      .slice(0, limit);
+    res.json({ contacts: enriched, total: enriched.length });
+  } catch (err) {
+    console.error('[relationships/high-value]', err);
+    errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to compute high-value relationships');
+  }
+});
+
+// GET /api/relationships/:id/network-context — graph context for a contact
+app.get('/api/relationships/:id/network-context', (req, res) => {
+  try {
+    const contacts = store.contacts ?? [];
+    const edges    = store.relationshipEdges ?? [];
+    const contact  = contacts.find((c) => c.id === req.params.id);
+    if (!contact) return errorResponse(res, 404, 'NOT_FOUND', 'Contact not found');
+    const ctx = RelationshipGraph.getNetworkContext(req.params.id, contacts, edges);
+    const interactions = (store.interactions ?? []).filter((i) => i.contactId === req.params.id);
+    const adjacency  = RelationshipGraph.buildAdjacencyMap(edges);
+    const contactMap = new Map(contacts.map((c) => [c.id, c]));
+    const { centrality_score } = RelationshipGraph.calcCentrality(req.params.id, adjacency, contactMap);
+    const scored = RelationshipScoring.enrichContactLeverage(contact, interactions, centrality_score);
+    const nextMove = RelationshipScoring.calcNextMove(contact, interactions, ctx.can_introduce_to);
+    res.json({ ...ctx, scoring: scored, next_move: nextMove });
+  } catch (err) {
+    console.error('[relationships/:id/network-context]', err);
+    errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to compute network context');
+  }
+});
+
+// POST /api/relationships/:id/next-move — compute best next move for a contact
+app.post('/api/relationships/:id/next-move', (req, res) => {
+  try {
+    const contact = store.contacts.find((c) => c.id === req.params.id);
+    if (!contact) return errorResponse(res, 404, 'NOT_FOUND', 'Contact not found');
+    const interactions = (store.interactions ?? []).filter((i) => i.contactId === req.params.id);
+    const introTargets = req.body.intro_targets ?? [];
+    const result = RelationshipScoring.calcNextMove(contact, interactions, introTargets);
+    res.json(result);
+  } catch (err) {
+    console.error('[relationships/:id/next-move]', err);
+    errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to compute next move');
+  }
+});
+
+// POST /api/relationships/:id/intro-request-draft — AI draft for intro request
+app.post('/api/relationships/:id/intro-request-draft', async (req, res) => {
+  try {
+    const contact = store.contacts.find((c) => c.id === req.params.id);
+    if (!contact) return errorResponse(res, 404, 'NOT_FOUND', 'Contact not found');
+    const { target_name, target_context, reason } = req.body;
+    const name = [contact.firstName, contact.lastName].filter(Boolean).join(' ') || contact.name || 'Contact';
+    const prompt = `Write a warm, professional intro request from me to ${name} asking them to introduce me to ${target_name ?? 'a specific contact'}.\n\nContext about the target: ${target_context ?? 'Not provided'}\nReason for intro: ${reason ?? 'Strategic relationship for deal or board purpose'}\nRelationship with ${name}: ${contact.relationshipWarmth ?? contact.relationship_warmth ?? 'warm'}\n\nWrite 3-4 sentences. Be direct, respectful of their time, and give them an easy out. No filler. Output only the message body.`;
+    const draft = await ModelGateway.callAnthropic({ prompt, maxTokens: 250, model: 'LOW' });
+    res.json({ contact_id: contact.id, target_name, draft: draft?.content ?? '' });
+  } catch (err) {
+    console.error('[relationships/:id/intro-request-draft]', err);
+    errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to generate intro draft');
+  }
+});
+
+// POST /api/relationships/edges — create a graph edge
+app.post('/api/relationships/edges', validate(z.object({
+  from_contact_id: z.string().uuid(),
+  to_contact_id:   z.string().uuid(),
+  edge_type:       z.enum(['knows','worked_with','introduced','advises','invested_in','referred','met_with','board_relationship','banking_relationship','legal_relationship','operator_relationship']),
+  strength:        z.enum(['weak','moderate','strong','trusted']).optional(),
+  confidence:      z.number().min(0).max(100).optional(),
+  source:          z.string().max(100).optional(),
+  notes:           z.string().max(2000).optional(),
+  last_verified_at:z.string().datetime().optional(),
+})), (req, res) => {
+  try {
+    const edge = { id: uid(), ...req.validated, created_at: nowIso(), updated_at: nowIso() };
+    if (!store.relationshipEdges) store.relationshipEdges = [];
+    store.relationshipEdges.push(edge);
+    res.status(201).json(edge);
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to create relationship edge');
+  }
+});
+
+// GET /api/relationships/edges — list all graph edges
+app.get('/api/relationships/edges', (req, res) => {
+  try {
+    const edges = store.relationshipEdges ?? [];
+    const { from_contact_id, to_contact_id } = req.query;
+    let result = edges;
+    if (from_contact_id) result = result.filter((e) => e.from_contact_id === from_contact_id);
+    if (to_contact_id)   result = result.filter((e) => e.to_contact_id === to_contact_id);
+    res.json({ edges: result, total: result.length });
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to list edges');
+  }
+});
+
+// ─── Network Intro Paths ──────────────────────────────────────────────────────
+
+// GET /api/network/intro-paths — find intro paths to a target
+app.get('/api/network/intro-paths', (req, res) => {
+  try {
+    const { source_id, target_id, max_hops } = req.query;
+    if (!source_id || !target_id) {
+      return errorResponse(res, 400, 'BAD_REQUEST', 'source_id and target_id are required');
+    }
+    const contacts  = store.contacts ?? [];
+    const edges     = store.relationshipEdges ?? [];
+    const adjacency  = RelationshipGraph.buildAdjacencyMap(edges);
+    const contactMap = new Map(contacts.map((c) => [c.id, c]));
+    const result = RelationshipGraph.findIntroPaths(
+      source_id, target_id, adjacency, contactMap,
+      Math.min(parseInt(max_hops ?? '2', 10), 3)
+    );
+    res.json(result);
+  } catch (err) {
+    console.error('[network/intro-paths]', err);
+    errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to compute intro paths');
+  }
+});
+
+// POST /api/network/score-paths — score multiple intro paths in one call
+app.post('/api/network/score-paths', (req, res) => {
+  try {
+    const { pairs } = req.body; // [{ source_id, target_id, target_name, target_type }]
+    if (!Array.isArray(pairs)) {
+      return errorResponse(res, 400, 'BAD_REQUEST', 'pairs array required');
+    }
+    const contacts  = store.contacts ?? [];
+    const edges     = store.relationshipEdges ?? [];
+    const adjacency  = RelationshipGraph.buildAdjacencyMap(edges);
+    const contactMap = new Map(contacts.map((c) => [c.id, c]));
+    const results = pairs.slice(0, 50).map(({ source_id, target_id, target_name, target_type }) => {
+      const pathResult = RelationshipGraph.findIntroPaths(source_id, target_id, adjacency, contactMap);
+      return { source_id, target_id, target_name, target_type, ...pathResult };
+    });
+    res.json({ results });
+  } catch (err) {
+    console.error('[network/score-paths]', err);
+    errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to score paths');
+  }
+});
+
+// GET /api/network/alerts — generate network leverage alerts
+app.get('/api/network/alerts', (req, res) => {
+  try {
+    const contacts  = store.contacts ?? [];
+    const edges     = store.relationshipEdges ?? [];
+    const adjacency  = RelationshipGraph.buildAdjacencyMap(edges);
+    const contactMap = new Map(contacts.map((c) => [c.id, c]));
+
+    // Enrich contacts with leverage data
+    const enrichedContacts = contacts.map((c) => {
+      const { centrality_score } = RelationshipGraph.calcCentrality(c.id, adjacency, contactMap);
+      const interactions = (store.interactions ?? []).filter((i) => i.contactId === c.id);
+      return RelationshipScoring.enrichContactLeverage(c, interactions, centrality_score);
+    });
+
+    // Enrich investors with scoring
+    const enrichedInvestors = (store.investors ?? []).map((inv) => {
+      return InvestorScoring.scoreInvestorFull(inv, {}, [], 0);
+    });
+
+    // Board seat health
+    const boardState = BoardSeatEngine.calcBoardReadinessScore(store.boardSeats ?? [], store.boardCandidates ?? []);
+
+    // Credibility
+    const credIdx = CredibilityIndex.calcCredibilityIndex({
+      boardState,
+      settings:  store.settings ?? {},
+      deals:     store.deals ?? [],
+      meetings:  store.meetings ?? [],
+      documents: store.documents ?? [],
+      investors: store.investors ?? [],
+      contacts,
+    });
+
+    const result = NetworkAlerts.generateNetworkAlerts({
+      contacts:        enrichedContacts,
+      boardCandidates: (store.boardCandidates ?? []).map((c) =>
+        BoardCandidateScoring.scoreCandidateFull(c, c.seatType ?? c.seat_type)
+      ),
+      boardSeats:      boardState.analyzed_seats,
+      investors:       enrichedInvestors,
+      credibilityIndex:credIdx,
+      introPathResults:[],
+    });
+
+    res.json(result);
+  } catch (err) {
+    console.error('[network/alerts]', err);
+    errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to generate network alerts');
+  }
+});
+
+// ─── Investor Scoring ─────────────────────────────────────────────────────────
+
+// GET /api/investors/funnel — stage funnel count
+app.get('/api/investors/funnel', (req, res) => {
+  try {
+    res.json(InvestorScoring.buildInvestorFunnel(store.investors ?? []));
+  } catch (err) {
+    errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to build investor funnel');
+  }
+});
+
+// GET /api/investors/high-fit — ranked investors by fit + warmth
+app.get('/api/investors/high-fit', (req, res) => {
+  try {
+    const firmContext = {
+      dealSize: store.settings?.targetDealSize ?? null,
+      industry: store.settings?.targetIndustry ?? null,
+      stage:    store.settings?.dealStage ?? null,
+      geo:      store.settings?.targetGeo ?? null,
+      thesis:   store.settings?.dealThesis ?? '',
+    };
+    const scored = (store.investors ?? []).map((inv) =>
+      InvestorScoring.scoreInvestorFull(inv, firmContext, [], 0)
+    );
+    const ranked = InvestorScoring.getHighFitInvestors(scored, firmContext, {
+      limit:  parseInt(req.query.limit ?? '10', 10),
+      minFit: parseInt(req.query.minFit ?? '60', 10),
+    });
+    res.json({ investors: ranked, total: ranked.length });
+  } catch (err) {
+    console.error('[investors/high-fit]', err);
+    errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to rank investors');
+  }
+});
+
+// GET /api/investors/:id/fit — fit score for a single investor
+app.get('/api/investors/:id/fit', (req, res) => {
+  try {
+    const investor = (store.investors ?? []).find((i) => i.id === req.params.id);
+    if (!investor) return errorResponse(res, 404, 'NOT_FOUND', 'Investor not found');
+    const firmContext = {
+      dealSize: store.settings?.targetDealSize ?? null,
+      industry: store.settings?.targetIndustry ?? null,
+      stage:    store.settings?.dealStage ?? null,
+      geo:      store.settings?.targetGeo ?? null,
+      thesis:   store.settings?.dealThesis ?? '',
+    };
+    const interactions = (store.interactions ?? []).filter((i) => i.entityId === investor.id || i.investorId === investor.id);
+    const scored = InvestorScoring.scoreInvestorFull(investor, firmContext, interactions, 0);
+    res.json(scored);
+  } catch (err) {
+    console.error('[investors/:id/fit]', err);
+    errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to compute investor fit');
+  }
+});
+
+// GET /api/investors/:id/intro-paths — find intro paths to investor
+app.get('/api/investors/:id/intro-paths', (req, res) => {
+  try {
+    const investor = (store.investors ?? []).find((i) => i.id === req.params.id);
+    if (!investor) return errorResponse(res, 404, 'NOT_FOUND', 'Investor not found');
+    const { source_id } = req.query;
+    if (!source_id) return errorResponse(res, 400, 'BAD_REQUEST', 'source_id query param required');
+    const contacts   = store.contacts ?? [];
+    const edges      = store.relationshipEdges ?? [];
+    const adjacency  = RelationshipGraph.buildAdjacencyMap(edges);
+    const contactMap = new Map(contacts.map((c) => [c.id, c]));
+    // Investor contacts linked by name match or contact record
+    const investorContactId = contacts.find(
+      (c) => c.name === investor.name || c.email === investor.email
+    )?.id ?? investor.id;
+    const result = RelationshipGraph.findIntroPaths(source_id, investorContactId, adjacency, contactMap);
+    res.json({ investor_id: investor.id, ...result });
+  } catch (err) {
+    console.error('[investors/:id/intro-paths]', err);
+    errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to compute investor intro paths');
+  }
+});
+
+// POST /api/investors/:id/outreach-draft — AI outreach draft
+app.post('/api/investors/:id/outreach-draft', async (req, res) => {
+  try {
+    const investor = (store.investors ?? []).find((i) => i.id === req.params.id);
+    if (!investor) return errorResponse(res, 404, 'NOT_FOUND', 'Investor not found');
+    const { context, tone } = req.body;
+    const firmContext = {
+      dealSize: store.settings?.targetDealSize,
+      industry: store.settings?.targetIndustry,
+      thesis:   store.settings?.dealThesis ?? '',
+    };
+    const scored = InvestorScoring.scoreInvestorFull(investor, firmContext, [], 0);
+    const prompt = `Write a personalized first-touch outreach email to ${investor.name} (${investor.organization ?? ''}) for a search fund acquisition.\n\nInvestor type: ${investor.investorType}\nFit score: ${scored.fit_score} (${scored.fit_label})\nWarmth: ${scored.warmth_state}\nTone: ${tone ?? 'professional and direct'}\nContext: ${context ?? 'Looking to raise equity for a small business acquisition'}\nIndustries preferred: ${(investor.industriesPreferred ?? []).join(', ') || 'general'}\n\nWrite subject line + email body. 4-6 sentences. No filler. End with a clear ask.`;
+    const draft = await ModelGateway.callAnthropic({ prompt, maxTokens: 400, model: 'MID' });
+    res.json({ investor_id: investor.id, fit_score: scored.fit_score, warmth_state: scored.warmth_state, draft: draft?.content ?? '' });
+  } catch (err) {
+    console.error('[investors/:id/outreach-draft]', err);
+    errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to generate outreach draft');
+  }
+});
+
+// POST /api/investors/:id/memo-section-draft — AI memo section for an investor
+app.post('/api/investors/:id/memo-section-draft', async (req, res) => {
+  try {
+    const investor = (store.investors ?? []).find((i) => i.id === req.params.id);
+    if (!investor) return errorResponse(res, 404, 'NOT_FOUND', 'Investor not found');
+    const { section, dealContext } = req.body;
+    const scored = InvestorScoring.scoreInvestorFull(investor, {}, [], 0);
+    const prompt = `Write the "${section ?? 'investor summary'}" section of an investor memo targeting ${investor.name}.\n\nInvestor profile: ${investor.investorType}, check size $${investor.checkSizeMin ?? '?'}–$${investor.checkSizeMax ?? '?'}, industries: ${(investor.industriesPreferred ?? []).join(', ') || 'general'}\nFit score: ${scored.fit_score}\nDeal context: ${dealContext ?? store.settings?.dealThesis ?? 'SMB acquisition in target industry'}\n\nWrite 2-3 tight paragraphs. Tailored to this investor's profile. No filler.`;
+    const draft = await ModelGateway.callAnthropic({ prompt, maxTokens: 500, model: 'MID' });
+    res.json({ investor_id: investor.id, section: section ?? 'investor_summary', draft: draft?.content ?? '' });
+  } catch (err) {
+    console.error('[investors/:id/memo-section-draft]', err);
+    errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to generate memo section');
+  }
+});
+
+// ─── Credibility Index ────────────────────────────────────────────────────────
+
+// GET /api/credibility — firm credibility index
+app.get('/api/credibility', (req, res) => {
+  try {
+    const boardState = BoardSeatEngine.calcBoardReadinessScore(store.boardSeats ?? [], store.boardCandidates ?? []);
+    const result = CredibilityIndex.calcCredibilityIndex({
+      boardState,
+      settings:  store.settings ?? {},
+      deals:     store.deals ?? [],
+      meetings:  store.meetings ?? [],
+      documents: store.documents ?? [],
+      investors: store.investors ?? [],
+      contacts:  store.contacts ?? [],
+      thesisText:store.settings?.dealThesis ?? '',
+    });
+    res.json(result);
+  } catch (err) {
+    console.error('[credibility]', err);
+    errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to compute credibility index');
+  }
+});
+
+// ─── Command Center Network Summary ───────────────────────────────────────────
+
+// GET /api/command-center/network — full network intelligence summary for command center
+app.get('/api/command-center/network', (req, res) => {
+  try {
+    const contacts  = store.contacts ?? [];
+    const edges     = store.relationshipEdges ?? [];
+    const adjacency  = RelationshipGraph.buildAdjacencyMap(edges);
+    const contactMap = new Map(contacts.map((c) => [c.id, c]));
+
+    const enrichedContacts = contacts.map((c) => {
+      const { centrality_score } = RelationshipGraph.calcCentrality(c.id, adjacency, contactMap);
+      const interactions = (store.interactions ?? []).filter((i) => i.contactId === c.id);
+      return RelationshipScoring.enrichContactLeverage(c, interactions, centrality_score);
+    });
+
+    const firmContext = {
+      dealSize: store.settings?.targetDealSize ?? null,
+      industry: store.settings?.targetIndustry ?? null,
+      thesis:   store.settings?.dealThesis ?? '',
+    };
+    const enrichedInvestors = (store.investors ?? []).map((inv) =>
+      InvestorScoring.scoreInvestorFull(inv, firmContext, [], 0)
+    );
+
+    const boardState = BoardSeatEngine.calcBoardReadinessScore(store.boardSeats ?? [], store.boardCandidates ?? []);
+    const credIdx    = CredibilityIndex.calcCredibilityIndex({
+      boardState, settings: store.settings ?? {},
+      deals: store.deals ?? [], meetings: store.meetings ?? [],
+      documents: store.documents ?? [], investors: store.investors ?? [],
+      contacts, thesisText: store.settings?.dealThesis ?? '',
+    });
+
+    const scoredCandidates = (store.boardCandidates ?? []).map((c) =>
+      BoardCandidateScoring.scoreCandidateFull(c, c.seatType ?? c.seat_type)
+    );
+
+    const summary = NetworkAlerts.buildCommandCenterSummary({
+      boardState,
+      contacts:        enrichedContacts,
+      boardCandidates: scoredCandidates,
+      boardSeats:      boardState.analyzed_seats,
+      investors:       enrichedInvestors,
+      credibilityIndex:credIdx,
+      introPathResults:[],
+    });
+
+    res.json(summary);
+  } catch (err) {
+    console.error('[command-center/network]', err);
+    errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to build command center network summary');
+  }
+});
+
+// ─── Investor Readiness Gaps ──────────────────────────────────────────────────
+
+// GET /api/investors/readiness-gaps — what's missing before serious outreach
+app.get('/api/investors/readiness-gaps', (req, res) => {
+  try {
+    const s = store.settings ?? {};
+    const documents = store.documents ?? [];
+    const deals     = store.deals ?? [];
+    const contacts  = store.contacts ?? [];
+
+    const boardState = BoardSeatEngine.calcBoardReadinessScore(store.boardSeats ?? [], store.boardCandidates ?? []);
+    const credIdx    = CredibilityIndex.quickCredibilityEstimate(store);
+
+    const firmContext = {
+      hasThesis:     !!(s.dealThesis || s.thesis),
+      hasDeal:       deals.some((d) => !['lost', 'identified'].includes(d.stage ?? d.status ?? '')),
+      hasMemo:       documents.some((d) => d.documentType === 'deal_memo') || (store.investorMemos ?? []).length > 0,
+      hasTraction:   (store.meetings ?? []).filter((m) => ['banker_intro','capital_intro'].includes(m.meetingType ?? '')).length > 0,
+      hasAsk:        !!(s.askAmount || s.targetDealSize),
+      hasIntro:      (store.relationshipEdges ?? []).length > 0,
+      credibilityScore: credIdx.score,
+    };
+
+    const gaps = InvestorScoring.calcInvestorReadinessGaps(firmContext);
+    res.json({ ...gaps, firm_context: firmContext, credibility_score: credIdx.score, credibility_label: credIdx.label });
+  } catch (err) {
+    console.error('[investors/readiness-gaps]', err);
+    errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to compute readiness gaps');
   }
 });
 
