@@ -113,7 +113,7 @@ export function Modal({ open, onClose, title, description, children, size = 'md'
             onClick={onClose}
             className={cn(
               'ml-4 flex-shrink-0 rounded p-1 text-[#A7A29A] hover:text-[#E8E6E3] hover:bg-[#2A2A2E]',
-              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37]',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A227]',
               'transition-colors duration-150'
             )}
             aria-label="Close dialog"

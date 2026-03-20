@@ -133,7 +133,7 @@ export function AlertBanner({ alerts }: { alerts: ExecutionAlert[] }) {
           className={`flex items-start gap-3 rounded-lg px-4 py-3 text-sm ${
             alert.level === 'critical'
               ? 'bg-red-950/40 border border-red-800/50 text-red-300'
-              : 'bg-amber-950/30 border border-amber-800/40 text-amber-300'
+              : 'bg-[#C9A22715] border border-[#C9A22740] text-[#C9A227]'
           }`}
         >
           <span className="shrink-0">{alert.level === 'critical' ? '🚨' : '⚠️'}</span>
@@ -148,7 +148,7 @@ export function AlertBanner({ alerts }: { alerts: ExecutionAlert[] }) {
 
 const RISK_STYLES: Record<MomentumRiskLevel, string> = {
   healthy: 'bg-emerald-900/60 text-emerald-300',
-  warming: 'bg-amber-900/60 text-amber-300',
+  warming: 'bg-[#C9A22720]/60 text-[#C9A227]',
   cooling: 'bg-orange-900/60 text-orange-300',
   stalled: 'bg-red-900/60 text-red-300',
 };

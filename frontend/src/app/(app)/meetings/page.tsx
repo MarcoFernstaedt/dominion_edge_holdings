@@ -211,7 +211,7 @@ function CreateMeetingModal({ open, onClose }: { open: boolean; onClose: () => v
           <ul className="space-y-1">
             {AGENDA_TEMPLATES[form.meetingType].map((item, i) => (
               <li key={i} className="text-xs text-[#A7A29A] flex gap-2">
-                <span className="text-[#D4AF37] flex-shrink-0">{i + 1}.</span>
+                <span className="text-[#C9A227] flex-shrink-0">{i + 1}.</span>
                 {item}
               </li>
             ))}
@@ -262,7 +262,7 @@ function PrepPacketSection({ meetingId }: { meetingId: string }) {
           <BookOpen size={10} aria-hidden />
           Prep Packet
           {packet && (
-            <span className="ml-1 text-[#D4AF37]">{packet.generationMode === 'ai_assisted' ? '· AI-assisted' : '· Template'}</span>
+            <span className="ml-1 text-[#C9A227]">{packet.generationMode === 'ai_assisted' ? '· AI-assisted' : '· Template'}</span>
           )}
         </div>
         <Button
@@ -286,11 +286,11 @@ function PrepPacketSection({ meetingId }: { meetingId: string }) {
           {/* Objectives */}
           {packet.meetingObjectives.length > 0 && (
             <div>
-              <div className="text-[9px] text-[#D4AF37] uppercase tracking-wide mb-1">Objectives</div>
+              <div className="text-[9px] text-[#C9A227] uppercase tracking-wide mb-1">Objectives</div>
               <ol className="space-y-0.5">
                 {packet.meetingObjectives.map((obj, i) => (
                   <li key={i} className="text-xs text-[#E8E6E3] flex gap-1.5">
-                    <span className="text-[#D4AF37] flex-shrink-0">{i + 1}.</span>
+                    <span className="text-[#C9A227] flex-shrink-0">{i + 1}.</span>
                     {obj}
                   </li>
                 ))}
@@ -453,7 +453,7 @@ function MeetingCard({ meeting }: { meeting: Meeting }) {
     <article className="bg-[#141414] border border-[#2A2A2E] rounded-md overflow-hidden">
       <button
         onClick={() => setExpanded((e) => !e)}
-        className="w-full flex items-start justify-between p-4 text-left hover:bg-[#1B1B1D] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#D4AF37]"
+        className="w-full flex items-start justify-between p-4 text-left hover:bg-[#1B1B1D] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#C9A227]"
         aria-expanded={expanded}
         aria-controls={`meeting-${meeting.id}-detail`}
       >
@@ -466,7 +466,7 @@ function MeetingCard({ meeting }: { meeting: Meeting }) {
             <div className="flex items-center gap-2 mt-0.5 flex-wrap">
               <span className="text-xs text-[#A7A29A]">{MEETING_TYPE_LABELS[meeting.meetingType]}</span>
               {company && <span className="text-xs text-[#A7A29A]">· {company.name}</span>}
-              <span className="text-xs text-[#D4AF37]">
+              <span className="text-xs text-[#C9A227]">
                 {new Date(meeting.startsAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                 {' '}
                 {new Date(meeting.startsAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
@@ -503,7 +503,7 @@ function MeetingCard({ meeting }: { meeting: Meeting }) {
               <ol className="space-y-1">
                 {meeting.agenda.split('\n').filter(Boolean).map((item, i) => (
                   <li key={i} className="text-xs text-[#A7A29A] flex gap-2">
-                    <span className="text-[#D4AF37] flex-shrink-0">{i + 1}.</span>
+                    <span className="text-[#C9A227] flex-shrink-0">{i + 1}.</span>
                     {item}
                   </li>
                 ))}
@@ -601,8 +601,8 @@ export default function MeetingsPage() {
       {/* Summary cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { label: 'Today', value: todayMeetings.length, color: '#D4AF37' },
-          { label: 'This Week', value: upcoming.filter((m) => (new Date(m.startsAt).getTime() - now.getTime()) < 7 * 86400000).length, color: '#D4AF37' },
+          { label: 'Today', value: todayMeetings.length, color: '#C9A227' },
+          { label: 'This Week', value: upcoming.filter((m) => (new Date(m.startsAt).getTime() - now.getTime()) < 7 * 86400000).length, color: '#C9A227' },
           { label: 'Confirmed', value: meetings.filter((m) => m.status === 'confirmed' || m.status === 'scheduled').length, color: '#3FA66B' },
           { label: 'Completed', value: meetings.filter((m) => m.status === 'completed').length, color: '#A7A29A' },
         ].map((stat) => (
@@ -622,8 +622,8 @@ export default function MeetingsPage() {
             aria-selected={filterStatus === val}
             onClick={() => setFilterStatus(val)}
             className={cn(
-              'px-3 py-1.5 text-xs rounded transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37]',
-              filterStatus === val ? 'bg-[#D4AF37] text-black font-semibold' : 'text-[#A7A29A] hover:text-[#E8E6E3]'
+              'px-3 py-1.5 text-xs rounded transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A227]',
+              filterStatus === val ? 'bg-[#C9A227] text-black font-semibold' : 'text-[#A7A29A] hover:text-[#E8E6E3]'
             )}
           >
             {label}

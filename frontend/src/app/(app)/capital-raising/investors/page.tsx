@@ -22,7 +22,7 @@ const INVESTOR_TYPE_LABELS: Record<InvestorType, string> = {
 const STAGE_COLORS: Record<InvestorRelationshipStage, string> = {
   cold:           'bg-zinc-700 text-zinc-300',
   aware:          'bg-blue-900 text-blue-300',
-  engaged:        'bg-amber-900 text-amber-300',
+  engaged:        'bg-[#C9A22720] text-[#C9A227]',
   relationship:   'bg-emerald-900 text-emerald-300',
   active_investor:'bg-violet-900 text-violet-300',
 };

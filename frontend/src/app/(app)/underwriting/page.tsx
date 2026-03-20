@@ -118,7 +118,7 @@ function NumberInput({
           step={step ?? 1000}
           className={cn(
             'flex-1 bg-[#1B1B1D] border border-[#2A2A2E] text-sm text-[#E8E6E3] px-3 py-2',
-            'focus:outline-none focus:border-[#D4AF37] focus:ring-1 focus:ring-[#D4AF37] transition-colors',
+            'focus:outline-none focus:border-[#C9A227] focus:ring-1 focus:ring-[#C9A227] transition-colors',
             prefix && 'rounded-none',
             suffix ? 'rounded-none' : !prefix ? 'rounded' : 'rounded-r'
           )}
@@ -134,7 +134,7 @@ function ResultRow({ label, value, highlight, danger }: { label: string; value: 
   return (
     <div className={cn('flex items-center justify-between py-2 border-b border-[#2A2A2E] last:border-0')}>
       <span className="text-sm text-[#A7A29A]">{label}</span>
-      <span className={cn('text-sm font-semibold', highlight ? 'text-[#D4AF37]' : danger ? 'text-[#C35B5B]' : 'text-[#E8E6E3]')}>
+      <span className={cn('text-sm font-semibold', highlight ? 'text-[#C9A227]' : danger ? 'text-[#C35B5B]' : 'text-[#E8E6E3]')}>
         {value}
       </span>
     </div>
@@ -238,7 +238,7 @@ export default function UnderwritingPage() {
                   type="text"
                   value={inputs.scenarioName}
                   onChange={(e) => setInputs((p) => ({ ...p, scenarioName: e.target.value }))}
-                  className="bg-[#1B1B1D] border border-[#2A2A2E] rounded text-sm text-[#E8E6E3] px-3 py-2 focus:outline-none focus:border-[#D4AF37]"
+                  className="bg-[#1B1B1D] border border-[#2A2A2E] rounded text-sm text-[#E8E6E3] px-3 py-2 focus:outline-none focus:border-[#C9A227]"
                   placeholder="Base Case, Conservative, Aggressive..."
                 />
               </div>
@@ -248,7 +248,7 @@ export default function UnderwritingPage() {
                   <select
                     value={inputs.dealId}
                     onChange={(e) => setInputs((p) => ({ ...p, dealId: e.target.value }))}
-                    className="bg-[#1B1B1D] border border-[#2A2A2E] rounded text-sm text-[#E8E6E3] px-3 py-2 focus:outline-none focus:border-[#D4AF37]"
+                    className="bg-[#1B1B1D] border border-[#2A2A2E] rounded text-sm text-[#E8E6E3] px-3 py-2 focus:outline-none focus:border-[#C9A227]"
                   >
                     <option value="">— No deal —</option>
                     {deals.map((d) => (
@@ -339,9 +339,9 @@ export default function UnderwritingPage() {
                 <span>+ One-Time Adj.</span>
                 <span className="text-[#3FA66B]">+{formatCurrencyFull(inputs.oneTimeAdjustments)}</span>
               </div>
-              <div className="flex justify-between border-t border-[#D4AF3730] pt-1.5">
-                <span className="font-bold text-[#D4AF37]">= Normalized SDE</span>
-                <span className="font-bold text-[#D4AF37] text-sm">{formatCurrencyFull(results.normalizedSDE)}</span>
+              <div className="flex justify-between border-t border-[#C9A22730] pt-1.5">
+                <span className="font-bold text-[#C9A227]">= Normalized SDE</span>
+                <span className="font-bold text-[#C9A227] text-sm">{formatCurrencyFull(results.normalizedSDE)}</span>
               </div>
             </div>
             <div className="text-xs text-[#A7A29A]">
@@ -455,7 +455,7 @@ export default function UnderwritingPage() {
               <div key={s.id} className="bg-[#141414] border border-[#2A2A2E] rounded-md p-4 relative group">
                 <button
                   onClick={() => deleteScenario(s.id)}
-                  className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 text-[#A7A29A] hover:text-[#C35B5B] transition-all focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37] rounded"
+                  className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 text-[#A7A29A] hover:text-[#C35B5B] transition-all focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A227] rounded"
                   aria-label={`Delete ${s.scenarioName} scenario`}
                 >
                   <Trash2 size={13} aria-hidden />
@@ -471,7 +471,7 @@ export default function UnderwritingPage() {
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-[#A7A29A]">Norm. SDE</span>
-                    <span className="text-xs text-[#D4AF37]">{formatCurrencyFull(s.normalizedSDE)}</span>
+                    <span className="text-xs text-[#C9A227]">{formatCurrencyFull(s.normalizedSDE)}</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-[#A7A29A]">Post-debt CF</span>
@@ -498,7 +498,7 @@ export default function UnderwritingPage() {
                     sellerNoteRate: s.sellerNoteRate,
                     sellerNoteTermMonths: s.sellerNoteTermMonths,
                   })}
-                  className="mt-2 text-xs text-[#D4AF37] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37] rounded"
+                  className="mt-2 text-xs text-[#C9A227] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A227] rounded"
                 >
                   Load →
                 </button>

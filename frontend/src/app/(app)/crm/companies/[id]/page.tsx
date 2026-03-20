@@ -65,7 +65,7 @@ export default function CompanyDetailPage({ params }: { params: { id: string } }
       <div className="max-w-3xl mx-auto px-6 py-6 text-center">
         <Building2 size={40} className="mx-auto text-[#A7A29A] mb-3" aria-hidden />
         <p className="text-sm text-[#A7A29A]">Company not found.</p>
-        <Link href="/crm/companies" className="text-[#D4AF37] hover:underline text-sm mt-2 inline-block">
+        <Link href="/crm/companies" className="text-[#C9A227] hover:underline text-sm mt-2 inline-block">
           ← Back to Companies
         </Link>
       </div>
@@ -129,7 +129,7 @@ export default function CompanyDetailPage({ params }: { params: { id: string } }
           <select
             value={company.status}
             onChange={(e) => updateCompany(company.id, { status: e.target.value as CompanyStatus })}
-            className="bg-[#1B1B1D] border border-[#2A2A2E] rounded text-sm text-[#E8E6E3] px-3 py-2 focus:outline-none focus:border-[#D4AF37]"
+            className="bg-[#1B1B1D] border border-[#2A2A2E] rounded text-sm text-[#E8E6E3] px-3 py-2 focus:outline-none focus:border-[#C9A227]"
             aria-label="Change company status"
           >
             {STATUS_OPTIONS.map((o) => (
@@ -154,7 +154,7 @@ export default function CompanyDetailPage({ params }: { params: { id: string } }
                 <div className="flex items-center gap-2">
                   <dt><Phone size={13} className="text-[#A7A29A]" aria-label="Phone" /></dt>
                   <dd className="text-sm text-[#E8E6E3]">
-                    <a href={`tel:${company.phone}`} className="hover:text-[#D4AF37] transition-colors">{company.phone}</a>
+                    <a href={`tel:${company.phone}`} className="hover:text-[#C9A227] transition-colors">{company.phone}</a>
                   </dd>
                 </div>
               )}
@@ -162,7 +162,7 @@ export default function CompanyDetailPage({ params }: { params: { id: string } }
                 <div className="flex items-center gap-2">
                   <dt><Mail size={13} className="text-[#A7A29A]" aria-label="Email" /></dt>
                   <dd className="text-sm text-[#E8E6E3]">
-                    <a href={`mailto:${company.email}`} className="hover:text-[#D4AF37] transition-colors">{company.email}</a>
+                    <a href={`mailto:${company.email}`} className="hover:text-[#C9A227] transition-colors">{company.email}</a>
                   </dd>
                 </div>
               )}
@@ -170,7 +170,7 @@ export default function CompanyDetailPage({ params }: { params: { id: string } }
                 <div className="flex items-center gap-2">
                   <dt><Globe size={13} className="text-[#A7A29A]" aria-label="Website" /></dt>
                   <dd className="text-sm text-[#E8E6E3]">
-                    <a href={company.website.startsWith('http') ? company.website : `https://${company.website}`} target="_blank" rel="noopener noreferrer" className="hover:text-[#D4AF37] transition-colors">{company.website}</a>
+                    <a href={company.website.startsWith('http') ? company.website : `https://${company.website}`} target="_blank" rel="noopener noreferrer" className="hover:text-[#C9A227] transition-colors">{company.website}</a>
                   </dd>
                 </div>
               )}
@@ -199,7 +199,7 @@ export default function CompanyDetailPage({ params }: { params: { id: string } }
               {(company.estimatedSDELow || company.estimatedSDEHigh) && (
                 <div>
                   <dt className="text-[9px] tracking-widest uppercase text-[#A7A29A]">SDE Est.</dt>
-                  <dd className="text-sm text-[#D4AF37] mt-0.5">
+                  <dd className="text-sm text-[#C9A227] mt-0.5">
                     {company.estimatedSDELow && formatCurrency(company.estimatedSDELow)}
                     {company.estimatedSDELow && company.estimatedSDEHigh && ' – '}
                     {company.estimatedSDEHigh && formatCurrency(company.estimatedSDEHigh)}
@@ -217,8 +217,8 @@ export default function CompanyDetailPage({ params }: { params: { id: string } }
 
           {/* Signal flags */}
           {(company.retirementSignal || company.noWebsiteSignal || company.ownerAgeSignal) && (
-            <div className="bg-[#141414] border border-[#D4AF3720] rounded-md p-4">
-              <h2 className="text-[10px] tracking-widest uppercase font-medium text-[#D4AF37] mb-2">Acquisition Signals</h2>
+            <div className="bg-[#141414] border border-[#C9A22720] rounded-md p-4">
+              <h2 className="text-[10px] tracking-widest uppercase font-medium text-[#C9A227] mb-2">Acquisition Signals</h2>
               <div className="space-y-1.5">
                 {company.retirementSignal && <Badge variant="gold" size="sm">Retirement signal</Badge>}
                 {company.noWebsiteSignal && <Badge variant="warning" size="sm">No website</Badge>}
@@ -243,7 +243,7 @@ export default function CompanyDetailPage({ params }: { params: { id: string } }
                 <Link
                   key={d.id}
                   href={`/pipeline/${d.id}`}
-                  className="block text-sm text-[#D4AF37] hover:underline py-0.5"
+                  className="block text-sm text-[#C9A227] hover:underline py-0.5"
                 >
                   {d.name} — {statusLabel(d.stage)}
                 </Link>
@@ -351,7 +351,7 @@ export default function CompanyDetailPage({ params }: { params: { id: string } }
               type="checkbox"
               checked={logForm.requiresFollowUp}
               onChange={(e) => setLogForm((p) => ({ ...p, requiresFollowUp: e.target.checked }))}
-              className="accent-[#D4AF37]"
+              className="accent-[#C9A227]"
             />
             Schedule follow-up
           </label>

@@ -24,7 +24,7 @@ const RISK_ORDER: Record<MomentumRiskLevel, number> = {
 const RISK_BORDER: Record<MomentumRiskLevel, string> = {
   stalled: 'border-l-red-500',
   cooling: 'border-l-orange-400',
-  warming: 'border-l-amber-400',
+  warming: 'border-l-[#C9A227]',
   healthy: 'border-l-emerald-500',
 };
 
@@ -77,7 +77,7 @@ export default function DealMomentumPage() {
           const colors = {
             stalled: 'border-red-800/50 text-red-400',
             cooling: 'border-orange-800/50 text-orange-400',
-            warming: 'border-amber-800/50 text-amber-400',
+            warming: 'border-[#C9A22750] text-[#C9A227]',
             healthy: 'border-emerald-800/50 text-emerald-400',
           };
           return (
@@ -125,7 +125,7 @@ export default function DealMomentumPage() {
                       {STAGE_LABELS[m.stage] || m.stage}
                     </span>
                   </div>
-                  <p className="text-sm text-amber-300/90 mt-1">
+                  <p className="text-sm text-[#C9A227]/90 mt-1">
                     → {m.nextActionRequired}
                   </p>
                   <div className="flex flex-wrap gap-4 mt-2 text-xs text-[var(--color-text-muted)]">
@@ -170,7 +170,7 @@ export default function DealMomentumPage() {
         <h3 className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wide mb-2">Risk Level Rules</h3>
         <dl className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
           <div><dt className="text-emerald-400 font-medium">Healthy</dt><dd className="text-[var(--color-text-muted)]">0–7 days since contact</dd></div>
-          <div><dt className="text-amber-400 font-medium">Warming</dt><dd className="text-[var(--color-text-muted)]">7–14 days since contact</dd></div>
+          <div><dt className="text-[#C9A227] font-medium">Warming</dt><dd className="text-[var(--color-text-muted)]">7–14 days since contact</dd></div>
           <div><dt className="text-orange-400 font-medium">Cooling</dt><dd className="text-[var(--color-text-muted)]">14–30 days since contact</dd></div>
           <div><dt className="text-red-400 font-medium">Stalled</dt><dd className="text-[var(--color-text-muted)]">30+ days since contact</dd></div>
         </dl>

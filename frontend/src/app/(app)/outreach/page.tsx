@@ -24,7 +24,7 @@ function TemplateCard({ template }: { template: OutreachTemplate }) {
     <article className="bg-[#141414] border border-[#2A2A2E] rounded-md overflow-hidden">
       <button
         onClick={() => setExpanded((e) => !e)}
-        className="w-full flex items-start justify-between p-5 text-left hover:bg-[#1B1B1D] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#D4AF37]"
+        className="w-full flex items-start justify-between p-5 text-left hover:bg-[#1B1B1D] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#C9A227]"
         aria-expanded={expanded}
       >
         <div className="flex-1 min-w-0">
@@ -47,7 +47,7 @@ function TemplateCard({ template }: { template: OutreachTemplate }) {
               <span className="truncate">{template.subjectTemplate}</span>
               <button
                 onClick={() => handleCopy(template.subjectTemplate)}
-                className="flex-shrink-0 text-[#A7A29A] hover:text-[#D4AF37] transition-colors"
+                className="flex-shrink-0 text-[#A7A29A] hover:text-[#C9A227] transition-colors"
                 aria-label="Copy subject"
               >
                 {copied ? <Check size={13} aria-hidden /> : <Copy size={13} aria-hidden />}
@@ -61,7 +61,7 @@ function TemplateCard({ template }: { template: OutreachTemplate }) {
               <div className="text-[9px] tracking-widest uppercase text-[#A7A29A] mb-1.5">Variables</div>
               <div className="flex flex-wrap gap-1.5">
                 {template.variables.map((v) => (
-                  <code key={v} className="text-xs bg-[#D4AF3710] text-[#D4AF37] border border-[#D4AF3730] rounded px-1.5 py-0.5">
+                  <code key={v} className="text-xs bg-[#C9A22710] text-[#C9A227] border border-[#C9A22730] rounded px-1.5 py-0.5">
                     {`{{${v}}}`}
                   </code>
                 ))}
@@ -75,7 +75,7 @@ function TemplateCard({ template }: { template: OutreachTemplate }) {
               <div className="text-[9px] tracking-widest uppercase text-[#A7A29A]">Body Template</div>
               <button
                 onClick={() => handleCopy(template.bodyTemplate)}
-                className="flex items-center gap-1 text-xs text-[#A7A29A] hover:text-[#D4AF37] transition-colors"
+                className="flex items-center gap-1 text-xs text-[#A7A29A] hover:text-[#C9A227] transition-colors"
                 aria-label="Copy body template"
               >
                 {copied ? <Check size={11} aria-hidden /> : <Copy size={11} aria-hidden />}
@@ -125,15 +125,15 @@ export default function OutreachPage() {
       <div className="grid grid-cols-3 gap-3">
         <div className="bg-[#141414] border border-[#2A2A2E] rounded-md p-4">
           <div className="text-[9px] tracking-widest uppercase text-[#A7A29A] mb-1">Templates</div>
-          <div className="text-2xl font-bold font-serif text-[#D4AF37]">{templates.length}</div>
+          <div className="text-2xl font-bold font-serif text-[#C9A227]">{templates.length}</div>
         </div>
         <div className="bg-[#141414] border border-[#2A2A2E] rounded-md p-4">
           <div className="text-[9px] tracking-widest uppercase text-[#A7A29A] mb-1">System Templates</div>
-          <div className="text-2xl font-bold font-serif text-[#D4AF37]">{templates.filter((t) => t.isSystemTemplate).length}</div>
+          <div className="text-2xl font-bold font-serif text-[#C9A227]">{templates.filter((t) => t.isSystemTemplate).length}</div>
         </div>
         <div className="bg-[#141414] border border-[#2A2A2E] rounded-md p-4">
           <div className="text-[9px] tracking-widest uppercase text-[#A7A29A] mb-1">Template Types</div>
-          <div className="text-2xl font-bold font-serif text-[#D4AF37]">{Object.keys(byType).length}</div>
+          <div className="text-2xl font-bold font-serif text-[#C9A227]">{Object.keys(byType).length}</div>
         </div>
       </div>
 

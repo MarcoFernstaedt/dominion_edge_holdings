@@ -16,7 +16,7 @@ export default function ContactDetailPage({ params }: { params: { id: string } }
     return (
       <div className="max-w-3xl mx-auto px-6 py-6 text-center">
         <p className="text-sm text-[#A7A29A]">Contact not found.</p>
-        <Link href="/crm/contacts" className="text-[#D4AF37] hover:underline text-sm mt-2 inline-block">← Back to Contacts</Link>
+        <Link href="/crm/contacts" className="text-[#C9A227] hover:underline text-sm mt-2 inline-block">← Back to Contacts</Link>
       </div>
     );
   }
@@ -50,7 +50,7 @@ export default function ContactDetailPage({ params }: { params: { id: string } }
                 <div className="flex items-center gap-2">
                   <dt><Mail size={13} className="text-[#A7A29A]" aria-label="Email" /></dt>
                   <dd className="text-sm text-[#E8E6E3]">
-                    <a href={`mailto:${contact.email}`} className="hover:text-[#D4AF37]">{contact.email}</a>
+                    <a href={`mailto:${contact.email}`} className="hover:text-[#C9A227]">{contact.email}</a>
                   </dd>
                 </div>
               )}
@@ -58,7 +58,7 @@ export default function ContactDetailPage({ params }: { params: { id: string } }
                 <div className="flex items-center gap-2">
                   <dt><Phone size={13} className="text-[#A7A29A]" aria-label="Phone" /></dt>
                   <dd className="text-sm text-[#E8E6E3]">
-                    <a href={`tel:${contact.phone}`} className="hover:text-[#D4AF37]">{contact.phone}</a>
+                    <a href={`tel:${contact.phone}`} className="hover:text-[#C9A227]">{contact.phone}</a>
                   </dd>
                 </div>
               )}
@@ -66,7 +66,7 @@ export default function ContactDetailPage({ params }: { params: { id: string } }
                 <div className="flex items-center gap-2">
                   <dt><Linkedin size={13} className="text-[#A7A29A]" aria-label="LinkedIn" /></dt>
                   <dd className="text-sm text-[#E8E6E3]">
-                    <a href={contact.linkedinUrl} target="_blank" rel="noopener noreferrer" className="hover:text-[#D4AF37] truncate block">
+                    <a href={contact.linkedinUrl} target="_blank" rel="noopener noreferrer" className="hover:text-[#C9A227] truncate block">
                       LinkedIn Profile
                     </a>
                   </dd>
@@ -77,7 +77,7 @@ export default function ContactDetailPage({ params }: { params: { id: string } }
                   <dt><Building2 size={13} className="text-[#A7A29A]" aria-label="Company" /></dt>
                   <dd className="text-sm text-[#E8E6E3]">
                     {contact.companyId ? (
-                      <Link href={`/crm/companies/${contact.companyId}`} className="hover:text-[#D4AF37]">
+                      <Link href={`/crm/companies/${contact.companyId}`} className="hover:text-[#C9A227]">
                         {contact.companyName}
                       </Link>
                     ) : contact.companyName}

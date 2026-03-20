@@ -61,7 +61,7 @@ const ENTITY_ICON: Record<RelationshipEntityType, React.ElementType> = {
 const ENTITY_COLOR: Record<RelationshipEntityType, string> = {
   seller:       'text-sky-400',
   board_member: 'text-violet-400',
-  investor:     'text-amber-400',
+  investor:     'text-[#C9A227]',
 };
 
 const STATUS_LABEL: Record<RelationshipStatus, string> = {
@@ -75,9 +75,9 @@ const STATUS_LABEL: Record<RelationshipStatus, string> = {
 
 const INTEREST_COLOR: Record<InterestLevel, string> = {
   low:    'text-[var(--color-text-muted)]',
-  medium: 'text-amber-400',
+  medium: 'text-[#C9A227]',
   high:   'text-emerald-400',
-  ready:  'text-[#D4AF37]',
+  ready:  'text-[#C9A227]',
 };
 
 // ─── Dashboard widget ─────────────────────────────────────────────────────────
@@ -86,7 +86,7 @@ function DashboardWidget({ dashboard }: { dashboard: RelationshipDashboard }) {
   const groups = [
     { label: 'Sellers',       items: dashboard.overdueSellers,      color: 'border-sky-700/40 bg-sky-900/10',     textColor: 'text-sky-400' },
     { label: 'Board Members', items: dashboard.overdueBoardMembers, color: 'border-violet-700/40 bg-violet-900/10', textColor: 'text-violet-400' },
-    { label: 'Investors',     items: dashboard.overdueInvestors,    color: 'border-amber-700/40 bg-amber-900/10', textColor: 'text-amber-400' },
+    { label: 'Investors',     items: dashboard.overdueInvestors,    color: 'border-[#C9A22740] bg-[#C9A22710]', textColor: 'text-[#C9A227]' },
   ];
 
   return (
@@ -96,11 +96,11 @@ function DashboardWidget({ dashboard }: { dashboard: RelationshipDashboard }) {
     >
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-semibold text-[var(--color-text-primary)] flex items-center gap-2">
-          <AlertCircle size={14} className="text-amber-400" aria-hidden />
+          <AlertCircle size={14} className="text-[#C9A227]" aria-hidden />
           Relationship Tracker
         </h2>
         {dashboard.overdueTotal > 0 && (
-          <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-amber-900/30 text-amber-400 border border-amber-700/40">
+          <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-[#C9A22720]/30 text-[#C9A227] border border-[#C9A22740]">
             {dashboard.overdueTotal} overdue
           </span>
         )}
@@ -123,7 +123,7 @@ function DashboardWidget({ dashboard }: { dashboard: RelationshipDashboard }) {
                     <li key={r.id}>
                       <Link
                         href={`/relationships/${r.id}`}
-                        className={`flex items-center justify-between gap-1 text-xs hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37] rounded ${textColor}`}
+                        className={`flex items-center justify-between gap-1 text-xs hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A227] rounded ${textColor}`}
                         aria-label={`${r.name}${r.company ? `, ${r.company}` : ''} — follow-up overdue`}
                       >
                         <span className="truncate">{r.name}</span>
@@ -201,7 +201,7 @@ function AddRelationshipModal({
       <div className="bg-[#161618] border border-[var(--color-border)] rounded-2xl w-full max-w-lg shadow-2xl">
         <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--color-border)]">
           <h2 className="font-semibold text-[var(--color-text-primary)]">Add Relationship</h2>
-          <button onClick={onClose} aria-label="Close" className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37] rounded">
+          <button onClick={onClose} aria-label="Close" className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A227] rounded">
             <X size={16} aria-hidden />
           </button>
         </div>
@@ -212,7 +212,7 @@ function AddRelationshipModal({
             <div>
               <label className="block text-xs text-[var(--color-text-muted)] mb-1" htmlFor="ar-type">Type <span className="text-red-400">*</span></label>
               <select id="ar-type" value={form.entityType} onChange={(e) => set('entityType', e.target.value)}
-                className="w-full bg-[#1A1A1E] border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#D4AF37]">
+                className="w-full bg-[#1A1A1E] border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#C9A227]">
                 <option value="seller">Seller</option>
                 <option value="board_member">Board Member</option>
                 <option value="investor">Investor</option>
@@ -221,17 +221,17 @@ function AddRelationshipModal({
             <div>
               <label className="block text-xs text-[var(--color-text-muted)] mb-1" htmlFor="ar-name">Name <span className="text-red-400">*</span></label>
               <input id="ar-name" required value={form.name} onChange={(e) => set('name', e.target.value)}
-                className="w-full bg-[#1A1A1E] border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#D4AF37]" />
+                className="w-full bg-[#1A1A1E] border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#C9A227]" />
             </div>
             <div>
               <label className="block text-xs text-[var(--color-text-muted)] mb-1" htmlFor="ar-company">Company</label>
               <input id="ar-company" value={form.company} onChange={(e) => set('company', e.target.value)}
-                className="w-full bg-[#1A1A1E] border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#D4AF37]" />
+                className="w-full bg-[#1A1A1E] border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#C9A227]" />
             </div>
             <div>
               <label className="block text-xs text-[var(--color-text-muted)] mb-1" htmlFor="ar-status">Status</label>
               <select id="ar-status" value={form.relationshipStatus} onChange={(e) => set('relationshipStatus', e.target.value)}
-                className="w-full bg-[#1A1A1E] border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#D4AF37]">
+                className="w-full bg-[#1A1A1E] border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#C9A227]">
                 {(['new','warming','active','long_term','closed','not_interested'] as RelationshipStatus[]).map((s) => (
                   <option key={s} value={s}>{STATUS_LABEL[s]}</option>
                 ))}
@@ -240,7 +240,7 @@ function AddRelationshipModal({
             <div>
               <label className="block text-xs text-[var(--color-text-muted)] mb-1" htmlFor="ar-interest">Interest Level</label>
               <select id="ar-interest" value={form.interestLevel} onChange={(e) => set('interestLevel', e.target.value)}
-                className="w-full bg-[#1A1A1E] border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#D4AF37]">
+                className="w-full bg-[#1A1A1E] border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#C9A227]">
                 <option value="low">Low</option>
                 <option value="medium">Medium</option>
                 <option value="high">High</option>
@@ -252,12 +252,12 @@ function AddRelationshipModal({
           <div>
             <label className="block text-xs text-[var(--color-text-muted)] mb-1" htmlFor="ar-notes">Notes</label>
             <textarea id="ar-notes" rows={3} value={form.notes} onChange={(e) => set('notes', e.target.value)}
-              className="w-full bg-[#1A1A1E] border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#D4AF37] resize-none" />
+              className="w-full bg-[#1A1A1E] border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#C9A227] resize-none" />
           </div>
 
           <div className="flex justify-end gap-2 pt-2">
             <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg border border-[var(--color-border)] text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors">Cancel</button>
-            <button type="submit" disabled={saving} className="px-4 py-2 rounded-lg bg-[#D4AF37] text-black text-sm font-semibold hover:bg-[#C9A227] transition-colors disabled:opacity-50">
+            <button type="submit" disabled={saving} className="px-4 py-2 rounded-lg bg-[#C9A227] text-black text-sm font-semibold hover:bg-[#C9A227] transition-colors disabled:opacity-50">
               {saving ? 'Saving…' : 'Add Relationship'}
             </button>
           </div>
@@ -282,7 +282,7 @@ function FilterPanel({
     <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-4 space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">Filters</h3>
-        <button onClick={onClose} aria-label="Close filters" className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37] rounded">
+        <button onClick={onClose} aria-label="Close filters" className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A227] rounded">
           <X size={14} aria-hidden />
         </button>
       </div>
@@ -290,7 +290,7 @@ function FilterPanel({
         <div>
           <label className="block text-xs text-[var(--color-text-muted)] mb-1" htmlFor="rf-type">Entity Type</label>
           <select id="rf-type" value={filters.entityType ?? ''} onChange={(e) => onChange({ entityType: (e.target.value as RelationshipEntityType) || undefined })}
-            className="w-full bg-[#1A1A1E] border border-[var(--color-border)] rounded-lg px-3 py-1.5 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#D4AF37]">
+            className="w-full bg-[#1A1A1E] border border-[var(--color-border)] rounded-lg px-3 py-1.5 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#C9A227]">
             <option value="">All Types</option>
             <option value="seller">Seller</option>
             <option value="board_member">Board Member</option>
@@ -300,7 +300,7 @@ function FilterPanel({
         <div>
           <label className="block text-xs text-[var(--color-text-muted)] mb-1" htmlFor="rf-status">Status</label>
           <select id="rf-status" value={filters.relationshipStatus ?? ''} onChange={(e) => onChange({ relationshipStatus: (e.target.value as RelationshipStatus) || undefined })}
-            className="w-full bg-[#1A1A1E] border border-[var(--color-border)] rounded-lg px-3 py-1.5 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#D4AF37]">
+            className="w-full bg-[#1A1A1E] border border-[var(--color-border)] rounded-lg px-3 py-1.5 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#C9A227]">
             <option value="">All Statuses</option>
             {(['new','warming','active','long_term','closed','not_interested'] as RelationshipStatus[]).map((s) => (
               <option key={s} value={s}>{STATUS_LABEL[s]}</option>
@@ -310,7 +310,7 @@ function FilterPanel({
         <div>
           <label className="block text-xs text-[var(--color-text-muted)] mb-1" htmlFor="rf-interest">Interest</label>
           <select id="rf-interest" value={filters.interestLevel ?? ''} onChange={(e) => onChange({ interestLevel: (e.target.value as InterestLevel) || undefined })}
-            className="w-full bg-[#1A1A1E] border border-[var(--color-border)] rounded-lg px-3 py-1.5 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#D4AF37]">
+            className="w-full bg-[#1A1A1E] border border-[var(--color-border)] rounded-lg px-3 py-1.5 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#C9A227]">
             <option value="">All Levels</option>
             <option value="low">Low</option>
             <option value="medium">Medium</option>
@@ -321,7 +321,7 @@ function FilterPanel({
         <div>
           <label className="block text-xs text-[var(--color-text-muted)] mb-1" htmlFor="rf-sort">Sort By</label>
           <select id="rf-sort" value={filters.sortBy ?? 'nextFollowUpDate'} onChange={(e) => onChange({ sortBy: e.target.value as RelationshipFilters['sortBy'] })}
-            className="w-full bg-[#1A1A1E] border border-[var(--color-border)] rounded-lg px-3 py-1.5 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#D4AF37]">
+            className="w-full bg-[#1A1A1E] border border-[var(--color-border)] rounded-lg px-3 py-1.5 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#C9A227]">
             <option value="nextFollowUpDate">Next Follow-up</option>
             <option value="lastContactDate">Last Contact</option>
             <option value="name">Name</option>
@@ -332,7 +332,7 @@ function FilterPanel({
       <div className="flex items-center gap-2">
         <label className="flex items-center gap-2 cursor-pointer text-sm text-[var(--color-text-primary)]">
           <input type="checkbox" checked={!!filters.overdue} onChange={(e) => onChange({ overdue: e.target.checked || undefined })}
-            className="w-4 h-4 rounded accent-[#D4AF37]" />
+            className="w-4 h-4 rounded accent-[#C9A227]" />
           Show overdue only
         </label>
       </div>
@@ -382,7 +382,7 @@ function RelationshipRow({ rel }: { rel: Relationship }) {
       <td className="py-3 px-4 text-right">
         <Link
           href={`/relationships/${rel.id}`}
-          className="inline-flex items-center gap-1 text-xs text-[var(--color-text-muted)] hover:text-[#D4AF37] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37] rounded"
+          className="inline-flex items-center gap-1 text-xs text-[var(--color-text-muted)] hover:text-[#C9A227] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A227] rounded"
           aria-label={`View ${rel.name}`}
         >
           View <ArrowUpRight size={11} aria-hidden />
@@ -416,7 +416,7 @@ function RelationshipCard({ rel }: { rel: Relationship }) {
         </div>
         <Link
           href={`/relationships/${rel.id}`}
-          className={`flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-lg border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37] ${
+          className={`flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-lg border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A227] ${
             overdue
               ? 'border-red-700/40 bg-red-900/10 text-red-400'
               : 'border-[var(--color-border)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]'
@@ -510,7 +510,7 @@ export default function RelationshipsPage() {
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold text-[var(--color-text-primary)] flex items-center gap-2">
-            <UserCheck size={22} className="text-[#D4AF37]" aria-hidden />
+            <UserCheck size={22} className="text-[#C9A227]" aria-hidden />
             Relationships
           </h1>
           <p className="text-sm text-[var(--color-text-muted)] mt-1">
@@ -520,7 +520,7 @@ export default function RelationshipsPage() {
         <div className="flex items-center gap-2">
           <button
             onClick={() => setShowAdd(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#D4AF37] text-black text-sm font-semibold hover:bg-[#C9A227] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37]"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#C9A227] text-black text-sm font-semibold hover:bg-[#C9A227] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A227]"
           >
             <Plus size={14} aria-hidden /> Add Relationship
           </button>
@@ -528,7 +528,7 @@ export default function RelationshipsPage() {
             onClick={() => load(filters)}
             disabled={loading}
             aria-label="Refresh"
-            className="p-2 rounded-lg border border-[var(--color-border)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] disabled:opacity-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37]"
+            className="p-2 rounded-lg border border-[var(--color-border)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] disabled:opacity-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A227]"
           >
             <RefreshCw size={14} className={loading ? 'animate-spin' : ''} aria-hidden />
           </button>
@@ -548,16 +548,16 @@ export default function RelationshipsPage() {
             value={search}
             onChange={(e) => handleSearch(e.target.value)}
             aria-label="Search relationships"
-            className="w-full pl-9 pr-4 py-2 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:ring-2 focus:ring-[#D4AF37]"
+            className="w-full pl-9 pr-4 py-2 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:ring-2 focus:ring-[#C9A227]"
           />
         </div>
         <button
           onClick={() => setShowFilters((p) => !p)}
           aria-expanded={showFilters}
           aria-label="Toggle filters"
-          className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37] ${
+          className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A227] ${
             showFilters
-              ? 'border-[#D4AF37] text-[#D4AF37] bg-[#D4AF37]/10'
+              ? 'border-[#C9A227] text-[#C9A227] bg-[#C9A227]/10'
               : 'border-[var(--color-border)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]'
           }`}
         >
@@ -616,7 +616,7 @@ export default function RelationshipsPage() {
                 onClick={() => setPage(Math.max(1, (filters.page ?? 1) - 1))}
                 disabled={(filters.page ?? 1) <= 1}
                 aria-label="Previous page"
-                className="p-2 rounded-lg border border-[var(--color-border)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] disabled:opacity-40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37]"
+                className="p-2 rounded-lg border border-[var(--color-border)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] disabled:opacity-40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A227]"
               >
                 <ChevronLeft size={14} aria-hidden />
               </button>
@@ -627,7 +627,7 @@ export default function RelationshipsPage() {
                 onClick={() => setPage(Math.min(totalPages, (filters.page ?? 1) + 1))}
                 disabled={(filters.page ?? 1) >= totalPages}
                 aria-label="Next page"
-                className="p-2 rounded-lg border border-[var(--color-border)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] disabled:opacity-40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37]"
+                className="p-2 rounded-lg border border-[var(--color-border)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] disabled:opacity-40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A227]"
               >
                 <ChevronRight size={14} aria-hidden />
               </button>

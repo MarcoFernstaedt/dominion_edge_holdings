@@ -42,7 +42,7 @@ const ENTITY_ICON: Record<ConversationEntityType, React.ElementType> = {
 const ENTITY_COLOR: Record<ConversationEntityType, string> = {
   seller:       'text-sky-400',
   board_member: 'text-violet-400',
-  investor:     'text-amber-400',
+  investor:     'text-[#C9A227]',
 };
 const ENTITY_LABEL: Record<ConversationEntityType, string> = {
   seller: 'Seller', board_member: 'Board Member', investor: 'Investor',
@@ -111,7 +111,7 @@ function RecordModal({ onClose, onRecorded }: { onClose: () => void; onRecorded:
       <div className="bg-[#161618] border border-[var(--color-border)] rounded-2xl w-full max-w-lg shadow-2xl">
         <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--color-border)]">
           <h2 className="font-semibold text-[var(--color-text-primary)]">Record Conversation</h2>
-          <button onClick={onClose} aria-label="Close" className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37] rounded">
+          <button onClick={onClose} aria-label="Close" className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A227] rounded">
             <X size={16} aria-hidden />
           </button>
         </div>
@@ -122,7 +122,7 @@ function RecordModal({ onClose, onRecorded }: { onClose: () => void; onRecorded:
             <div>
               <label className="block text-xs text-[var(--color-text-muted)] mb-1" htmlFor="rc-type">Contact Type <span className="text-red-400">*</span></label>
               <select id="rc-type" value={form.entityType} onChange={(e) => set('entityType', e.target.value)}
-                className="w-full bg-[#1A1A1E] border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#D4AF37]">
+                className="w-full bg-[#1A1A1E] border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#C9A227]">
                 <option value="seller">Seller</option>
                 <option value="board_member">Board Member</option>
                 <option value="investor">Investor</option>
@@ -131,7 +131,7 @@ function RecordModal({ onClose, onRecorded }: { onClose: () => void; onRecorded:
             <div>
               <label className="block text-xs text-[var(--color-text-muted)] mb-1" htmlFor="rc-conv">Conversation Type <span className="text-red-400">*</span></label>
               <select id="rc-conv" value={form.conversationType} onChange={(e) => set('conversationType', e.target.value)}
-                className="w-full bg-[#1A1A1E] border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#D4AF37]">
+                className="w-full bg-[#1A1A1E] border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#C9A227]">
                 <option value="phone">Phone</option>
                 <option value="zoom">Zoom</option>
                 <option value="meeting">Meeting</option>
@@ -141,28 +141,28 @@ function RecordModal({ onClose, onRecorded }: { onClose: () => void; onRecorded:
             <div>
               <label className="block text-xs text-[var(--color-text-muted)] mb-1" htmlFor="rc-name">Contact Name <span className="text-red-400">*</span></label>
               <input id="rc-name" required value={form.entityName} onChange={(e) => set('entityName', e.target.value)}
-                className="w-full bg-[#1A1A1E] border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#D4AF37]" />
+                className="w-full bg-[#1A1A1E] border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#C9A227]" />
             </div>
             <div>
               <label className="block text-xs text-[var(--color-text-muted)] mb-1" htmlFor="rc-company">Company</label>
               <input id="rc-company" value={form.company} onChange={(e) => set('company', e.target.value)}
-                className="w-full bg-[#1A1A1E] border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#D4AF37]" />
+                className="w-full bg-[#1A1A1E] border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#C9A227]" />
             </div>
             <div className="sm:col-span-2">
               <label className="block text-xs text-[var(--color-text-muted)] mb-1" htmlFor="rc-date">Date</label>
               <input id="rc-date" type="date" value={form.date} onChange={(e) => set('date', e.target.value)}
-                className="w-full bg-[#1A1A1E] border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#D4AF37]" />
+                className="w-full bg-[#1A1A1E] border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#C9A227]" />
             </div>
           </div>
           <div>
             <label className="block text-xs text-[var(--color-text-muted)] mb-1" htmlFor="rc-summary">Summary</label>
             <textarea id="rc-summary" rows={4} value={form.conversationSummary} onChange={(e) => set('conversationSummary', e.target.value)}
               placeholder="Key topics discussed, outcomes, next steps…"
-              className="w-full bg-[#1A1A1E] border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#D4AF37] resize-none" />
+              className="w-full bg-[#1A1A1E] border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#C9A227] resize-none" />
           </div>
           <div className="flex justify-end gap-2 pt-2">
             <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg border border-[var(--color-border)] text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors">Cancel</button>
-            <button type="submit" disabled={saving} className="px-4 py-2 rounded-lg bg-[#D4AF37] text-black text-sm font-semibold hover:bg-[#C9A227] transition-colors disabled:opacity-50">
+            <button type="submit" disabled={saving} className="px-4 py-2 rounded-lg bg-[#C9A227] text-black text-sm font-semibold hover:bg-[#C9A227] transition-colors disabled:opacity-50">
               {saving ? 'Recording…' : 'Record Conversation'}
             </button>
           </div>
@@ -178,13 +178,13 @@ function TrendSection({ trends }: { trends: ConversationTrendWeek[] }) {
   const series = [
     { key: 'seller'       as keyof ConversationTrendWeek, label: 'Sellers',      color: '#38bdf8' },
     { key: 'board_member' as keyof ConversationTrendWeek, label: 'Board Members', color: '#a78bfa' },
-    { key: 'investor'     as keyof ConversationTrendWeek, label: 'Investors',    color: '#D4AF37' },
+    { key: 'investor'     as keyof ConversationTrendWeek, label: 'Investors',    color: '#C9A227' },
   ];
 
   return (
     <section aria-label="Conversation trends" className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-4">
       <h2 className="text-sm font-semibold text-[var(--color-text-primary)] flex items-center gap-2 mb-4">
-        <BarChart2 size={14} className="text-[#D4AF37]" aria-hidden />
+        <BarChart2 size={14} className="text-[#C9A227]" aria-hidden />
         8-Week Trend
       </h2>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -312,7 +312,7 @@ function FilterPanel({ filters, onChange, onClose }: {
     <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-4 space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">Filters</h3>
-        <button onClick={onClose} aria-label="Close filters" className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37] rounded">
+        <button onClick={onClose} aria-label="Close filters" className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A227] rounded">
           <X size={14} aria-hidden />
         </button>
       </div>
@@ -320,7 +320,7 @@ function FilterPanel({ filters, onChange, onClose }: {
         <div>
           <label className="block text-xs text-[var(--color-text-muted)] mb-1" htmlFor="cf-type">Contact Type</label>
           <select id="cf-type" value={filters.entityType ?? ''} onChange={(e) => onChange({ entityType: (e.target.value as ConversationEntityType) || undefined })}
-            className="w-full bg-[#1A1A1E] border border-[var(--color-border)] rounded-lg px-3 py-1.5 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#D4AF37]">
+            className="w-full bg-[#1A1A1E] border border-[var(--color-border)] rounded-lg px-3 py-1.5 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#C9A227]">
             <option value="">All Types</option>
             <option value="seller">Seller</option>
             <option value="board_member">Board Member</option>
@@ -330,7 +330,7 @@ function FilterPanel({ filters, onChange, onClose }: {
         <div>
           <label className="block text-xs text-[var(--color-text-muted)] mb-1" htmlFor="cf-conv">Conversation Type</label>
           <select id="cf-conv" value={filters.conversationType ?? ''} onChange={(e) => onChange({ conversationType: (e.target.value as ConversationType) || undefined })}
-            className="w-full bg-[#1A1A1E] border border-[var(--color-border)] rounded-lg px-3 py-1.5 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#D4AF37]">
+            className="w-full bg-[#1A1A1E] border border-[var(--color-border)] rounded-lg px-3 py-1.5 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#C9A227]">
             <option value="">All</option>
             <option value="phone">Phone</option>
             <option value="zoom">Zoom</option>
@@ -341,12 +341,12 @@ function FilterPanel({ filters, onChange, onClose }: {
         <div>
           <label className="block text-xs text-[var(--color-text-muted)] mb-1" htmlFor="cf-from">Date From</label>
           <input id="cf-from" type="date" value={filters.dateFrom ?? ''} onChange={(e) => onChange({ dateFrom: e.target.value || undefined })}
-            className="w-full bg-[#1A1A1E] border border-[var(--color-border)] rounded-lg px-3 py-1.5 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#D4AF37]" />
+            className="w-full bg-[#1A1A1E] border border-[var(--color-border)] rounded-lg px-3 py-1.5 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#C9A227]" />
         </div>
         <div>
           <label className="block text-xs text-[var(--color-text-muted)] mb-1" htmlFor="cf-to">Date To</label>
           <input id="cf-to" type="date" value={filters.dateTo ?? ''} onChange={(e) => onChange({ dateTo: e.target.value || undefined })}
-            className="w-full bg-[#1A1A1E] border border-[var(--color-border)] rounded-lg px-3 py-1.5 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#D4AF37]" />
+            className="w-full bg-[#1A1A1E] border border-[var(--color-border)] rounded-lg px-3 py-1.5 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#C9A227]" />
         </div>
       </div>
     </div>
@@ -423,7 +423,7 @@ export default function ConversationsPage() {
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold text-[var(--color-text-primary)] flex items-center gap-2">
-            <MessageCircle size={22} className="text-[#D4AF37]" aria-hidden />
+            <MessageCircle size={22} className="text-[#C9A227]" aria-hidden />
             Conversations
           </h1>
           <p className="text-sm text-[var(--color-text-muted)] mt-1">
@@ -433,7 +433,7 @@ export default function ConversationsPage() {
         <div className="flex items-center gap-2">
           <button
             onClick={() => setShowRecord(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#D4AF37] text-black text-sm font-semibold hover:bg-[#C9A227] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37]"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#C9A227] text-black text-sm font-semibold hover:bg-[#C9A227] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A227]"
           >
             <Plus size={14} aria-hidden /> Record Conversation
           </button>
@@ -441,7 +441,7 @@ export default function ConversationsPage() {
             onClick={() => load(filters)}
             disabled={loading}
             aria-label="Refresh"
-            className="p-2 rounded-lg border border-[var(--color-border)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] disabled:opacity-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37]"
+            className="p-2 rounded-lg border border-[var(--color-border)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] disabled:opacity-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A227]"
           >
             <RefreshCw size={14} className={loading ? 'animate-spin' : ''} aria-hidden />
           </button>
@@ -486,7 +486,7 @@ export default function ConversationsPage() {
             <div key={alert.id} className={`flex items-start gap-3 px-4 py-3 rounded-xl border text-sm ${
               alert.severity === 'critical'
                 ? 'bg-red-900/15 border-red-700/30 text-red-400'
-                : 'bg-amber-900/15 border-amber-700/30 text-amber-400'
+                : 'bg-[#C9A22720]/15 border-[#C9A22730] text-[#C9A227]'
             }`} role="alert">
               <AlertTriangle size={15} className="flex-shrink-0 mt-0.5" aria-hidden />
               <div>
@@ -507,14 +507,14 @@ export default function ConversationsPage() {
             type="search" placeholder="Search by name, company, or summary…"
             value={search} onChange={(e) => handleSearch(e.target.value)}
             aria-label="Search conversations"
-            className="w-full pl-9 pr-4 py-2 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:ring-2 focus:ring-[#D4AF37]"
+            className="w-full pl-9 pr-4 py-2 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:ring-2 focus:ring-[#C9A227]"
           />
         </div>
         <button
           onClick={() => setShowFilters((p) => !p)}
           aria-expanded={showFilters} aria-label="Toggle filters"
-          className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37] ${
-            showFilters ? 'border-[#D4AF37] text-[#D4AF37] bg-[#D4AF37]/10' : 'border-[var(--color-border)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]'
+          className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A227] ${
+            showFilters ? 'border-[#C9A227] text-[#C9A227] bg-[#C9A227]/10' : 'border-[var(--color-border)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]'
           }`}
         >
           <SlidersHorizontal size={14} aria-hidden /> Filters
@@ -567,12 +567,12 @@ export default function ConversationsPage() {
           {totalPages > 1 && (
             <nav className="flex items-center justify-center gap-2 pt-2" aria-label="Pagination">
               <button onClick={() => setPage(Math.max(1, (filters.page ?? 1) - 1))} disabled={(filters.page ?? 1) <= 1}
-                aria-label="Previous page" className="p-2 rounded-lg border border-[var(--color-border)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] disabled:opacity-40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37]">
+                aria-label="Previous page" className="p-2 rounded-lg border border-[var(--color-border)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] disabled:opacity-40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A227]">
                 <ChevronLeft size={14} aria-hidden />
               </button>
               <span className="text-xs text-[var(--color-text-muted)]">Page {filters.page ?? 1} of {totalPages}</span>
               <button onClick={() => setPage(Math.min(totalPages, (filters.page ?? 1) + 1))} disabled={(filters.page ?? 1) >= totalPages}
-                aria-label="Next page" className="p-2 rounded-lg border border-[var(--color-border)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] disabled:opacity-40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37]">
+                aria-label="Next page" className="p-2 rounded-lg border border-[var(--color-border)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] disabled:opacity-40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A227]">
                 <ChevronRight size={14} aria-hidden />
               </button>
             </nav>

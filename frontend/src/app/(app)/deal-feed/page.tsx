@@ -32,7 +32,7 @@ function fmtMoney(val: number | null): string {
 function ScoreBadge({ score }: { score: number }) {
   const color =
     score >= 75 ? 'bg-emerald-900/40 text-emerald-400 border-emerald-700/40' :
-    score >= 50 ? 'bg-amber-900/40  text-amber-400  border-amber-700/40'    :
+    score >= 50 ? 'bg-[#C9A22720]/40  text-[#C9A227]  border-[#C9A22740]'    :
     score >= 25 ? 'bg-orange-900/40 text-orange-400 border-orange-800/30'   :
                   'bg-[#1F1F23]      text-[var(--color-text-muted)] border-[var(--color-border)]';
   return (
@@ -107,7 +107,7 @@ function AddListingModal({ onClose, onCreated }: AddListingModalProps) {
       <div className="bg-[#161618] border border-[var(--color-border)] rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl">
         <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--color-border)]">
           <h2 className="font-semibold text-[var(--color-text-primary)]">Add Listing</h2>
-          <button onClick={onClose} aria-label="Close" className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37] rounded">
+          <button onClick={onClose} aria-label="Close" className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A227] rounded">
             <X size={16} aria-hidden />
           </button>
         </div>
@@ -119,86 +119,86 @@ function AddListingModal({ onClose, onCreated }: AddListingModalProps) {
             <div>
               <label className="block text-xs text-[var(--color-text-muted)] mb-1" htmlFor="al-name">Company Name <span className="text-red-400">*</span></label>
               <input id="al-name" required value={form.companyName} onChange={(e) => set('companyName', e.target.value)}
-                className="w-full bg-[#1A1A1E] border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#D4AF37]" />
+                className="w-full bg-[#1A1A1E] border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#C9A227]" />
             </div>
             <div>
               <label className="block text-xs text-[var(--color-text-muted)] mb-1" htmlFor="al-industry">Industry</label>
               <input id="al-industry" value={form.industry} onChange={(e) => set('industry', e.target.value)}
-                className="w-full bg-[#1A1A1E] border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#D4AF37]" />
+                className="w-full bg-[#1A1A1E] border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#C9A227]" />
             </div>
             <div>
               <label className="block text-xs text-[var(--color-text-muted)] mb-1" htmlFor="al-location">Location</label>
               <input id="al-location" value={form.location} onChange={(e) => set('location', e.target.value)}
                 placeholder="e.g. Austin, TX"
-                className="w-full bg-[#1A1A1E] border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#D4AF37]" />
+                className="w-full bg-[#1A1A1E] border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#C9A227]" />
             </div>
             <div>
               <label className="block text-xs text-[var(--color-text-muted)] mb-1" htmlFor="al-years">Years in Business</label>
               <input id="al-years" type="number" min="0" value={form.yearsInBusiness} onChange={(e) => set('yearsInBusiness', e.target.value)}
-                className="w-full bg-[#1A1A1E] border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#D4AF37]" />
+                className="w-full bg-[#1A1A1E] border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#C9A227]" />
             </div>
             <div>
               <label className="block text-xs text-[var(--color-text-muted)] mb-1" htmlFor="al-rev">Revenue Estimate ($)</label>
               <input id="al-rev" type="number" min="0" value={form.revenueEstimate} onChange={(e) => set('revenueEstimate', e.target.value)}
-                className="w-full bg-[#1A1A1E] border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#D4AF37]" />
+                className="w-full bg-[#1A1A1E] border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#C9A227]" />
             </div>
             <div>
               <label className="block text-xs text-[var(--color-text-muted)] mb-1" htmlFor="al-ebitda">EBITDA Estimate ($)</label>
               <input id="al-ebitda" type="number" min="0" value={form.ebitdaEstimate} onChange={(e) => set('ebitdaEstimate', e.target.value)}
-                className="w-full bg-[#1A1A1E] border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#D4AF37]" />
+                className="w-full bg-[#1A1A1E] border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#C9A227]" />
             </div>
             <div>
               <label className="block text-xs text-[var(--color-text-muted)] mb-1" htmlFor="al-price">Listing Price ($)</label>
               <input id="al-price" type="number" min="0" value={form.listingPrice} onChange={(e) => set('listingPrice', e.target.value)}
-                className="w-full bg-[#1A1A1E] border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#D4AF37]" />
+                className="w-full bg-[#1A1A1E] border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#C9A227]" />
             </div>
             <div>
               <label className="block text-xs text-[var(--color-text-muted)] mb-1" htmlFor="al-source">Source</label>
               <input id="al-source" value={form.source} onChange={(e) => set('source', e.target.value)}
                 placeholder="e.g. bizbuysell, broker, referral"
-                className="w-full bg-[#1A1A1E] border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#D4AF37]" />
+                className="w-full bg-[#1A1A1E] border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#C9A227]" />
             </div>
             <div>
               <label className="block text-xs text-[var(--color-text-muted)] mb-1" htmlFor="al-url">Source URL</label>
               <input id="al-url" type="url" value={form.sourceUrl} onChange={(e) => set('sourceUrl', e.target.value)}
-                className="w-full bg-[#1A1A1E] border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#D4AF37]" />
+                className="w-full bg-[#1A1A1E] border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#C9A227]" />
             </div>
             <div>
               <label className="block text-xs text-[var(--color-text-muted)] mb-1" htmlFor="al-cname">Broker / Contact Name</label>
               <input id="al-cname" value={form.contactName} onChange={(e) => set('contactName', e.target.value)}
-                className="w-full bg-[#1A1A1E] border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#D4AF37]" />
+                className="w-full bg-[#1A1A1E] border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#C9A227]" />
             </div>
             <div>
               <label className="block text-xs text-[var(--color-text-muted)] mb-1" htmlFor="al-cemail">Broker Email</label>
               <input id="al-cemail" type="email" value={form.contactEmail} onChange={(e) => set('contactEmail', e.target.value)}
-                className="w-full bg-[#1A1A1E] border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#D4AF37]" />
+                className="w-full bg-[#1A1A1E] border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#C9A227]" />
             </div>
             <div>
               <label className="block text-xs text-[var(--color-text-muted)] mb-1" htmlFor="al-cphone">Broker Phone</label>
               <input id="al-cphone" value={form.contactPhone} onChange={(e) => set('contactPhone', e.target.value)}
-                className="w-full bg-[#1A1A1E] border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#D4AF37]" />
+                className="w-full bg-[#1A1A1E] border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#C9A227]" />
             </div>
           </div>
           <div className="flex flex-wrap gap-4">
             <label className="flex items-center gap-2 cursor-pointer text-sm text-[var(--color-text-primary)]">
               <input type="checkbox" checked={form.ownerRetirementSignal} onChange={(e) => set('ownerRetirementSignal', e.target.checked)}
-                className="w-4 h-4 rounded border-[var(--color-border)] bg-[#1A1A1E] accent-[#D4AF37]" />
+                className="w-4 h-4 rounded border-[var(--color-border)] bg-[#1A1A1E] accent-[#C9A227]" />
               Owner retirement signal
             </label>
             <label className="flex items-center gap-2 cursor-pointer text-sm text-[var(--color-text-primary)]">
               <input type="checkbox" checked={form.noWebsiteSignal} onChange={(e) => set('noWebsiteSignal', e.target.checked)}
-                className="w-4 h-4 rounded border-[var(--color-border)] bg-[#1A1A1E] accent-[#D4AF37]" />
+                className="w-4 h-4 rounded border-[var(--color-border)] bg-[#1A1A1E] accent-[#C9A227]" />
               No website signal
             </label>
           </div>
           <div>
             <label className="block text-xs text-[var(--color-text-muted)] mb-1" htmlFor="al-notes">Notes</label>
             <textarea id="al-notes" rows={3} value={form.notes} onChange={(e) => set('notes', e.target.value)}
-              className="w-full bg-[#1A1A1E] border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#D4AF37] resize-none" />
+              className="w-full bg-[#1A1A1E] border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#C9A227] resize-none" />
           </div>
           <div className="flex justify-end gap-2 pt-2">
             <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg border border-[var(--color-border)] text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors">Cancel</button>
-            <button type="submit" disabled={saving} className="px-4 py-2 rounded-lg bg-[#D4AF37] text-black text-sm font-semibold hover:bg-[#C9A227] transition-colors disabled:opacity-50">
+            <button type="submit" disabled={saving} className="px-4 py-2 rounded-lg bg-[#C9A227] text-black text-sm font-semibold hover:bg-[#C9A227] transition-colors disabled:opacity-50">
               {saving ? 'Saving…' : 'Add Listing'}
             </button>
           </div>
@@ -221,7 +221,7 @@ function FilterPanel({ filters, onChange, onClose }: FilterPanelProps) {
     <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-4 space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">Filters</h3>
-        <button onClick={onClose} aria-label="Close filters" className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37] rounded">
+        <button onClick={onClose} aria-label="Close filters" className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A227] rounded">
           <X size={14} aria-hidden />
         </button>
       </div>
@@ -230,39 +230,39 @@ function FilterPanel({ filters, onChange, onClose }: FilterPanelProps) {
           <label className="block text-xs text-[var(--color-text-muted)] mb-1" htmlFor="f-industry">Industry</label>
           <input id="f-industry" value={filters.industry ?? ''} onChange={(e) => onChange({ industry: e.target.value || undefined })}
             placeholder="e.g. HVAC"
-            className="w-full bg-[#1A1A1E] border border-[var(--color-border)] rounded-lg px-3 py-1.5 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#D4AF37]" />
+            className="w-full bg-[#1A1A1E] border border-[var(--color-border)] rounded-lg px-3 py-1.5 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#C9A227]" />
         </div>
         <div>
           <label className="block text-xs text-[var(--color-text-muted)] mb-1" htmlFor="f-location">Location</label>
           <input id="f-location" value={filters.location ?? ''} onChange={(e) => onChange({ location: e.target.value || undefined })}
             placeholder="e.g. Texas"
-            className="w-full bg-[#1A1A1E] border border-[var(--color-border)] rounded-lg px-3 py-1.5 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#D4AF37]" />
+            className="w-full bg-[#1A1A1E] border border-[var(--color-border)] rounded-lg px-3 py-1.5 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#C9A227]" />
         </div>
         <div>
           <label className="block text-xs text-[var(--color-text-muted)] mb-1" htmlFor="f-minscore">Min Score</label>
           <input id="f-minscore" type="number" min="0" max="100" value={filters.minScore ?? ''} onChange={(e) => onChange({ minScore: e.target.value ? Number(e.target.value) : undefined })}
             placeholder="0–100"
-            className="w-full bg-[#1A1A1E] border border-[var(--color-border)] rounded-lg px-3 py-1.5 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#D4AF37]" />
+            className="w-full bg-[#1A1A1E] border border-[var(--color-border)] rounded-lg px-3 py-1.5 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#C9A227]" />
         </div>
         <div>
           <label className="block text-xs text-[var(--color-text-muted)] mb-1" htmlFor="f-minrev">Min Revenue ($)</label>
           <input id="f-minrev" type="number" min="0" value={filters.minRevenue ?? ''} onChange={(e) => onChange({ minRevenue: e.target.value ? Number(e.target.value) : undefined })}
-            className="w-full bg-[#1A1A1E] border border-[var(--color-border)] rounded-lg px-3 py-1.5 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#D4AF37]" />
+            className="w-full bg-[#1A1A1E] border border-[var(--color-border)] rounded-lg px-3 py-1.5 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#C9A227]" />
         </div>
         <div>
           <label className="block text-xs text-[var(--color-text-muted)] mb-1" htmlFor="f-maxrev">Max Revenue ($)</label>
           <input id="f-maxrev" type="number" min="0" value={filters.maxRevenue ?? ''} onChange={(e) => onChange({ maxRevenue: e.target.value ? Number(e.target.value) : undefined })}
-            className="w-full bg-[#1A1A1E] border border-[var(--color-border)] rounded-lg px-3 py-1.5 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#D4AF37]" />
+            className="w-full bg-[#1A1A1E] border border-[var(--color-border)] rounded-lg px-3 py-1.5 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#C9A227]" />
         </div>
         <div>
           <label className="block text-xs text-[var(--color-text-muted)] mb-1" htmlFor="f-minyears">Min Years</label>
           <input id="f-minyears" type="number" min="0" value={filters.minYears ?? ''} onChange={(e) => onChange({ minYears: e.target.value ? Number(e.target.value) : undefined })}
-            className="w-full bg-[#1A1A1E] border border-[var(--color-border)] rounded-lg px-3 py-1.5 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#D4AF37]" />
+            className="w-full bg-[#1A1A1E] border border-[var(--color-border)] rounded-lg px-3 py-1.5 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#C9A227]" />
         </div>
         <div>
           <label className="block text-xs text-[var(--color-text-muted)] mb-1" htmlFor="f-sort">Sort By</label>
           <select id="f-sort" value={filters.sortBy ?? 'acquisitionScore'} onChange={(e) => onChange({ sortBy: e.target.value as DealFeedFilters['sortBy'] })}
-            className="w-full bg-[#1A1A1E] border border-[var(--color-border)] rounded-lg px-3 py-1.5 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#D4AF37]">
+            className="w-full bg-[#1A1A1E] border border-[var(--color-border)] rounded-lg px-3 py-1.5 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#C9A227]">
             <option value="acquisitionScore">Score</option>
             <option value="revenueEstimate">Revenue</option>
             <option value="listingPrice">Price</option>
@@ -273,7 +273,7 @@ function FilterPanel({ filters, onChange, onClose }: FilterPanelProps) {
         <div>
           <label className="block text-xs text-[var(--color-text-muted)] mb-1" htmlFor="f-dir">Direction</label>
           <select id="f-dir" value={filters.sortDir ?? 'desc'} onChange={(e) => onChange({ sortDir: e.target.value as 'asc' | 'desc' })}
-            className="w-full bg-[#1A1A1E] border border-[var(--color-border)] rounded-lg px-3 py-1.5 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#D4AF37]">
+            className="w-full bg-[#1A1A1E] border border-[var(--color-border)] rounded-lg px-3 py-1.5 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#C9A227]">
             <option value="desc">Highest first</option>
             <option value="asc">Lowest first</option>
           </select>
@@ -319,7 +319,7 @@ function ListingCard({ listing, saved, onSave, saving, importing, onImport }: Li
               </span>
             )}
             {listing.ownerRetirementSignal && (
-              <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border border-amber-700/40 bg-amber-900/10 text-amber-400" aria-label="Owner retirement signal">
+              <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border border-[#C9A22740] bg-[#C9A22710] text-[#C9A227]" aria-label="Owner retirement signal">
                 Retirement
               </span>
             )}
@@ -358,7 +358,7 @@ function ListingCard({ listing, saved, onSave, saving, importing, onImport }: Li
       <div className="flex items-center gap-2 pt-1 flex-wrap">
         <Link
           href={`/deal-feed/${listing.id}`}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--color-border)] text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:border-[#3A3A3E] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37]"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--color-border)] text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:border-[#3A3A3E] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A227]"
           aria-label={`View details for ${listing.companyName}`}
         >
           View <ArrowUpRight size={11} aria-hidden />
@@ -368,10 +368,10 @@ function ListingCard({ listing, saved, onSave, saving, importing, onImport }: Li
           onClick={() => onSave(listing.id)}
           disabled={isSaving || saved}
           aria-label={saved ? 'Listing saved' : 'Save listing'}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--color-border)] text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:border-[#3A3A3E] transition-colors disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37]"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--color-border)] text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:border-[#3A3A3E] transition-colors disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A227]"
         >
           {isSaving ? <RefreshCw size={11} className="animate-spin" aria-hidden /> :
-           saved    ? <BookmarkCheck size={11} className="text-[#D4AF37]" aria-hidden /> :
+           saved    ? <BookmarkCheck size={11} className="text-[#C9A227]" aria-hidden /> :
                       <Bookmark size={11} aria-hidden />}
           {saved ? 'Saved' : 'Save'}
         </button>
@@ -381,7 +381,7 @@ function ListingCard({ listing, saved, onSave, saving, importing, onImport }: Li
             onClick={() => onImport(listing.id)}
             disabled={isImporting}
             aria-label={`Import ${listing.companyName} to CRM`}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#D4AF37]/10 border border-[#D4AF37]/30 text-xs text-[#D4AF37] hover:bg-[#D4AF37]/20 transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37]"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#C9A227]/10 border border-[#C9A227]/30 text-xs text-[#C9A227] hover:bg-[#C9A227]/20 transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A227]"
           >
             {isImporting ? <RefreshCw size={11} className="animate-spin" aria-hidden /> : <Upload size={11} aria-hidden />}
             Import to CRM
@@ -485,7 +485,7 @@ export default function DealFeedPage() {
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold text-[var(--color-text-primary)] flex items-center gap-2">
-            <Store size={22} className="text-[#D4AF37]" aria-hidden />
+            <Store size={22} className="text-[#C9A227]" aria-hidden />
             Deal Feed
           </h1>
           <p className="text-sm text-[var(--color-text-muted)] mt-1">
@@ -495,7 +495,7 @@ export default function DealFeedPage() {
         <div className="flex items-center gap-2 flex-shrink-0">
           <button
             onClick={() => setShowAdd(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#D4AF37] text-black text-sm font-semibold hover:bg-[#C9A227] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37]"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#C9A227] text-black text-sm font-semibold hover:bg-[#C9A227] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A227]"
           >
             <Plus size={14} aria-hidden /> Add Listing
           </button>
@@ -503,7 +503,7 @@ export default function DealFeedPage() {
             onClick={() => loadListings(filters)}
             disabled={loading}
             aria-label="Refresh feed"
-            className="p-2 rounded-lg border border-[var(--color-border)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:border-[#3A3A3E] transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37]"
+            className="p-2 rounded-lg border border-[var(--color-border)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:border-[#3A3A3E] transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A227]"
           >
             <RefreshCw size={14} className={loading ? 'animate-spin' : ''} aria-hidden />
           </button>
@@ -537,16 +537,16 @@ export default function DealFeedPage() {
             value={search}
             onChange={(e) => handleSearch(e.target.value)}
             aria-label="Search listings"
-            className="w-full pl-9 pr-4 py-2 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:ring-2 focus:ring-[#D4AF37]"
+            className="w-full pl-9 pr-4 py-2 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:ring-2 focus:ring-[#C9A227]"
           />
         </div>
         <button
           onClick={() => setShowFilters((p) => !p)}
           aria-expanded={showFilters}
           aria-label="Toggle filters"
-          className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37] ${
+          className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A227] ${
             showFilters
-              ? 'border-[#D4AF37] text-[#D4AF37] bg-[#D4AF37]/10'
+              ? 'border-[#C9A227] text-[#C9A227] bg-[#C9A227]/10'
               : 'border-[var(--color-border)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]'
           }`}
         >
@@ -608,7 +608,7 @@ export default function DealFeedPage() {
                 onClick={() => setPage(Math.max(1, (filters.page ?? 1) - 1))}
                 disabled={(filters.page ?? 1) <= 1}
                 aria-label="Previous page"
-                className="p-2 rounded-lg border border-[var(--color-border)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] disabled:opacity-40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37]"
+                className="p-2 rounded-lg border border-[var(--color-border)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] disabled:opacity-40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A227]"
               >
                 <ChevronLeft size={14} aria-hidden />
               </button>
@@ -619,7 +619,7 @@ export default function DealFeedPage() {
                 onClick={() => setPage(Math.min(totalPages, (filters.page ?? 1) + 1))}
                 disabled={(filters.page ?? 1) >= totalPages}
                 aria-label="Next page"
-                className="p-2 rounded-lg border border-[var(--color-border)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] disabled:opacity-40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37]"
+                className="p-2 rounded-lg border border-[var(--color-border)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] disabled:opacity-40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A227]"
               >
                 <ChevronRight size={14} aria-hidden />
               </button>

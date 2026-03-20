@@ -111,13 +111,13 @@ function ThreadRow({ thread }: { thread: EmailThread }) {
   return (
     <div className={cn(
       'flex items-start gap-3 px-4 py-3.5 border-b border-[#2A2A2E] hover:bg-[#1B1B1D] cursor-pointer transition-colors',
-      isUnread && 'bg-[#D4AF3705]'
+      isUnread && 'bg-[#C9A22705]'
     )}>
       <div className="flex-shrink-0 mt-0.5">
         {needsReply ? (
           <AlertCircle size={16} className="text-[#D9A441]" aria-label="Needs reply" />
         ) : (
-          <Mail size={16} className={isUnread ? 'text-[#D4AF37]' : 'text-[#A7A29A]'} aria-hidden />
+          <Mail size={16} className={isUnread ? 'text-[#C9A227]' : 'text-[#A7A29A]'} aria-hidden />
         )}
       </div>
       <div className="flex-1 min-w-0">
@@ -213,7 +213,7 @@ export default function InboxPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search inbox..."
-            className="w-full bg-[#1B1B1D] border border-[#2A2A2E] rounded text-sm text-[#E8E6E3] pl-8 pr-3 py-2 focus:outline-none focus:border-[#D4AF37] placeholder:text-[#A7A29A60]"
+            className="w-full bg-[#1B1B1D] border border-[#2A2A2E] rounded text-sm text-[#E8E6E3] pl-8 pr-3 py-2 focus:outline-none focus:border-[#C9A227] placeholder:text-[#A7A29A60]"
             aria-label="Search inbox"
           />
         </div>
@@ -224,7 +224,7 @@ export default function InboxPage() {
               onClick={() => setFilter(t.value)}
               className={cn(
                 'px-3 py-1.5 text-xs transition-colors',
-                filter === t.value ? 'bg-[#D4AF37] text-black font-semibold' : 'text-[#A7A29A] hover:text-[#E8E6E3]'
+                filter === t.value ? 'bg-[#C9A227] text-black font-semibold' : 'text-[#A7A29A] hover:text-[#E8E6E3]'
               )}
               aria-pressed={filter === t.value}
             >

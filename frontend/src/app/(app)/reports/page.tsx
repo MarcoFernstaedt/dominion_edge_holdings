@@ -5,7 +5,7 @@ import { cn, formatDate, formatCurrency, daysSince, STAGE_LABELS } from '@/lib/u
 import { Badge } from '@/components/ui/Badge';
 import { BarChart3, TrendingUp, Users, KanbanSquare, CheckSquare, Send } from 'lucide-react';
 
-function ProgressBar({ value, max, color = '#D4AF37' }: { value: number; max: number; color?: string }) {
+function ProgressBar({ value, max, color = '#C9A227' }: { value: number; max: number; color?: string }) {
   const pct = max > 0 ? Math.min(100, Math.round((value / max) * 100)) : 0;
   return (
     <div className="flex items-center gap-3">
@@ -91,7 +91,7 @@ export default function ReportsPage() {
                 {m.icon}
                 <span className="text-[9px] tracking-widest uppercase">{m.label}</span>
               </div>
-              <div className="text-2xl font-bold font-serif text-[#D4AF37]">{m.value}</div>
+              <div className="text-2xl font-bold font-serif text-[#C9A227]">{m.value}</div>
               <div className="text-xs text-[#A7A29A] mt-0.5">{m.sub}</div>
             </div>
           ))}
@@ -132,7 +132,7 @@ export default function ReportsPage() {
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-[#A7A29A]">Added this week</span>
-              <span className="text-[#D4AF37] font-semibold">{companiesThisWeek}</span>
+              <span className="text-[#C9A227] font-semibold">{companiesThisWeek}</span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-[#A7A29A]">Interested / active</span>

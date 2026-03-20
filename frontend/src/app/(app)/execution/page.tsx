@@ -89,7 +89,7 @@ export default function ExecutionPage() {
                   const riskColors = {
                     stalled: 'border-l-red-500',
                     cooling: 'border-l-orange-400',
-                    warming: 'border-l-amber-400',
+                    warming: 'border-l-[#C9A227]',
                     healthy: 'border-l-emerald-500',
                   };
                   return (

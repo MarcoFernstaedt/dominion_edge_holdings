@@ -33,9 +33,9 @@ function SlideCard({ slide, index }: { slide: PitchSlide; index: number }) {
             ))}
           </ul>
           {slide.speakerNotes && (
-            <div className="bg-amber-950/20 border border-amber-800/30 rounded px-3 py-2">
-              <p className="text-xs text-amber-400 uppercase tracking-wide mb-1">Speaker Notes</p>
-              <p className="text-xs text-amber-200/80">{slide.speakerNotes}</p>
+            <div className="bg-[#C9A22715] border border-[#C9A22730] rounded px-3 py-2">
+              <p className="text-xs text-[#C9A227] uppercase tracking-wide mb-1">Speaker Notes</p>
+              <p className="text-xs text-[#C9A227]">{slide.speakerNotes}</p>
             </div>
           )}
         </div>

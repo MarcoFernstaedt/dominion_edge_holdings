@@ -36,7 +36,7 @@ function StatusBadge({ status }: { status: IntegrationStatus['status'] }) {
   const MAP = {
     connected:    { label: 'Connected',    color: 'text-green-400  bg-green-950/30 border-green-900/50', Icon: CheckCircle2 },
     disabled:     { label: 'Disabled',     color: 'text-[#A7A29A] bg-[#1B1B1D]     border-[#2A2A2E]',   Icon: XCircle },
-    misconfigured:{ label: 'Misconfigured',color: 'text-amber-400  bg-amber-950/20  border-amber-900/40', Icon: AlertTriangle },
+    misconfigured:{ label: 'Misconfigured',color: 'text-[#C9A227]  bg-[#C9A22715]  border-[#C9A22740]', Icon: AlertTriangle },
     unreachable:  { label: 'Unreachable',  color: 'text-red-400    bg-red-950/20    border-red-900/40',   Icon: XCircle },
   };
   const cfg = MAP[status] ?? MAP.disabled;
@@ -120,7 +120,7 @@ function IntegrationCard({ name, label, description, status, fields, onTest, onS
         <button
           onClick={handleTest}
           disabled={testing}
-          className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs text-[#A7A29A] border border-[#2A2A2E] rounded hover:border-[#D4AF37] hover:text-[#D4AF37] transition-colors disabled:opacity-40"
+          className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs text-[#A7A29A] border border-[#2A2A2E] rounded hover:border-[#C9A227] hover:text-[#C9A227] transition-colors disabled:opacity-40"
           title="Test connection"
         >
           {testing ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} aria-hidden />}
@@ -130,7 +130,7 @@ function IntegrationCard({ name, label, description, status, fields, onTest, onS
 
       {/* Test result */}
       {testResult && (
-        <div className={`px-5 py-2.5 text-xs border-b border-[#2A2A2E] ${testResult.reachable ? 'text-green-400 bg-green-950/10' : 'text-amber-400 bg-amber-950/10'}`}>
+        <div className={`px-5 py-2.5 text-xs border-b border-[#2A2A2E] ${testResult.reachable ? 'text-green-400 bg-green-950/10' : 'text-[#C9A227] bg-[#C9A22710]'}`}>
           {testResult.reachable
             ? '✓ Connection successful'
             : `⚠ ${testResult.message || testResult.reason || 'Connection failed'}`}
@@ -147,7 +147,7 @@ function IntegrationCard({ name, label, description, status, fields, onTest, onS
               </label>
               {field.type === 'select' ? (
                 <select
-                  className="w-full bg-[#1B1B1D] border border-[#2A2A2E] rounded px-3 py-2 text-sm text-[#E8E6E3] focus:outline-none focus:border-[#D4AF37]"
+                  className="w-full bg-[#1B1B1D] border border-[#2A2A2E] rounded px-3 py-2 text-sm text-[#E8E6E3] focus:outline-none focus:border-[#C9A227]"
                   value={values[field.key] ?? ''}
                   onChange={(e) => setValues((v) => ({ ...v, [field.key]: e.target.value }))}
                 >
@@ -158,7 +158,7 @@ function IntegrationCard({ name, label, description, status, fields, onTest, onS
                 <div className="relative">
                   <input
                     type={field.type === 'password' && !showPass[field.key] ? 'password' : 'text'}
-                    className="w-full bg-[#1B1B1D] border border-[#2A2A2E] rounded px-3 py-2 text-sm text-[#E8E6E3] focus:outline-none focus:border-[#D4AF37] pr-9"
+                    className="w-full bg-[#1B1B1D] border border-[#2A2A2E] rounded px-3 py-2 text-sm text-[#E8E6E3] focus:outline-none focus:border-[#C9A227] pr-9"
                     value={values[field.key] ?? ''}
                     onChange={(e) => setValues((v) => ({ ...v, [field.key]: e.target.value }))}
                     placeholder={field.type === 'password' ? '(unchanged)' : ''}
@@ -183,7 +183,7 @@ function IntegrationCard({ name, label, description, status, fields, onTest, onS
             <button
               onClick={handleSave}
               disabled={saving || !hasValues}
-              className="flex items-center gap-2 px-4 py-2 bg-[#D4AF37] text-black text-xs font-semibold rounded hover:bg-[#C09B2A] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              className="flex items-center gap-2 px-4 py-2 bg-[#C9A227] text-black text-xs font-semibold rounded hover:bg-[#C09B2A] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
               {saving ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} aria-hidden />}
               Save
@@ -322,7 +322,7 @@ export default function IntegrationsPage() {
         <div className="flex items-start justify-between gap-4 mb-6">
           <div>
             <div className="flex items-center gap-3 mb-1">
-              <Plug size={18} className="text-[#D4AF37]" aria-hidden />
+              <Plug size={18} className="text-[#C9A227]" aria-hidden />
               <h1 className="text-lg font-bold text-[#E8E6E3]">Integrations</h1>
             </div>
             <p className="text-sm text-[#A7A29A]">
@@ -332,7 +332,7 @@ export default function IntegrationsPage() {
           <button
             onClick={handleCheckAll}
             disabled={checkingAll}
-            className="flex-shrink-0 flex items-center gap-2 px-4 py-2 text-xs border border-[#2A2A2E] rounded text-[#A7A29A] hover:border-[#D4AF37] hover:text-[#D4AF37] transition-colors disabled:opacity-40"
+            className="flex-shrink-0 flex items-center gap-2 px-4 py-2 text-xs border border-[#2A2A2E] rounded text-[#A7A29A] hover:border-[#C9A227] hover:text-[#C9A227] transition-colors disabled:opacity-40"
           >
             {checkingAll ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} aria-hidden />}
             Check All
@@ -341,7 +341,7 @@ export default function IntegrationsPage() {
 
         {/* Global message */}
         {globalMsg && (
-          <div className="mb-4 px-4 py-2.5 rounded border border-[#D4AF3740] bg-[#D4AF3710] text-xs text-[#D4AF37]">
+          <div className="mb-4 px-4 py-2.5 rounded border border-[#C9A22740] bg-[#C9A22710] text-xs text-[#C9A227]">
             {globalMsg}
           </div>
         )}

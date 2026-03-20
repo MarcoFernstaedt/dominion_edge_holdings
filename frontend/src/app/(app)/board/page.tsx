@@ -103,7 +103,7 @@ function AddCandidateModal({ open, onClose, seatId }: { open: boolean; onClose: 
               value={form.equityOffered}
               onChange={f('equityOffered')}
               placeholder="1.0"
-              className="bg-[#1B1B1D] border border-[#2A2A2E] rounded text-sm text-[#E8E6E3] px-3 py-2 focus:outline-none focus:border-[#D4AF37]"
+              className="bg-[#1B1B1D] border border-[#2A2A2E] rounded text-sm text-[#E8E6E3] px-3 py-2 focus:outline-none focus:border-[#C9A227]"
             />
           </div>
         </div>
@@ -146,7 +146,7 @@ function CapTableModal({ open, onClose }: { open: boolean; onClose: () => void }
         <div className="flex items-center justify-between">
           <div>
             <div className="text-xs text-[#A7A29A]">Total allocated</div>
-            <div className={cn('text-2xl font-bold font-serif', totalAllocated > 100 ? 'text-[#C35B5B]' : 'text-[#D4AF37]')}>
+            <div className={cn('text-2xl font-bold font-serif', totalAllocated > 100 ? 'text-[#C35B5B]' : 'text-[#C9A227]')}>
               {totalAllocated.toFixed(2)}%
             </div>
           </div>
@@ -171,7 +171,7 @@ function CapTableModal({ open, onClose }: { open: boolean; onClose: () => void }
                 <tr key={e.id} className="border-b border-[#2A2A2E]">
                   <td className="py-2 text-sm text-[#E8E6E3]">{e.name}</td>
                   <td className="py-2 text-xs text-[#A7A29A]">{statusLabel(e.stakeholderType)}</td>
-                  <td className="py-2 text-right text-sm text-[#D4AF37] font-semibold">{e.equityPercent.toFixed(2)}%</td>
+                  <td className="py-2 text-right text-sm text-[#C9A227] font-semibold">{e.equityPercent.toFixed(2)}%</td>
                   <td className="py-2 text-right">
                     <button onClick={() => deleteCapTableEntry(e.id)} className="text-xs text-[#A7A29A] hover:text-[#C35B5B]" aria-label={`Remove ${e.name}`}>×</button>
                   </td>
@@ -207,7 +207,7 @@ function CapTableModal({ open, onClose }: { open: boolean; onClose: () => void }
                 value={form.equityPercent}
                 onChange={(e) => setForm((p) => ({ ...p, equityPercent: e.target.value }))}
                 placeholder="1.0"
-                className="bg-[#1B1B1D] border border-[#2A2A2E] rounded text-sm text-[#E8E6E3] px-3 py-2 focus:outline-none focus:border-[#D4AF37]"
+                className="bg-[#1B1B1D] border border-[#2A2A2E] rounded text-sm text-[#E8E6E3] px-3 py-2 focus:outline-none focus:border-[#C9A227]"
               />
             </div>
             <Input label="Vesting" value={form.vestingType} onChange={(e) => setForm((p) => ({ ...p, vestingType: e.target.value }))} placeholder="4yr/1yr cliff" />
@@ -395,11 +395,11 @@ export default function BoardPage() {
                 <div className="bg-[#0D0D0D] border border-[#2A2A2E] rounded-md p-4 space-y-3">
                   <div className="text-xs text-[#A7A29A]">{seat.description}</div>
                   <div>
-                    <div className="text-[9px] tracking-widest uppercase text-[#D4AF37] mb-1">Where to find</div>
+                    <div className="text-[9px] tracking-widest uppercase text-[#C9A227] mb-1">Where to find</div>
                     <div className="text-xs text-[#E8E6E3]">{seat.whereTo}</div>
                   </div>
                   <div>
-                    <div className="text-[9px] tracking-widest uppercase text-[#D4AF37] mb-1">Pitch script</div>
+                    <div className="text-[9px] tracking-widest uppercase text-[#C9A227] mb-1">Pitch script</div>
                     <div className="text-xs text-[#E8E6E3] italic">&ldquo;{seat.pitch}&rdquo;</div>
                   </div>
                   <Button
@@ -457,7 +457,7 @@ export default function BoardPage() {
                       <select
                         value={candidate.status}
                         onChange={(e) => updateCandidate(candidate.id, { status: e.target.value as CandidateStatus })}
-                        className="bg-[#1B1B1D] border border-[#2A2A2E] rounded text-xs text-[#E8E6E3] px-2 py-1 focus:outline-none focus:border-[#D4AF37]"
+                        className="bg-[#1B1B1D] border border-[#2A2A2E] rounded text-xs text-[#E8E6E3] px-2 py-1 focus:outline-none focus:border-[#C9A227]"
                         aria-label={`Status for ${candidate.name}`}
                       >
                         {CANDIDATE_STATUSES.map((s) => (
@@ -465,7 +465,7 @@ export default function BoardPage() {
                         ))}
                       </select>
                     </td>
-                    <td className="px-4 py-3 hidden md:table-cell text-sm text-[#D4AF37]">
+                    <td className="px-4 py-3 hidden md:table-cell text-sm text-[#C9A227]">
                       {candidate.equityOffered ? `${candidate.equityOffered}%` : '—'}
                     </td>
                     <td className="px-4 py-3">

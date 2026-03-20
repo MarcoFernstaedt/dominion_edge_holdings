@@ -146,11 +146,11 @@ function RiskIndicators({ listing }: { listing: DealFeedListing }) {
           {active.map((r) => (
             <li key={r.label} className="flex items-center gap-2 text-xs">
               {r.severity === 'warn' ? (
-                <AlertTriangle size={13} className="text-amber-400 flex-shrink-0" aria-hidden />
+                <AlertTriangle size={13} className="text-[#C9A227] flex-shrink-0" aria-hidden />
               ) : (
                 <CheckCircle2 size={13} className="text-emerald-400 flex-shrink-0" aria-hidden />
               )}
-              <span className={r.severity === 'ok' ? 'text-emerald-400' : 'text-amber-400'}>{r.label}</span>
+              <span className={r.severity === 'ok' ? 'text-emerald-400' : 'text-[#C9A227]'}>{r.label}</span>
             </li>
           ))}
         </ul>
@@ -257,7 +257,7 @@ export default function ListingDetailPage() {
       {/* Back nav */}
       <Link
         href="/deal-feed"
-        className="inline-flex items-center gap-1.5 text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37] rounded"
+        className="inline-flex items-center gap-1.5 text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A227] rounded"
       >
         <ArrowLeft size={14} aria-hidden /> Back to Feed
       </Link>
@@ -274,7 +274,7 @@ export default function ListingDetailPage() {
                 </span>
               )}
               {listing.ownerRetirementSignal && (
-                <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border border-amber-700/40 bg-amber-900/10 text-amber-400">
+                <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border border-[#C9A22740] bg-[#C9A22710] text-[#C9A227]">
                   Retirement Signal
                 </span>
               )}
@@ -301,10 +301,10 @@ export default function ListingDetailPage() {
             onClick={handleSave}
             disabled={saving || saved}
             aria-label={saved ? 'Listing saved' : 'Save listing'}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-[var(--color-border)] text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:border-[#3A3A3E] transition-colors disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37]"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-[var(--color-border)] text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:border-[#3A3A3E] transition-colors disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A227]"
           >
             {saving ? <RefreshCw size={13} className="animate-spin" aria-hidden /> :
-             saved  ? <BookmarkCheck size={13} className="text-[#D4AF37]" aria-hidden /> :
+             saved  ? <BookmarkCheck size={13} className="text-[#C9A227]" aria-hidden /> :
                       <Bookmark size={13} aria-hidden />}
             {saved ? 'Saved' : 'Save Listing'}
           </button>
@@ -314,7 +314,7 @@ export default function ListingDetailPage() {
               onClick={handleImport}
               disabled={importing}
               aria-label="Import listing to CRM pipeline"
-              className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#D4AF37] text-black text-sm font-semibold hover:bg-[#C9A227] transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37]"
+              className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#C9A227] text-black text-sm font-semibold hover:bg-[#C9A227] transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A227]"
             >
               {importing ? <RefreshCw size={13} className="animate-spin" aria-hidden /> : <Upload size={13} aria-hidden />}
               Import to CRM Pipeline
@@ -322,7 +322,7 @@ export default function ListingDetailPage() {
           ) : (
             <Link
               href="/pipeline"
-              className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-sky-700/40 text-sky-400 text-sm hover:border-sky-600/60 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37]"
+              className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-sky-700/40 text-sky-400 text-sm hover:border-sky-600/60 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A227]"
             >
               View in Pipeline <ExternalLink size={13} aria-hidden />
             </Link>
@@ -339,7 +339,7 @@ export default function ListingDetailPage() {
               href={listing.sourceUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-[var(--color-border)] text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:border-[#3A3A3E] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37]"
+              className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-[var(--color-border)] text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:border-[#3A3A3E] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A227]"
               aria-label="View original listing source (opens in new tab)"
             >
               Source <ExternalLink size={12} aria-hidden />
@@ -400,14 +400,14 @@ export default function ListingDetailPage() {
                 {listing.contactName  && <InfoRow icon={User}  label="Name"  value={listing.contactName}  />}
                 {listing.contactEmail && (
                   <InfoRow icon={Mail} label="Email" value={
-                    <a href={`mailto:${listing.contactEmail}`} className="text-[#D4AF37] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37] rounded">
+                    <a href={`mailto:${listing.contactEmail}`} className="text-[#C9A227] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A227] rounded">
                       {listing.contactEmail}
                     </a>
                   } />
                 )}
                 {listing.contactPhone && (
                   <InfoRow icon={Phone} label="Phone" value={
-                    <a href={`tel:${listing.contactPhone}`} className="text-[#D4AF37] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37] rounded">
+                    <a href={`tel:${listing.contactPhone}`} className="text-[#C9A227] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A227] rounded">
                       {listing.contactPhone}
                     </a>
                   } />
@@ -434,7 +434,7 @@ export default function ListingDetailPage() {
           <section aria-label="Acquisition score breakdown">
             <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-4">
               <h2 className="text-sm font-semibold text-[var(--color-text-primary)] mb-1 flex items-center gap-1.5">
-                <TrendingUp size={14} className="text-[#D4AF37]" aria-hidden />
+                <TrendingUp size={14} className="text-[#C9A227]" aria-hidden />
                 Score Breakdown
               </h2>
               <p className="text-[10px] text-[var(--color-text-muted)] mb-4">
@@ -456,7 +456,7 @@ export default function ListingDetailPage() {
             <section aria-label="Valuation context">
               <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-4">
                 <h2 className="text-sm font-semibold text-[var(--color-text-primary)] mb-3 flex items-center gap-1.5">
-                  <DollarSign size={14} className="text-[#D4AF37]" aria-hidden />
+                  <DollarSign size={14} className="text-[#C9A227]" aria-hidden />
                   Valuation Context
                 </h2>
                 <div className="space-y-2 text-xs">

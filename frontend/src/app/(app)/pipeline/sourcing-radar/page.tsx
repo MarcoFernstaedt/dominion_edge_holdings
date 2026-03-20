@@ -196,7 +196,7 @@ function CandidateRow({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <button
-              className="text-sm font-medium text-[#E8E6E3] hover:text-[#D4AF37] text-left"
+              className="text-sm font-medium text-[#E8E6E3] hover:text-[#C9A227] text-left"
               onClick={() => onSelect(candidate)}
               aria-label={`View details for ${candidate.name}`}
             >
@@ -427,7 +427,7 @@ export default function SourcingRadarPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-[#E8E6E3] flex items-center gap-2">
-            <Radar size={22} className="text-[#D4AF37]" aria-hidden />
+            <Radar size={22} className="text-[#C9A227]" aria-hidden />
             Sourcing Radar
           </h1>
           <p className="text-sm text-[#A7A29A] mt-1">
@@ -478,7 +478,7 @@ export default function SourcingRadarPage() {
                 className={cn(
                   'px-3 py-1.5 text-xs rounded-md transition-colors',
                   tab === t
-                    ? 'bg-[#D4AF37] text-[#0A0A0B] font-semibold'
+                    ? 'bg-[#C9A227] text-[#0A0A0B] font-semibold'
                     : 'bg-[#1A1A1E] text-[#A7A29A] hover:text-[#E8E6E3] border border-[#2A2A2E]'
                 )}
               >

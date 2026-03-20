@@ -23,22 +23,22 @@ export default function SettingsPage() {
       {/* Integrations shortcut */}
       <Link
         href="/settings/integrations"
-        className="flex items-center justify-between gap-4 px-5 py-4 bg-[#141414] border border-[#2A2A2E] rounded-lg hover:border-[#D4AF37] transition-colors group"
+        className="flex items-center justify-between gap-4 px-5 py-4 bg-[#141414] border border-[#2A2A2E] rounded-lg hover:border-[#C9A227] transition-colors group"
       >
         <div className="flex items-center gap-3">
-          <Plug size={16} className="text-[#D4AF37]" aria-hidden />
+          <Plug size={16} className="text-[#C9A227]" aria-hidden />
           <div>
-            <div className="text-sm font-medium text-[#E8E6E3] group-hover:text-[#D4AF37] transition-colors">Integrations</div>
+            <div className="text-sm font-medium text-[#E8E6E3] group-hover:text-[#C9A227] transition-colors">Integrations</div>
             <div className="text-xs text-[#A7A29A]">Configure Apollo, AI provider, email, and calendar</div>
           </div>
         </div>
-        <ChevronRight size={14} className="text-[#A7A29A] group-hover:text-[#D4AF37] transition-colors" aria-hidden />
+        <ChevronRight size={14} className="text-[#A7A29A] group-hover:text-[#C9A227] transition-colors" aria-hidden />
       </Link>
 
       {/* Accessibility */}
       <section aria-labelledby="accessibility-settings">
         <div className="flex items-center gap-2 mb-4">
-          <Eye size={16} className="text-[#D4AF37]" aria-hidden />
+          <Eye size={16} className="text-[#C9A227]" aria-hidden />
           <h2 id="accessibility-settings" className="text-sm font-semibold text-[#E8E6E3]">Accessibility</h2>
         </div>
         <div className="bg-[#141414] border border-[#2A2A2E] rounded-md p-5 space-y-4">
@@ -51,7 +51,7 @@ export default function SettingsPage() {
               role="switch"
               aria-checked={s.reducedMotion}
               onClick={() => u({ reducedMotion: !s.reducedMotion })}
-              className={`relative inline-flex h-5 w-9 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37] ${s.reducedMotion ? 'bg-[#D4AF37]' : 'bg-[#2A2A2E]'}`}
+              className={`relative inline-flex h-5 w-9 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A227] ${s.reducedMotion ? 'bg-[#C9A227]' : 'bg-[#2A2A2E]'}`}
             >
               <span className={`inline-block h-4 w-4 mt-0.5 rounded-full bg-white transition-transform ${s.reducedMotion ? 'translate-x-4' : 'translate-x-0.5'}`} />
             </button>
@@ -66,7 +66,7 @@ export default function SettingsPage() {
               role="switch"
               aria-checked={s.highContrast}
               onClick={() => u({ highContrast: !s.highContrast })}
-              className={`relative inline-flex h-5 w-9 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37] ${s.highContrast ? 'bg-[#D4AF37]' : 'bg-[#2A2A2E]'}`}
+              className={`relative inline-flex h-5 w-9 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A227] ${s.highContrast ? 'bg-[#C9A227]' : 'bg-[#2A2A2E]'}`}
             >
               <span className={`inline-block h-4 w-4 mt-0.5 rounded-full bg-white transition-transform ${s.highContrast ? 'translate-x-4' : 'translate-x-0.5'}`} />
             </button>
@@ -81,7 +81,7 @@ export default function SettingsPage() {
               role="switch"
               aria-checked={s.keyboardShortcutsEnabled}
               onClick={() => u({ keyboardShortcutsEnabled: !s.keyboardShortcutsEnabled })}
-              className={`relative inline-flex h-5 w-9 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37] ${s.keyboardShortcutsEnabled ? 'bg-[#D4AF37]' : 'bg-[#2A2A2E]'}`}
+              className={`relative inline-flex h-5 w-9 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A227] ${s.keyboardShortcutsEnabled ? 'bg-[#C9A227]' : 'bg-[#2A2A2E]'}`}
             >
               <span className={`inline-block h-4 w-4 mt-0.5 rounded-full bg-white transition-transform ${s.keyboardShortcutsEnabled ? 'translate-x-4' : 'translate-x-0.5'}`} />
             </button>
@@ -103,7 +103,7 @@ export default function SettingsPage() {
       {/* AI */}
       <section aria-labelledby="ai-settings">
         <div className="flex items-center gap-2 mb-4">
-          <Brain size={16} className="text-[#D4AF37]" aria-hidden />
+          <Brain size={16} className="text-[#C9A227]" aria-hidden />
           <h2 id="ai-settings" className="text-sm font-semibold text-[#E8E6E3]">AI Features</h2>
         </div>
         <div className="bg-[#141414] border border-[#2A2A2E] rounded-md p-5 space-y-4">
@@ -121,7 +121,7 @@ export default function SettingsPage() {
                 role="switch"
                 aria-checked={s[item.key as keyof typeof s] as boolean}
                 onClick={() => u({ [item.key]: !s[item.key as keyof typeof s] } as Partial<typeof s>)}
-                className={`relative inline-flex h-5 w-9 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37] ${s[item.key as keyof typeof s] ? 'bg-[#D4AF37]' : 'bg-[#2A2A2E]'}`}
+                className={`relative inline-flex h-5 w-9 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A227] ${s[item.key as keyof typeof s] ? 'bg-[#C9A227]' : 'bg-[#2A2A2E]'}`}
               >
                 <span className={`inline-block h-4 w-4 mt-0.5 rounded-full bg-white transition-transform ${s[item.key as keyof typeof s] ? 'translate-x-4' : 'translate-x-0.5'}`} />
               </button>
@@ -148,7 +148,7 @@ export default function SettingsPage() {
       {/* Email */}
       <section aria-labelledby="email-settings">
         <div className="flex items-center gap-2 mb-4">
-          <Mail size={16} className="text-[#D4AF37]" aria-hidden />
+          <Mail size={16} className="text-[#C9A227]" aria-hidden />
           <h2 id="email-settings" className="text-sm font-semibold text-[#E8E6E3]">Email Configuration</h2>
         </div>
         <div className="bg-[#141414] border border-[#2A2A2E] rounded-md p-5 space-y-4">
@@ -183,7 +183,7 @@ export default function SettingsPage() {
       {/* Data management */}
       <section aria-labelledby="data-settings">
         <div className="flex items-center gap-2 mb-4">
-          <Settings size={16} className="text-[#D4AF37]" aria-hidden />
+          <Settings size={16} className="text-[#C9A227]" aria-hidden />
           <h2 id="data-settings" className="text-sm font-semibold text-[#E8E6E3]">Data & Storage</h2>
         </div>
         <div className="bg-[#141414] border border-[#2A2A2E] rounded-md p-5 space-y-3">
@@ -210,7 +210,7 @@ export default function SettingsPage() {
       {/* Keyboard shortcuts reference */}
       <section aria-labelledby="shortcuts-ref">
         <div className="flex items-center gap-2 mb-4">
-          <Zap size={16} className="text-[#D4AF37]" aria-hidden />
+          <Zap size={16} className="text-[#C9A227]" aria-hidden />
           <h2 id="shortcuts-ref" className="text-sm font-semibold text-[#E8E6E3]">Keyboard Shortcuts</h2>
         </div>
         <div className="bg-[#141414] border border-[#2A2A2E] rounded-md p-5">

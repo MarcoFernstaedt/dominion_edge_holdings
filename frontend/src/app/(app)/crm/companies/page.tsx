@@ -157,7 +157,7 @@ function AddCompanyModal({ open, onClose }: { open: boolean; onClose: () => void
               type="checkbox"
               checked={form.retirementSignal}
               onChange={(e) => setForm((p) => ({ ...p, retirementSignal: e.target.checked }))}
-              className="accent-[#D4AF37]"
+              className="accent-[#C9A227]"
             />
             Retirement signal
           </label>
@@ -166,7 +166,7 @@ function AddCompanyModal({ open, onClose }: { open: boolean; onClose: () => void
               type="checkbox"
               checked={form.noWebsiteSignal}
               onChange={(e) => setForm((p) => ({ ...p, noWebsiteSignal: e.target.checked }))}
-              className="accent-[#D4AF37]"
+              className="accent-[#C9A227]"
             />
             No website (signal)
           </label>
@@ -228,14 +228,14 @@ export default function CompaniesPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search companies..."
-            className="w-full bg-[#1B1B1D] border border-[#2A2A2E] rounded text-sm text-[#E8E6E3] pl-8 pr-3 py-2 focus:outline-none focus:border-[#D4AF37] placeholder:text-[#A7A29A60]"
+            className="w-full bg-[#1B1B1D] border border-[#2A2A2E] rounded text-sm text-[#E8E6E3] pl-8 pr-3 py-2 focus:outline-none focus:border-[#C9A227] placeholder:text-[#A7A29A60]"
             aria-label="Search companies"
           />
         </div>
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="bg-[#1B1B1D] border border-[#2A2A2E] rounded text-sm text-[#E8E6E3] px-3 py-2 focus:outline-none focus:border-[#D4AF37]"
+          className="bg-[#1B1B1D] border border-[#2A2A2E] rounded text-sm text-[#E8E6E3] px-3 py-2 focus:outline-none focus:border-[#C9A227]"
           aria-label="Filter by status"
         >
           {STATUS_OPTIONS.map((o) => (
@@ -245,7 +245,7 @@ export default function CompaniesPage() {
         <select
           value={priorityFilter}
           onChange={(e) => setPriorityFilter(e.target.value)}
-          className="bg-[#1B1B1D] border border-[#2A2A2E] rounded text-sm text-[#E8E6E3] px-3 py-2 focus:outline-none focus:border-[#D4AF37]"
+          className="bg-[#1B1B1D] border border-[#2A2A2E] rounded text-sm text-[#E8E6E3] px-3 py-2 focus:outline-none focus:border-[#C9A227]"
           aria-label="Filter by priority"
         >
           {PRIORITY_OPTIONS.map((o) => (
@@ -325,7 +325,7 @@ export default function CompaniesPage() {
                   <td className="px-4 py-3">
                     <Link
                       href={`/crm/companies/${company.id}`}
-                      className="text-xs text-[#D4AF37] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37] rounded"
+                      className="text-xs text-[#C9A227] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A227] rounded"
                     >
                       View
                     </Link>

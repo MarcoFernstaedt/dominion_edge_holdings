@@ -16,8 +16,8 @@ const STAGE_COLORS: Record<string, string> = {
   contacted: '#4D7EA8',
   discovery: '#4D7EA8',
   financial_review: '#D9A441',
-  loi_discussion: '#D4AF37',
-  loi_signed: '#D4AF37',
+  loi_discussion: '#C9A227',
+  loi_signed: '#C9A227',
   due_diligence: '#D9A441',
   financing: '#D9A441',
   closing: '#3FA66B',
@@ -143,7 +143,7 @@ function DealCard({ deal }: { deal: Deal }) {
     )} aria-label={`Deal: ${deal.name}`}>
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
-          <Link href={`/pipeline/${deal.id}`} className="text-sm font-semibold text-[#E8E6E3] hover:text-[#D4AF37] transition-colors truncate block">
+          <Link href={`/pipeline/${deal.id}`} className="text-sm font-semibold text-[#E8E6E3] hover:text-[#C9A227] transition-colors truncate block">
             {deal.companyName}
           </Link>
           <div className="text-xs text-[#A7A29A] truncate">{deal.name}</div>
@@ -154,7 +154,7 @@ function DealCard({ deal }: { deal: Deal }) {
       </div>
 
       {(deal.estimatedSDE || deal.askingPrice) && (
-        <div className="text-xs text-[#D4AF37]">
+        <div className="text-xs text-[#C9A227]">
           {deal.estimatedSDE && `SDE: ${formatCurrency(deal.estimatedSDE)}`}
           {deal.estimatedSDE && deal.askingPrice && ' · '}
           {deal.askingPrice && `Ask: ${formatCurrency(deal.askingPrice)}`}
@@ -258,7 +258,7 @@ export default function PipelinePage() {
               onClick={() => setView('kanban')}
               className={cn(
                 'px-3 py-1.5 text-xs transition-colors',
-                view === 'kanban' ? 'bg-[#D4AF37] text-black font-semibold' : 'text-[#A7A29A] hover:text-[#E8E6E3]'
+                view === 'kanban' ? 'bg-[#C9A227] text-black font-semibold' : 'text-[#A7A29A] hover:text-[#E8E6E3]'
               )}
               aria-pressed={view === 'kanban'}
             >
@@ -268,7 +268,7 @@ export default function PipelinePage() {
               onClick={() => setView('list')}
               className={cn(
                 'px-3 py-1.5 text-xs transition-colors',
-                view === 'list' ? 'bg-[#D4AF37] text-black font-semibold' : 'text-[#A7A29A] hover:text-[#E8E6E3]'
+                view === 'list' ? 'bg-[#C9A227] text-black font-semibold' : 'text-[#A7A29A] hover:text-[#E8E6E3]'
               )}
               aria-pressed={view === 'list'}
             >
@@ -334,14 +334,14 @@ export default function PipelinePage() {
                         {isStalled && <AlertTriangle size={12} className="text-[#D9A441]" aria-label="Stalled" />}
                       </div>
                     </td>
-                    <td className="px-4 py-3 hidden md:table-cell text-sm text-[#D4AF37]">
+                    <td className="px-4 py-3 hidden md:table-cell text-sm text-[#C9A227]">
                       {deal.estimatedSDE ? formatCurrency(deal.estimatedSDE) : '—'}
                     </td>
                     <td className="px-4 py-3 hidden lg:table-cell text-xs text-[#A7A29A]">
                       {formatRelativeDate(deal.updatedAt)}
                     </td>
                     <td className="px-4 py-3">
-                      <Link href={`/pipeline/${deal.id}`} className="text-xs text-[#D4AF37] hover:underline">View</Link>
+                      <Link href={`/pipeline/${deal.id}`} className="text-xs text-[#C9A227] hover:underline">View</Link>
                     </td>
                   </tr>
                 );

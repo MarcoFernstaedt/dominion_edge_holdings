@@ -33,7 +33,7 @@ export const CHECKLIST_PHASES: ChecklistPhase[] = [
   {
     id: 'foundation',
     name: 'Foundation',
-    color: '#D4AF37',
+    color: '#C9A227',
     items: [
       item('foundation', 'Foundation', 'Read core acquisition methodology and frameworks', { sortOrder: 1, done: true, whyItMatters: 'Your mental model determines your execution. Know the playbook before you run it.' }),
       item('foundation', 'Foundation', 'Define holding company name and brand identity', { sortOrder: 2, done: true }),
@@ -181,7 +181,7 @@ export const CHECKLIST_PHASES: ChecklistPhase[] = [
   {
     id: 'repeat',
     name: 'Second Acquisition Cycle',
-    color: '#D4AF37',
+    color: '#C9A227',
     items: [
       item('repeat', 'Second Acquisition Cycle', 'Document lessons learned from first acquisition', { sortOrder: 1, completionType: 'requires-document' }),
       item('repeat', 'Second Acquisition Cycle', 'Identify add-on acquisition targets in same industry', { sortOrder: 2 }),

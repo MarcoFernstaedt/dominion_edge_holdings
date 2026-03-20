@@ -42,17 +42,17 @@ function ResponseAnalysisInput({ onSubmit, loading }: { onSubmit: (d: unknown) =
     <div className="space-y-3">
       <div>
         <label className="block text-[11px] tracking-widest uppercase text-[#A7A29A] mb-1">Sender Name</label>
-        <input className="w-full bg-[#1B1B1D] border border-[#2A2A2E] rounded px-3 py-2 text-sm text-[#E8E6E3] focus:outline-none focus:border-[#D4AF37]" value={senderName} onChange={(e) => setSenderName(e.target.value)} placeholder="John Smith" />
+        <input className="w-full bg-[#1B1B1D] border border-[#2A2A2E] rounded px-3 py-2 text-sm text-[#E8E6E3] focus:outline-none focus:border-[#C9A227]" value={senderName} onChange={(e) => setSenderName(e.target.value)} placeholder="John Smith" />
       </div>
       <div>
         <label className="block text-[11px] tracking-widest uppercase text-[#A7A29A] mb-1">Company</label>
-        <input className="w-full bg-[#1B1B1D] border border-[#2A2A2E] rounded px-3 py-2 text-sm text-[#E8E6E3] focus:outline-none focus:border-[#D4AF37]" value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="Acme Industrial" />
+        <input className="w-full bg-[#1B1B1D] border border-[#2A2A2E] rounded px-3 py-2 text-sm text-[#E8E6E3] focus:outline-none focus:border-[#C9A227]" value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="Acme Industrial" />
       </div>
       <div>
         <label className="block text-[11px] tracking-widest uppercase text-[#A7A29A] mb-1">Email Body *</label>
-        <textarea className="w-full bg-[#1B1B1D] border border-[#2A2A2E] rounded px-3 py-2 text-sm text-[#E8E6E3] focus:outline-none focus:border-[#D4AF37] resize-none" rows={5} value={emailBody} onChange={(e) => setEmailBody(e.target.value)} placeholder="Paste the inbound email reply here..." />
+        <textarea className="w-full bg-[#1B1B1D] border border-[#2A2A2E] rounded px-3 py-2 text-sm text-[#E8E6E3] focus:outline-none focus:border-[#C9A227] resize-none" rows={5} value={emailBody} onChange={(e) => setEmailBody(e.target.value)} placeholder="Paste the inbound email reply here..." />
       </div>
-      <button onClick={() => onSubmit({ emailBody, senderName, companyName })} disabled={!emailBody.trim() || loading} className="flex items-center gap-2 px-4 py-2 bg-[#D4AF37] text-black text-sm font-semibold rounded hover:bg-[#C09B2A] disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+      <button onClick={() => onSubmit({ emailBody, senderName, companyName })} disabled={!emailBody.trim() || loading} className="flex items-center gap-2 px-4 py-2 bg-[#C9A227] text-black text-sm font-semibold rounded hover:bg-[#C09B2A] disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
         {loading && <Loader2 size={14} className="animate-spin" />}
         Analyze Reply
       </button>
@@ -69,19 +69,19 @@ function SchedulingInput({ onSubmit, loading }: { onSubmit: (d: unknown) => void
     <div className="space-y-3">
       <div>
         <label className="block text-[11px] tracking-widest uppercase text-[#A7A29A] mb-1">Meeting Type</label>
-        <select className="w-full bg-[#1B1B1D] border border-[#2A2A2E] rounded px-3 py-2 text-sm text-[#E8E6E3] focus:outline-none focus:border-[#D4AF37]" value={meetingType} onChange={(e) => setMeetingType(e.target.value)}>
+        <select className="w-full bg-[#1B1B1D] border border-[#2A2A2E] rounded px-3 py-2 text-sm text-[#E8E6E3] focus:outline-none focus:border-[#C9A227]" value={meetingType} onChange={(e) => setMeetingType(e.target.value)}>
           {MEETING_TYPES.map((t) => <option key={t} value={t}>{t.replace(/_/g, ' ')}</option>)}
         </select>
       </div>
       <div>
         <label className="block text-[11px] tracking-widest uppercase text-[#A7A29A] mb-1">Contact Name</label>
-        <input className="w-full bg-[#1B1B1D] border border-[#2A2A2E] rounded px-3 py-2 text-sm text-[#E8E6E3] focus:outline-none focus:border-[#D4AF37]" value={contactName} onChange={(e) => setContactName(e.target.value)} placeholder="Jane Doe" />
+        <input className="w-full bg-[#1B1B1D] border border-[#2A2A2E] rounded px-3 py-2 text-sm text-[#E8E6E3] focus:outline-none focus:border-[#C9A227]" value={contactName} onChange={(e) => setContactName(e.target.value)} placeholder="Jane Doe" />
       </div>
       <div>
         <label className="block text-[11px] tracking-widest uppercase text-[#A7A29A] mb-1">Duration (minutes)</label>
-        <input type="number" className="w-full bg-[#1B1B1D] border border-[#2A2A2E] rounded px-3 py-2 text-sm text-[#E8E6E3] focus:outline-none focus:border-[#D4AF37]" value={durationMinutes} onChange={(e) => setDurationMinutes(Number(e.target.value))} min={15} max={180} />
+        <input type="number" className="w-full bg-[#1B1B1D] border border-[#2A2A2E] rounded px-3 py-2 text-sm text-[#E8E6E3] focus:outline-none focus:border-[#C9A227]" value={durationMinutes} onChange={(e) => setDurationMinutes(Number(e.target.value))} min={15} max={180} />
       </div>
-      <button onClick={() => onSubmit({ meetingType, contactName, durationMinutes })} disabled={loading} className="flex items-center gap-2 px-4 py-2 bg-[#D4AF37] text-black text-sm font-semibold rounded hover:bg-[#C09B2A] disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+      <button onClick={() => onSubmit({ meetingType, contactName, durationMinutes })} disabled={loading} className="flex items-center gap-2 px-4 py-2 bg-[#C9A227] text-black text-sm font-semibold rounded hover:bg-[#C09B2A] disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
         {loading && <Loader2 size={14} className="animate-spin" />}
         Propose Slots
       </button>
@@ -93,8 +93,8 @@ function SimpleTextInput({ onSubmit, loading, placeholder, buttonLabel, field = 
   const [value, setValue] = useState('');
   return (
     <div className="space-y-3">
-      <textarea className="w-full bg-[#1B1B1D] border border-[#2A2A2E] rounded px-3 py-2 text-sm text-[#E8E6E3] focus:outline-none focus:border-[#D4AF37] resize-none" rows={4} value={value} onChange={(e) => setValue(e.target.value)} placeholder={placeholder} />
-      <button onClick={() => onSubmit({ [field]: value })} disabled={!value.trim() || loading} className="flex items-center gap-2 px-4 py-2 bg-[#D4AF37] text-black text-sm font-semibold rounded hover:bg-[#C09B2A] disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+      <textarea className="w-full bg-[#1B1B1D] border border-[#2A2A2E] rounded px-3 py-2 text-sm text-[#E8E6E3] focus:outline-none focus:border-[#C9A227] resize-none" rows={4} value={value} onChange={(e) => setValue(e.target.value)} placeholder={placeholder} />
+      <button onClick={() => onSubmit({ [field]: value })} disabled={!value.trim() || loading} className="flex items-center gap-2 px-4 py-2 bg-[#C9A227] text-black text-sm font-semibold rounded hover:bg-[#C09B2A] disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
         {loading && <Loader2 size={14} className="animate-spin" />}
         {buttonLabel}
       </button>
@@ -106,7 +106,7 @@ function DailyBriefingInput({ onSubmit, loading }: { onSubmit: (d: unknown) => v
   return (
     <div>
       <p className="text-sm text-[#A7A29A] mb-3">Generates your personalized daily briefing based on current pipeline, tasks, and meetings.</p>
-      <button onClick={() => onSubmit({})} disabled={loading} className="flex items-center gap-2 px-4 py-2 bg-[#D4AF37] text-black text-sm font-semibold rounded hover:bg-[#C09B2A] disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+      <button onClick={() => onSubmit({})} disabled={loading} className="flex items-center gap-2 px-4 py-2 bg-[#C9A227] text-black text-sm font-semibold rounded hover:bg-[#C09B2A] disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
         {loading && <Loader2 size={14} className="animate-spin" />}
         Generate Briefing
       </button>
@@ -118,7 +118,7 @@ function CRMHealthInput({ onSubmit, loading }: { onSubmit: (d: unknown) => void;
   return (
     <div>
       <p className="text-sm text-[#A7A29A] mb-3">Analyzes your entire CRM for data quality issues, stale contacts, and re-engagement opportunities.</p>
-      <button onClick={() => onSubmit({})} disabled={loading} className="flex items-center gap-2 px-4 py-2 bg-[#D4AF37] text-black text-sm font-semibold rounded hover:bg-[#C09B2A] disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+      <button onClick={() => onSubmit({})} disabled={loading} className="flex items-center gap-2 px-4 py-2 bg-[#C9A227] text-black text-sm font-semibold rounded hover:bg-[#C09B2A] disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
         {loading && <Loader2 size={14} className="animate-spin" />}
         Run CRM Health Check
       </button>
@@ -189,8 +189,8 @@ function AgentPanel({ agent }: { agent: AgentCard }) {
         onClick={() => setExpanded(!expanded)}
         aria-expanded={expanded}
       >
-        <div className="w-8 h-8 rounded bg-[#D4AF3715] flex items-center justify-center flex-shrink-0">
-          <Icon size={16} className="text-[#D4AF37]" />
+        <div className="w-8 h-8 rounded bg-[#C9A22715] flex items-center justify-center flex-shrink-0">
+          <Icon size={16} className="text-[#C9A227]" />
         </div>
         <div className="flex-1 min-w-0">
           <div className="text-sm font-medium text-[#E8E6E3] truncate">{agent.name}</div>
@@ -321,7 +321,7 @@ export default function AgentsPage() {
         {/* Header */}
         <div className="mb-6">
           <div className="flex items-center gap-3 mb-1">
-            <Bot size={20} className="text-[#D4AF37]" aria-hidden />
+            <Bot size={20} className="text-[#C9A227]" aria-hidden />
             <h1 className="text-lg font-bold text-[#E8E6E3]">AI Agents</h1>
           </div>
           <p className="text-sm text-[#A7A29A]">

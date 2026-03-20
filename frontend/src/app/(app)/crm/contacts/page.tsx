@@ -159,14 +159,14 @@ export default function ContactsPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search contacts..."
-            className="w-full bg-[#1B1B1D] border border-[#2A2A2E] rounded text-sm text-[#E8E6E3] pl-8 pr-3 py-2 focus:outline-none focus:border-[#D4AF37] placeholder:text-[#A7A29A60]"
+            className="w-full bg-[#1B1B1D] border border-[#2A2A2E] rounded text-sm text-[#E8E6E3] pl-8 pr-3 py-2 focus:outline-none focus:border-[#C9A227] placeholder:text-[#A7A29A60]"
             aria-label="Search contacts"
           />
         </div>
         <select
           value={typeFilter}
           onChange={(e) => setTypeFilter(e.target.value)}
-          className="bg-[#1B1B1D] border border-[#2A2A2E] rounded text-sm text-[#E8E6E3] px-3 py-2 focus:outline-none focus:border-[#D4AF37]"
+          className="bg-[#1B1B1D] border border-[#2A2A2E] rounded text-sm text-[#E8E6E3] px-3 py-2 focus:outline-none focus:border-[#C9A227]"
           aria-label="Filter by contact type"
         >
           <option value="">All Types</option>
@@ -224,7 +224,7 @@ export default function ContactsPage() {
                   <td className="px-4 py-3">
                     <Link
                       href={`/crm/contacts/${contact.id}`}
-                      className="text-xs text-[#D4AF37] hover:underline"
+                      className="text-xs text-[#C9A227] hover:underline"
                     >
                       View
                     </Link>

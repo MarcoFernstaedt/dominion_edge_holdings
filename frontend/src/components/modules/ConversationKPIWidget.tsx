@@ -46,7 +46,7 @@ const ENTITY_CONFIG: Record<ConversationEntityType, {
     Icon:      Building2,
     barColor:  '#38bdf8',  // sky-400
     badgeOk:   'border-emerald-700/40 bg-emerald-900/20 text-emerald-400',
-    badgeWarn: 'border-amber-700/40   bg-amber-900/20   text-amber-400',
+    badgeWarn: 'border-[#C9A22740]   bg-[#C9A22720]   text-[#C9A227]',
     badgeCrit: 'border-red-700/40     bg-red-900/20     text-red-400',
   },
   board_member: {
@@ -54,15 +54,15 @@ const ENTITY_CONFIG: Record<ConversationEntityType, {
     Icon:      Briefcase,
     barColor:  '#a78bfa',  // violet-400
     badgeOk:   'border-emerald-700/40 bg-emerald-900/20 text-emerald-400',
-    badgeWarn: 'border-amber-700/40   bg-amber-900/20   text-amber-400',
+    badgeWarn: 'border-[#C9A22740]   bg-[#C9A22720]   text-[#C9A227]',
     badgeCrit: 'border-red-700/40     bg-red-900/20     text-red-400',
   },
   investor: {
     label:     'Investor Conversations',
     Icon:      TrendingUp,
-    barColor:  '#D4AF37',
+    barColor:  '#C9A227',
     badgeOk:   'border-emerald-700/40 bg-emerald-900/20 text-emerald-400',
-    badgeWarn: 'border-amber-700/40   bg-amber-900/20   text-amber-400',
+    badgeWarn: 'border-[#C9A22740]   bg-[#C9A22720]   text-[#C9A227]',
     badgeCrit: 'border-red-700/40     bg-red-900/20     text-red-400',
   },
 };
@@ -132,7 +132,7 @@ function AlertRow({ alert }: { alert: ConversationPipelineAlert }) {
       className={`flex items-start gap-2 text-xs rounded-lg px-3 py-2 border ${
         alert.severity === 'critical'
           ? 'bg-red-900/15 border-red-700/30 text-red-400'
-          : 'bg-amber-900/15 border-amber-700/30 text-amber-400'
+          : 'bg-[#C9A22720]/15 border-[#C9A22730] text-[#C9A227]'
       }`}
       role="alert"
       aria-label={alert.title}
@@ -194,14 +194,14 @@ export function ConversationKPIWidget({ kpi: propKPI, alerts: propAlerts, showLi
         <h2 className="text-sm font-semibold text-[var(--color-text-primary)] flex items-center gap-2">
           {overallOk
             ? <CheckCircle2 size={14} className="text-emerald-400" aria-hidden />
-            : <AlertTriangle size={14} className="text-amber-400" aria-hidden />}
+            : <AlertTriangle size={14} className="text-[#C9A227]" aria-hidden />}
           Conversation KPIs
           <span className="text-[10px] font-normal text-[var(--color-text-muted)]">this week</span>
         </h2>
         {showLink && (
           <Link
             href="/conversations"
-            className="flex items-center gap-1 text-[10px] text-[var(--color-text-muted)] hover:text-[#D4AF37] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37] rounded"
+            className="flex items-center gap-1 text-[10px] text-[var(--color-text-muted)] hover:text-[#C9A227] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A227] rounded"
             aria-label="View all conversations"
           >
             View all <ArrowUpRight size={10} aria-hidden />

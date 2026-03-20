@@ -18,7 +18,7 @@ import type { DailyActionPlan, DailyAction } from '@/lib/types';
 /* ─── helpers ───────────────────────────────────────────────────── */
 
 const SOURCE_COLOR: Record<string, string> = {
-  playbook: 'text-[#D4AF37] bg-[#D4AF37]/10 border-[#D4AF37]/30',
+  playbook: 'text-[#C9A227] bg-[#C9A227]/10 border-[#C9A227]/30',
   alert:    'text-red-400    bg-red-900/10    border-red-800/30',
   momentum: 'text-orange-400 bg-orange-900/10 border-orange-800/30',
 };
@@ -31,13 +31,13 @@ const SOURCE_ICON: Record<string, React.ReactNode> = {
 
 const PRIORITY_BORDER: Record<string, string> = {
   high:   'border-l-red-500',
-  medium: 'border-l-amber-400',
+  medium: 'border-l-[#C9A227]',
   low:    'border-l-[#3A3A3E]',
 };
 
 const PRIORITY_DOT: Record<string, string> = {
   high:   'bg-red-500',
-  medium: 'bg-amber-400',
+  medium: 'bg-[#C9A227]',
   low:    'bg-[#3A3A3E]',
 };
 
@@ -71,11 +71,11 @@ function ActionCard({
         <button
           onClick={() => canMark && onComplete(taskId)}
           disabled={!canMark || isBusy}
-          className="mt-0.5 flex-shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37] rounded-full disabled:cursor-default"
+          className="mt-0.5 flex-shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A227] rounded-full disabled:cursor-default"
           aria-label={isMarked ? 'Done' : 'Mark complete'}
         >
           {isBusy ? (
-            <RefreshCw size={16} className="animate-spin text-amber-400" />
+            <RefreshCw size={16} className="animate-spin text-[#C9A227]" />
           ) : isMarked ? (
             <CheckCircle2 size={16} className="text-emerald-400" />
           ) : (
@@ -234,7 +234,7 @@ export default function PlaybookTodayPage() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <h1 className="text-2xl font-semibold text-[var(--color-text-primary)] flex items-center gap-2">
-              <Zap size={22} className="text-[#D4AF37]" aria-hidden />
+              <Zap size={22} className="text-[#C9A227]" aria-hidden />
               Today&apos;s Actions
             </h1>
             <p className="text-sm text-[var(--color-text-muted)] mt-1">{date}</p>
@@ -257,7 +257,7 @@ export default function PlaybookTodayPage() {
             <span className="text-sm font-medium text-[var(--color-text-primary)]">
               Daily Progress
             </span>
-            <span className="text-sm font-bold text-[#D4AF37]">
+            <span className="text-sm font-bold text-[#C9A227]">
               {doneCount}/{totalCount} done
             </span>
           </div>
@@ -270,7 +270,7 @@ export default function PlaybookTodayPage() {
             aria-label={`${pct}% of today's tasks complete`}
           >
             <div
-              className="h-full rounded-full bg-[#D4AF37] transition-all duration-500"
+              className="h-full rounded-full bg-[#C9A227] transition-all duration-500"
               style={{ width: `${pct}%` }}
             />
           </div>
@@ -286,7 +286,7 @@ export default function PlaybookTodayPage() {
       {/* Stage context */}
       {(plan?.currentStage ?? plan?.stageName) && (
         <div className="bg-[#1A1A1E] border border-[var(--color-border)] rounded-xl p-4 flex items-center gap-3">
-          <BookOpen size={16} className="text-[#D4AF37] flex-shrink-0" aria-hidden />
+          <BookOpen size={16} className="text-[#C9A227] flex-shrink-0" aria-hidden />
           <div className="min-w-0">
             <div className="text-[10px] uppercase tracking-widest text-[var(--color-text-muted)] font-semibold">
               Current Stage
@@ -309,7 +309,7 @@ export default function PlaybookTodayPage() {
           </p>
           <Link
             href="/playbook"
-            className="inline-flex items-center gap-1.5 mt-4 px-3 py-1.5 rounded-lg bg-[#D4AF37] text-black text-sm font-semibold hover:bg-[#C9A227] transition-colors"
+            className="inline-flex items-center gap-1.5 mt-4 px-3 py-1.5 rounded-lg bg-[#C9A227] text-black text-sm font-semibold hover:bg-[#C9A227] transition-colors"
           >
             View Full Playbook
           </Link>
@@ -326,7 +326,7 @@ export default function PlaybookTodayPage() {
           />
           <ActionSection
             title="Playbook Tasks"
-            icon={<BookOpen size={14} className="text-[#D4AF37]" aria-hidden />}
+            icon={<BookOpen size={14} className="text-[#C9A227]" aria-hidden />}
             actions={playbookActions}
             onComplete={handleComplete}
             completing={completing}

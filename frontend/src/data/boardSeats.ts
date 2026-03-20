@@ -10,7 +10,7 @@ export const DEFAULT_BOARD_SEATS: BoardSeat[] = [
     priorityOrder: 1,
     isCoreSeat: true,
     status: 'open',
-    color: '#D4AF37',
+    color: '#C9A227',
     whyNeeded: 'Instant credibility with sellers, operational intelligence, and introductions to potential targets.',
     whereTo: 'Former Rollins/Orkin/Terminix regional VPs via LinkedIn. NPMA national convention. AZPMA events.',
     pitch: 'I\'m building an acquisition platform targeting established pest control operators in the Phoenix metro. I\'m looking for a former industry executive who wants to deploy their expertise for equity — not cash. This is a 2-4 hour per quarter commitment with meaningful upside.',

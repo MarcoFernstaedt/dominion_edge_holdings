@@ -27,7 +27,7 @@ export default function PostAcquisitionPage() {
           <Building2 size={32} className="mx-auto text-[#A7A29A] mb-3" aria-hidden />
           <p className="text-sm text-[#A7A29A] mb-2">No closed acquisitions yet.</p>
           <p className="text-xs text-[#A7A29A]">Once a deal closes, your 90-day integration plan will appear here.</p>
-          <Link href="/pipeline" className="mt-3 inline-flex items-center gap-1 text-sm text-[#D4AF37] hover:underline">
+          <Link href="/pipeline" className="mt-3 inline-flex items-center gap-1 text-sm text-[#C9A227] hover:underline">
             View Pipeline <ArrowRight size={12} aria-hidden />
           </Link>
         </div>
@@ -50,7 +50,7 @@ export default function PostAcquisitionPage() {
         <div className="space-y-3">
           {POST_ACQ_TASKS.map((section) => (
             <div key={section.category} className="bg-[#141414] border border-[#2A2A2E] rounded-md p-5">
-              <h3 className="text-sm font-semibold text-[#D4AF37] mb-3">{section.category}</h3>
+              <h3 className="text-sm font-semibold text-[#C9A227] mb-3">{section.category}</h3>
               <ul className="space-y-2">
                 {section.tasks.map((task, i) => (
                   <li key={i} className="flex items-start gap-2 text-sm text-[#A7A29A]">

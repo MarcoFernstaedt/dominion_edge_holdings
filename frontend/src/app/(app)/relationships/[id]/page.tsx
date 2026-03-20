@@ -63,7 +63,7 @@ const ENTITY_ICON: Record<RelationshipEntityType, React.ElementType> = {
 const ENTITY_COLOR: Record<RelationshipEntityType, string> = {
   seller:       'text-sky-400',
   board_member: 'text-violet-400',
-  investor:     'text-amber-400',
+  investor:     'text-[#C9A227]',
 };
 
 const STATUS_LABEL: Record<RelationshipStatus, string> = {
@@ -72,8 +72,8 @@ const STATUS_LABEL: Record<RelationshipStatus, string> = {
 };
 
 const INTEREST_COLOR: Record<InterestLevel, string> = {
-  low: 'text-[var(--color-text-muted)]', medium: 'text-amber-400',
-  high: 'text-emerald-400', ready: 'text-[#D4AF37]',
+  low: 'text-[var(--color-text-muted)]', medium: 'text-[#C9A227]',
+  high: 'text-emerald-400', ready: 'text-[#C9A227]',
 };
 
 const INTERACTION_ICON: Record<RelationshipInteractionType, React.ElementType> = {
@@ -113,17 +113,17 @@ function EditableSelect<T extends string>({
           value={val}
           onChange={(e) => setVal(e.target.value as T)}
           autoFocus
-          className="bg-[#1A1A1E] border border-[var(--color-border)] rounded px-2 py-1 text-xs text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#D4AF37]"
+          className="bg-[#1A1A1E] border border-[var(--color-border)] rounded px-2 py-1 text-xs text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#C9A227]"
           aria-label={label}
         >
           {options.map((o) => (
             <option key={o.value} value={o.value}>{o.label}</option>
           ))}
         </select>
-        <button onClick={commit} disabled={saving} aria-label="Save" className="text-emerald-400 hover:text-emerald-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37] rounded p-0.5">
+        <button onClick={commit} disabled={saving} aria-label="Save" className="text-emerald-400 hover:text-emerald-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A227] rounded p-0.5">
           {saving ? <RefreshCw size={12} className="animate-spin" aria-hidden /> : <Check size={12} aria-hidden />}
         </button>
-        <button onClick={() => { setEditing(false); setVal(value); }} aria-label="Cancel" className="text-[var(--color-text-muted)] hover:text-red-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37] rounded p-0.5">
+        <button onClick={() => { setEditing(false); setVal(value); }} aria-label="Cancel" className="text-[var(--color-text-muted)] hover:text-red-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A227] rounded p-0.5">
           <X size={12} aria-hidden />
         </button>
       </div>
@@ -133,7 +133,7 @@ function EditableSelect<T extends string>({
   return (
     <button
       onClick={() => setEditing(true)}
-      className="group flex items-center gap-1 text-xs text-[var(--color-text-primary)] hover:text-[#D4AF37] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37] rounded"
+      className="group flex items-center gap-1 text-xs text-[var(--color-text-primary)] hover:text-[#C9A227] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A227] rounded"
       aria-label={`Edit ${label}: current value ${value}`}
     >
       {options.find((o) => o.value === value)?.label ?? value}
@@ -180,7 +180,7 @@ function LogInteractionModal({
       <div className="bg-[#161618] border border-[var(--color-border)] rounded-2xl w-full max-w-md shadow-2xl">
         <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--color-border)]">
           <h2 className="font-semibold text-[var(--color-text-primary)]">Log Interaction</h2>
-          <button onClick={onClose} aria-label="Close" className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37] rounded">
+          <button onClick={onClose} aria-label="Close" className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A227] rounded">
             <X size={16} aria-hidden />
           </button>
         </div>
@@ -189,7 +189,7 @@ function LogInteractionModal({
           <div>
             <label className="block text-xs text-[var(--color-text-muted)] mb-1" htmlFor="li-type">Type</label>
             <select id="li-type" value={form.interactionType} onChange={(e) => setForm((p) => ({ ...p, interactionType: e.target.value as RelationshipInteractionType }))}
-              className="w-full bg-[#1A1A1E] border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#D4AF37]">
+              className="w-full bg-[#1A1A1E] border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#C9A227]">
               <option value="call">Call</option>
               <option value="email">Email</option>
               <option value="meeting">Meeting</option>
@@ -201,11 +201,11 @@ function LogInteractionModal({
             <textarea id="li-summary" rows={4} value={form.interactionSummary}
               onChange={(e) => setForm((p) => ({ ...p, interactionSummary: e.target.value }))}
               placeholder="What was discussed? Key takeaways?"
-              className="w-full bg-[#1A1A1E] border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#D4AF37] resize-none" />
+              className="w-full bg-[#1A1A1E] border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#C9A227] resize-none" />
           </div>
           <div className="flex justify-end gap-2 pt-2">
             <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg border border-[var(--color-border)] text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors">Cancel</button>
-            <button type="submit" disabled={saving} className="px-4 py-2 rounded-lg bg-[#D4AF37] text-black text-sm font-semibold hover:bg-[#C9A227] transition-colors disabled:opacity-50">
+            <button type="submit" disabled={saving} className="px-4 py-2 rounded-lg bg-[#C9A227] text-black text-sm font-semibold hover:bg-[#C9A227] transition-colors disabled:opacity-50">
               {saving ? 'Logging…' : 'Log Interaction'}
             </button>
           </div>
@@ -250,7 +250,7 @@ function ScheduleModal({
       <div className="bg-[#161618] border border-[var(--color-border)] rounded-2xl w-full max-w-sm shadow-2xl">
         <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--color-border)]">
           <h2 className="font-semibold text-[var(--color-text-primary)]">Schedule Follow-up</h2>
-          <button onClick={onClose} aria-label="Close" className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37] rounded">
+          <button onClick={onClose} aria-label="Close" className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A227] rounded">
             <X size={16} aria-hidden />
           </button>
         </div>
@@ -263,8 +263,8 @@ function ScheduleModal({
                 <button
                   key={d} type="button"
                   onClick={() => setDays(d)}
-                  className={`px-3 py-1 rounded-lg text-xs font-semibold border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37] ${
-                    days === d ? 'border-[#D4AF37] bg-[#D4AF37]/10 text-[#D4AF37]' : 'border-[var(--color-border)] text-[var(--color-text-muted)] hover:border-[#3A3A3E]'
+                  className={`px-3 py-1 rounded-lg text-xs font-semibold border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A227] ${
+                    days === d ? 'border-[#C9A227] bg-[#C9A227]/10 text-[#C9A227]' : 'border-[var(--color-border)] text-[var(--color-text-muted)] hover:border-[#3A3A3E]'
                   }`}
                   aria-pressed={days === d}
                 >
@@ -275,13 +275,13 @@ function ScheduleModal({
             <input
               id="sf-days" type="number" min="1" max="365"
               value={days} onChange={(e) => setDays(Number(e.target.value))}
-              className="w-full bg-[#1A1A1E] border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#D4AF37]"
+              className="w-full bg-[#1A1A1E] border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#C9A227]"
               aria-label="Days until follow-up"
             />
           </div>
           <div className="flex justify-end gap-2 pt-2">
             <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg border border-[var(--color-border)] text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors">Cancel</button>
-            <button type="submit" disabled={saving} className="px-4 py-2 rounded-lg bg-[#D4AF37] text-black text-sm font-semibold hover:bg-[#C9A227] transition-colors disabled:opacity-50">
+            <button type="submit" disabled={saving} className="px-4 py-2 rounded-lg bg-[#C9A227] text-black text-sm font-semibold hover:bg-[#C9A227] transition-colors disabled:opacity-50">
               {saving ? 'Scheduling…' : 'Schedule'}
             </button>
           </div>
@@ -412,7 +412,7 @@ export default function RelationshipDetailPage() {
       {/* Back nav */}
       <Link
         href="/relationships"
-        className="inline-flex items-center gap-1.5 text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37] rounded"
+        className="inline-flex items-center gap-1.5 text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A227] rounded"
       >
         <ArrowLeft size={14} aria-hidden /> Back to Relationships
       </Link>
@@ -433,7 +433,7 @@ export default function RelationshipDetailPage() {
             overdue
               ? 'border-red-700/40 bg-red-900/10 text-red-400'
               : du <= 3
-              ? 'border-amber-700/40 bg-amber-900/10 text-amber-400'
+              ? 'border-[#C9A22740] bg-[#C9A22710] text-[#C9A227]'
               : 'border-emerald-700/40 bg-emerald-900/10 text-emerald-400'
           }`}>
             {overdue
@@ -495,13 +495,13 @@ export default function RelationshipDetailPage() {
         <div className="flex flex-wrap items-center gap-2 mt-4 pt-4 border-t border-[var(--color-border)]">
           <button
             onClick={() => setShowLogModal(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#D4AF37] text-black text-sm font-semibold hover:bg-[#C9A227] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37]"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#C9A227] text-black text-sm font-semibold hover:bg-[#C9A227] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A227]"
           >
             <Plus size={13} aria-hidden /> Log Interaction
           </button>
           <button
             onClick={() => setShowSchedule(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--color-border)] text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:border-[#3A3A3E] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37]"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--color-border)] text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:border-[#3A3A3E] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A227]"
           >
             <Calendar size={13} aria-hidden /> Schedule Meeting
           </button>
@@ -522,7 +522,7 @@ export default function RelationshipDetailPage() {
         <div className="lg:col-span-2 space-y-4">
           <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-4">
             <h2 className="text-sm font-semibold text-[var(--color-text-primary)] mb-4 flex items-center gap-2">
-              <Clock size={14} className="text-[#D4AF37]" aria-hidden />
+              <Clock size={14} className="text-[#C9A227]" aria-hidden />
               Interaction History
               <span className="text-[10px] text-[var(--color-text-muted)] font-normal ml-auto">
                 {interactions.length} logged
@@ -557,7 +557,7 @@ export default function RelationshipDetailPage() {
             </div>
             <button
               onClick={() => setShowSchedule(true)}
-              className="w-full mt-1 py-1.5 rounded-lg border border-[var(--color-border)] text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:border-[#3A3A3E] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37]"
+              className="w-full mt-1 py-1.5 rounded-lg border border-[var(--color-border)] text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:border-[#3A3A3E] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A227]"
             >
               Reschedule
             </button>
@@ -595,9 +595,9 @@ export default function RelationshipDetailPage() {
               <div key={label} className="flex items-center gap-2 text-xs">
                 {ok
                   ? <CheckCircle2 size={13} className="text-emerald-400 flex-shrink-0" aria-hidden />
-                  : <AlertCircle  size={13} className="text-amber-400 flex-shrink-0"   aria-hidden />}
+                  : <AlertCircle  size={13} className="text-[#C9A227] flex-shrink-0"   aria-hidden />}
                 <span className="text-[var(--color-text-muted)] flex-1">{label}</span>
-                <span className={ok ? 'text-emerald-400' : 'text-amber-400'}>{ok ? okText : warnText}</span>
+                <span className={ok ? 'text-emerald-400' : 'text-[#C9A227]'}>{ok ? okText : warnText}</span>
               </div>
             ))}
           </div>

@@ -30,14 +30,14 @@ const MODE_LABEL: Record<string, string> = {
 
 const STATUS_COLOR: Record<string, string> = {
   completed:   'text-emerald-400',
-  in_progress: 'text-amber-400',
+  in_progress: 'text-[#C9A227]',
   skipped:     'text-[var(--color-text-muted)]',
   not_started: 'text-[var(--color-text-muted)]',
 };
 
 const STATUS_ICON: Record<string, React.ReactNode> = {
   completed:   <CheckCircle2 size={16} className="text-emerald-400 flex-shrink-0" aria-hidden />,
-  in_progress: <Clock size={16} className="text-amber-400 flex-shrink-0" aria-hidden />,
+  in_progress: <Clock size={16} className="text-[#C9A227] flex-shrink-0" aria-hidden />,
   not_started: <Circle size={16} className="text-[#3A3A3E] flex-shrink-0" aria-hidden />,
   skipped:     <Circle size={16} className="text-[#3A3A3E] flex-shrink-0" aria-hidden />,
 };
@@ -52,7 +52,7 @@ function StageStatusBadge({ stage }: { stage: PlaybookStage }) {
   }
   if (stage.isCurrent) {
     return (
-      <span className="text-[10px] font-semibold tracking-wider uppercase px-2 py-0.5 rounded-full bg-amber-900/40 text-amber-400 border border-amber-700/40">
+      <span className="text-[10px] font-semibold tracking-wider uppercase px-2 py-0.5 rounded-full bg-[#C9A22720]/40 text-[#C9A227] border border-[#C9A22740]">
         Active
       </span>
     );
@@ -75,7 +75,7 @@ function StageProgressBar({ pct }: { pct: number }) {
       aria-valuemax={100}
     >
       <div
-        className="h-full rounded-full bg-[#D4AF37] transition-all duration-500"
+        className="h-full rounded-full bg-[#C9A227] transition-all duration-500"
         style={{ width: `${pct}%` }}
       />
     </div>
@@ -109,11 +109,11 @@ function TaskCard({
       <button
         onClick={() => !isDone && isManual && onComplete(task.task.id)}
         disabled={isDone || !isManual || isBusy}
-        className="mt-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37] rounded-full disabled:cursor-default"
+        className="mt-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A227] rounded-full disabled:cursor-default"
         aria-label={isDone ? 'Task completed' : 'Mark complete'}
       >
         {isBusy ? (
-          <RefreshCw size={16} className="animate-spin text-amber-400 flex-shrink-0" />
+          <RefreshCw size={16} className="animate-spin text-[#C9A227] flex-shrink-0" />
         ) : (
           STATUS_ICON[status]
         )}
@@ -187,14 +187,14 @@ function StageRow({
         stage.isComplete
           ? 'border-emerald-800/30 bg-emerald-900/5'
           : stage.isCurrent
-          ? 'border-amber-700/40 bg-amber-900/5'
+          ? 'border-[#C9A22740] bg-[#C9A22720]/5'
           : 'border-[var(--color-border)] bg-[var(--color-surface)]'
       }`}
     >
       {/* header */}
       <button
         onClick={onToggle}
-        className="w-full flex items-center gap-3 p-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#D4AF37] rounded-xl"
+        className="w-full flex items-center gap-3 p-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#C9A227] rounded-xl"
       >
         {/* stage order */}
         <div
@@ -202,7 +202,7 @@ function StageRow({
             stage.isComplete
               ? 'bg-emerald-700/30 text-emerald-400'
               : stage.isCurrent
-              ? 'bg-[#D4AF37] text-black'
+              ? 'bg-[#C9A227] text-black'
               : 'bg-[#2A2A2E] text-[var(--color-text-muted)]'
           }`}
         >
@@ -216,7 +216,7 @@ function StageRow({
                 stage.isComplete
                   ? 'text-emerald-400'
                   : stage.isCurrent
-                  ? 'text-[#D4AF37]'
+                  ? 'text-[#C9A227]'
                   : 'text-[var(--color-text-primary)]'
               }`}
             >
@@ -350,7 +350,7 @@ export default function PlaybookPage() {
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold text-[var(--color-text-primary)] flex items-center gap-2">
-            <BookOpen size={22} className="text-[#D4AF37]" aria-hidden />
+            <BookOpen size={22} className="text-[#C9A227]" aria-hidden />
             Acquisition Playbook
           </h1>
           <p className="text-sm text-[var(--color-text-muted)] mt-1">
@@ -360,7 +360,7 @@ export default function PlaybookPage() {
         <div className="flex items-center gap-2 flex-shrink-0">
           <Link
             href="/playbook/today"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#D4AF37] text-black text-sm font-semibold hover:bg-[#C9A227] transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#C9A227] text-black text-sm font-semibold hover:bg-[#C9A227] transition-colors"
           >
             <Zap size={14} aria-hidden />
             Today&apos;s Actions
@@ -385,7 +385,7 @@ export default function PlaybookPage() {
               {completedStages} of {stages.length} stages complete
             </div>
           </div>
-          <div className="text-2xl font-bold text-[#D4AF37]">{overallPct}%</div>
+          <div className="text-2xl font-bold text-[#C9A227]">{overallPct}%</div>
         </div>
         <div
           className="h-2.5 rounded-full bg-[#2A2A2E] overflow-hidden"
@@ -396,7 +396,7 @@ export default function PlaybookPage() {
           aria-label={`${overallPct}% of playbook complete`}
         >
           <div
-            className="h-full rounded-full bg-[#D4AF37] transition-all duration-700"
+            className="h-full rounded-full bg-[#C9A227] transition-all duration-700"
             style={{ width: `${overallPct}%` }}
           />
         </div>
@@ -416,7 +416,7 @@ export default function PlaybookPage() {
                   s.isComplete
                     ? 'bg-emerald-700/40 text-emerald-400 hover:bg-emerald-700/60'
                     : s.isCurrent
-                    ? 'bg-[#D4AF37] text-black'
+                    ? 'bg-[#C9A227] text-black'
                     : 'bg-[#2A2A2E] text-[var(--color-text-muted)] hover:bg-[#3A3A3E]'
                 }`}
               >
@@ -429,9 +429,9 @@ export default function PlaybookPage() {
 
       {/* Current stage callout */}
       {currentStage && (
-        <div className="bg-amber-900/10 border border-amber-700/40 rounded-xl p-4 flex flex-wrap items-center gap-4">
+        <div className="bg-[#C9A22710] border border-[#C9A22740] rounded-xl p-4 flex flex-wrap items-center gap-4">
           <div className="flex-1 min-w-0">
-            <div className="text-xs uppercase tracking-widest text-amber-400 font-semibold mb-0.5">
+            <div className="text-xs uppercase tracking-widest text-[#C9A227] font-semibold mb-0.5">
               Current Stage
             </div>
             <div className="text-base font-semibold text-[var(--color-text-primary)]">
@@ -445,7 +445,7 @@ export default function PlaybookPage() {
           </div>
           <button
             onClick={() => toggleStage(currentStage.id)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-amber-700/40 text-amber-400 text-sm hover:bg-amber-900/20 transition-colors flex-shrink-0"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#C9A22740] text-[#C9A227] text-sm hover:bg-[#C9A22720] transition-colors flex-shrink-0"
           >
             View tasks <ArrowRight size={13} aria-hidden />
           </button>

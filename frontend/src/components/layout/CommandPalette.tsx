@@ -217,7 +217,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
                       'w-full flex items-center justify-between px-4 py-2 text-sm text-left',
                       'transition-colors duration-100',
                       isSelected
-                        ? 'bg-[#D4AF3715] text-[#D4AF37]'
+                        ? 'bg-[#C9A22715] text-[#C9A227]'
                         : 'text-[#E8E6E3] hover:bg-[#1B1B1D]'
                     )}
                   >

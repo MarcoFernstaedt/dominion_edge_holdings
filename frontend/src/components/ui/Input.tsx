@@ -28,7 +28,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           className={cn(
             'w-full rounded bg-[#1B1B1D] border border-[#2A2A2E] text-[#E8E6E3] text-sm px-3 py-2',
             'placeholder:text-[#A7A29A60]',
-            'focus:outline-none focus:border-[#D4AF37] focus:ring-1 focus:ring-[#D4AF37]',
+            'focus:outline-none focus:border-[#C9A227] focus:ring-1 focus:ring-[#C9A227]',
             'disabled:opacity-40 disabled:cursor-not-allowed',
             'transition-colors duration-150',
             error && 'border-[#C35B5B] focus:border-[#C35B5B] focus:ring-[#C35B5B]',
@@ -80,7 +80,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
           className={cn(
             'w-full rounded bg-[#1B1B1D] border border-[#2A2A2E] text-[#E8E6E3] text-sm px-3 py-2',
             'placeholder:text-[#A7A29A60]',
-            'focus:outline-none focus:border-[#D4AF37] focus:ring-1 focus:ring-[#D4AF37]',
+            'focus:outline-none focus:border-[#C9A227] focus:ring-1 focus:ring-[#C9A227]',
             'disabled:opacity-40 disabled:cursor-not-allowed',
             'transition-colors duration-150 resize-vertical min-h-[80px]',
             error && 'border-[#C35B5B]',
@@ -129,7 +129,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
           id={inputId}
           className={cn(
             'w-full rounded bg-[#1B1B1D] border border-[#2A2A2E] text-[#E8E6E3] text-sm px-3 py-2',
-            'focus:outline-none focus:border-[#D4AF37] focus:ring-1 focus:ring-[#D4AF37]',
+            'focus:outline-none focus:border-[#C9A227] focus:ring-1 focus:ring-[#C9A227]',
             'disabled:opacity-40 disabled:cursor-not-allowed',
             'transition-colors duration-150',
             error && 'border-[#C35B5B]',

@@ -412,7 +412,7 @@ function PhaseStatusBadge({ status }: { status: PhaseStatus }) {
   }
   if (status === 'active') {
     return (
-      <span className="text-[10px] font-semibold tracking-wider uppercase px-2 py-0.5 rounded-full bg-amber-900/40 text-amber-400 border border-amber-700/40">
+      <span className="text-[10px] font-semibold tracking-wider uppercase px-2 py-0.5 rounded-full bg-[#C9A22720]/40 text-[#C9A227] border border-[#C9A22740]">
         Active
       </span>
     );
@@ -442,7 +442,7 @@ function PhaseRow({ phase, status, completion, expanded, onToggle }: {
         isComplete
           ? 'border-emerald-800/30 bg-emerald-900/5'
           : isActive
-          ? 'border-amber-700/40 bg-amber-900/5'
+          ? 'border-[#C9A22740] bg-[#C9A22720]/5'
           : 'border-[#2A2A2E] bg-[#141414]'
       }`}
     >
@@ -452,7 +452,7 @@ function PhaseRow({ phase, status, completion, expanded, onToggle }: {
         className={`w-full flex items-center gap-4 p-4 text-left rounded-xl transition-colors ${
           isLocked
             ? 'cursor-default opacity-50'
-            : 'hover:bg-white/[0.02] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#D4AF37]'
+            : 'hover:bg-white/[0.02] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#C9A227]'
         }`}
         aria-expanded={!isLocked ? expanded : undefined}
         disabled={isLocked}
@@ -463,7 +463,7 @@ function PhaseRow({ phase, status, completion, expanded, onToggle }: {
             isComplete
               ? 'bg-emerald-700/30 text-emerald-400'
               : isActive
-              ? 'bg-[#D4AF37] text-black'
+              ? 'bg-[#C9A227] text-black'
               : 'bg-[#2A2A2E] text-[#A7A29A]'
           }`}
         >
@@ -471,7 +471,7 @@ function PhaseRow({ phase, status, completion, expanded, onToggle }: {
         </div>
 
         {/* Icon */}
-        <div className={`flex-shrink-0 ${isComplete ? 'text-emerald-400' : isActive ? 'text-[#D4AF37]' : 'text-[#A7A29A]'}`}>
+        <div className={`flex-shrink-0 ${isComplete ? 'text-emerald-400' : isActive ? 'text-[#C9A227]' : 'text-[#A7A29A]'}`}>
           <Icon size={18} />
         </div>
 
@@ -480,7 +480,7 @@ function PhaseRow({ phase, status, completion, expanded, onToggle }: {
           <div className="flex flex-wrap items-center gap-2">
             <span
               className={`text-sm font-semibold ${
-                isComplete ? 'text-emerald-400' : isActive ? 'text-[#D4AF37]' : 'text-[#A7A29A]'
+                isComplete ? 'text-emerald-400' : isActive ? 'text-[#C9A227]' : 'text-[#A7A29A]'
               }`}
             >
               Phase {phase.order}: {phase.name}
@@ -493,7 +493,7 @@ function PhaseRow({ phase, status, completion, expanded, onToggle }: {
             <div className="mt-1.5 h-1 w-48 max-w-full rounded-full bg-[#2A2A2E] overflow-hidden">
               <div
                 className={`h-full rounded-full transition-all duration-500 ${
-                  isComplete ? 'bg-emerald-500' : 'bg-[#D4AF37]'
+                  isComplete ? 'bg-emerald-500' : 'bg-[#C9A227]'
                 }`}
                 style={{ width: `${completion}%` }}
               />
@@ -514,12 +514,12 @@ function PhaseRow({ phase, status, completion, expanded, onToggle }: {
         <div className="border-t border-[#2A2A2E] px-4 pb-5 pt-4 space-y-5">
           {/* Why it matters */}
           <div>
-            <h4 className="text-[10px] font-semibold uppercase tracking-widest text-[#D4AF37] mb-1.5">
+            <h4 className="text-[10px] font-semibold uppercase tracking-widest text-[#C9A227] mb-1.5">
               Why This Phase Matters
             </h4>
             <p className="text-sm text-[#C4C1BB] leading-relaxed">{phase.whyItMatters}</p>
             {phase.danaPenaQuote && (
-              <blockquote className="mt-3 pl-3 border-l-2 border-[#D4AF37]/40 text-sm italic text-[#D4AF37]/80">
+              <blockquote className="mt-3 pl-3 border-l-2 border-[#C9A227]/40 text-sm italic text-[#C9A227]/80">
                 {phase.danaPenaQuote}
               </blockquote>
             )}
@@ -564,7 +564,7 @@ function PhaseRow({ phase, status, completion, expanded, onToggle }: {
               <ul className="space-y-1">
                 {phase.keyDeliverables.map((d, i) => (
                   <li key={i} className="flex items-start gap-1.5 text-xs text-[#C4C1BB]">
-                    <FileText size={8} className="mt-1 text-[#D4AF37]/60 flex-shrink-0" />
+                    <FileText size={8} className="mt-1 text-[#C9A227]/60 flex-shrink-0" />
                     {d}
                   </li>
                 ))}
@@ -620,7 +620,7 @@ export default function EmpireRoadmapPage() {
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold text-[#E8E6E3] flex items-center gap-2">
-            <Map size={22} className="text-[#D4AF37]" aria-hidden />
+            <Map size={22} className="text-[#C9A227]" aria-hidden />
             Empire Roadmap
           </h1>
           <p className="text-sm text-[#A7A29A] mt-1">
@@ -640,7 +640,7 @@ export default function EmpireRoadmapPage() {
       <div className="bg-[#141414] border border-[#2A2A2E] rounded-xl p-5 grid grid-cols-2 md:grid-cols-4 gap-6">
         <div>
           <div className="text-xs text-[#A7A29A] uppercase tracking-widest font-semibold mb-1">Overall Progress</div>
-          <div className="text-2xl font-bold text-[#D4AF37]">{overallPct}%</div>
+          <div className="text-2xl font-bold text-[#C9A227]">{overallPct}%</div>
         </div>
         <div>
           <div className="text-xs text-[#A7A29A] uppercase tracking-widest font-semibold mb-1">Phases Complete</div>
@@ -648,7 +648,7 @@ export default function EmpireRoadmapPage() {
         </div>
         <div>
           <div className="text-xs text-[#A7A29A] uppercase tracking-widest font-semibold mb-1">Active Phases</div>
-          <div className="text-2xl font-bold text-amber-400">{activeCount}</div>
+          <div className="text-2xl font-bold text-[#C9A227]">{activeCount}</div>
         </div>
         <div>
           <div className="text-xs text-[#A7A29A] uppercase tracking-widest font-semibold mb-1">Total Phases</div>
@@ -666,15 +666,15 @@ export default function EmpireRoadmapPage() {
         aria-label={`${overallPct}% of empire roadmap complete`}
       >
         <div
-          className="h-full rounded-full bg-[#D4AF37] transition-all duration-700"
+          className="h-full rounded-full bg-[#C9A227] transition-all duration-700"
           style={{ width: `${overallPct}%` }}
         />
       </div>
 
       {/* Active phase callout */}
       {activePhases.length > 0 && (
-        <div className="bg-amber-900/10 border border-amber-700/40 rounded-xl p-4">
-          <div className="text-xs uppercase tracking-widest text-amber-400 font-semibold mb-2">
+        <div className="bg-[#C9A22710] border border-[#C9A22740] rounded-xl p-4">
+          <div className="text-xs uppercase tracking-widest text-[#C9A227] font-semibold mb-2">
             Currently Active
           </div>
           <div className="flex flex-wrap gap-2">
@@ -682,7 +682,7 @@ export default function EmpireRoadmapPage() {
               <button
                 key={p.code}
                 onClick={() => togglePhase(p.code)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-900/20 border border-amber-700/40 text-amber-300 text-sm hover:bg-amber-900/30 transition-colors"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#C9A22720] border border-[#C9A22740] text-[#C9A227] text-sm hover:bg-[#C9A22720]/30 transition-colors"
               >
                 <Zap size={12} />
                 Phase {p.order}: {p.name}

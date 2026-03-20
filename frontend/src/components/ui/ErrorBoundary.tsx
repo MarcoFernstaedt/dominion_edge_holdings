@@ -55,7 +55,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
           )}
           <button
             onClick={this.handleReset}
-            className="flex items-center gap-2 px-4 py-2 rounded bg-[#1B1B1D] border border-[#2A2A2E] text-sm text-[#E8E6E3] hover:border-[#D4AF37] hover:text-[#D4AF37] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37]"
+            className="flex items-center gap-2 px-4 py-2 rounded bg-[#1B1B1D] border border-[#2A2A2E] text-sm text-[#E8E6E3] hover:border-[#C9A227] hover:text-[#C9A227] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A227]"
           >
             <RefreshCw size={14} aria-hidden />
             Try again

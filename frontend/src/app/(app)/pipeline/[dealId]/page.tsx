@@ -27,7 +27,7 @@ export default function DealDetailPage({ params }: { params: { dealId: string } 
       <div className="max-w-3xl mx-auto px-6 py-6 text-center">
         <KanbanSquare size={40} className="mx-auto text-[#A7A29A] mb-3" aria-hidden />
         <p className="text-sm text-[#A7A29A]">Deal not found.</p>
-        <Link href="/pipeline" className="text-[#D4AF37] hover:underline text-sm mt-2 inline-block">← Pipeline</Link>
+        <Link href="/pipeline" className="text-[#C9A227] hover:underline text-sm mt-2 inline-block">← Pipeline</Link>
       </div>
     );
   }
@@ -97,7 +97,7 @@ export default function DealDetailPage({ params }: { params: { dealId: string } 
             <select
               value={deal.stage}
               onChange={(e) => handleStageChange(e.target.value)}
-              className="w-full bg-[#1B1B1D] border border-[#2A2A2E] rounded text-sm text-[#E8E6E3] px-3 py-2 focus:outline-none focus:border-[#D4AF37] mb-3"
+              className="w-full bg-[#1B1B1D] border border-[#2A2A2E] rounded text-sm text-[#E8E6E3] px-3 py-2 focus:outline-none focus:border-[#C9A227] mb-3"
               aria-label="Change deal stage"
             >
               {STAGE_ORDER.map((s) => (
@@ -112,8 +112,8 @@ export default function DealDetailPage({ params }: { params: { dealId: string } 
                 const isCurrent = i === current;
                 return (
                   <div key={s} className="flex items-center gap-2">
-                    <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${isCurrent ? 'bg-[#D4AF37]' : isPast ? 'bg-[#3FA66B]' : 'bg-[#2A2A2E]'}`} aria-hidden />
-                    <span className={`text-xs ${isCurrent ? 'text-[#D4AF37] font-semibold' : isPast ? 'text-[#3FA66B]' : 'text-[#A7A29A]'}`}>
+                    <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${isCurrent ? 'bg-[#C9A227]' : isPast ? 'bg-[#3FA66B]' : 'bg-[#2A2A2E]'}`} aria-hidden />
+                    <span className={`text-xs ${isCurrent ? 'text-[#C9A227] font-semibold' : isPast ? 'text-[#3FA66B]' : 'text-[#A7A29A]'}`}>
                       {STAGE_LABELS[s]}
                     </span>
                   </div>
@@ -138,7 +138,7 @@ export default function DealDetailPage({ params }: { params: { dealId: string } 
               {deal.estimatedSDE && (
                 <div>
                   <dt className="text-[9px] tracking-widest uppercase text-[#A7A29A]">SDE Est.</dt>
-                  <dd className="text-sm text-[#D4AF37] mt-0.5">{formatCurrency(deal.estimatedSDE)}</dd>
+                  <dd className="text-sm text-[#C9A227] mt-0.5">{formatCurrency(deal.estimatedSDE)}</dd>
                 </div>
               )}
               {deal.askingPrice && (
@@ -169,8 +169,8 @@ export default function DealDetailPage({ params }: { params: { dealId: string } 
           </div>
 
           {deal.dealThesis && (
-            <div className="bg-[#141414] border border-[#D4AF3720] rounded-md p-4">
-              <h2 className="text-[10px] tracking-widest uppercase font-medium text-[#D4AF37] mb-2">Deal Thesis</h2>
+            <div className="bg-[#141414] border border-[#C9A22720] rounded-md p-4">
+              <h2 className="text-[10px] tracking-widest uppercase font-medium text-[#C9A227] mb-2">Deal Thesis</h2>
               <p className="text-sm text-[#E8E6E3]">{deal.dealThesis}</p>
             </div>
           )}

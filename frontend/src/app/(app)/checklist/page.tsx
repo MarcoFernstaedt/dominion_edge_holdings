@@ -39,7 +39,7 @@ function ChecklistItemRow({
           onClick={onToggle}
           className={cn(
             'flex-shrink-0 mt-0.5 transition-colors duration-150',
-            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37] rounded',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A227] rounded',
             item.isComplete ? 'text-[#3FA66B]' : 'text-[#A7A29A] hover:text-[#E8E6E3]'
           )}
           aria-label={`${item.isComplete ? 'Uncheck' : 'Complete'}: ${item.title}`}
@@ -85,7 +85,7 @@ function ChecklistItemRow({
         {hasDetails && (
           <button
             onClick={() => setExpanded((e) => !e)}
-            className="flex-shrink-0 text-[#A7A29A] hover:text-[#E8E6E3] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37] rounded"
+            className="flex-shrink-0 text-[#A7A29A] hover:text-[#E8E6E3] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A227] rounded"
             aria-label={expanded ? 'Hide details' : 'Show details'}
             aria-expanded={expanded}
           >
@@ -101,8 +101,8 @@ function ChecklistItemRow({
             <p className="text-xs text-[#A7A29A]">{item.description}</p>
           )}
           {item.whyItMatters && (
-            <div className="bg-[#D4AF3708] border border-[#D4AF3720] rounded p-2.5">
-              <div className="text-[9px] tracking-widest uppercase text-[#D4AF37] mb-1">Why it matters</div>
+            <div className="bg-[#C9A22708] border border-[#C9A22720] rounded p-2.5">
+              <div className="text-[9px] tracking-widest uppercase text-[#C9A227] mb-1">Why it matters</div>
               <p className="text-xs text-[#E8E6E3]">{item.whyItMatters}</p>
             </div>
           )}
@@ -143,7 +143,7 @@ function PhaseAccordion({
         className={cn(
           'w-full flex items-center justify-between px-5 py-4 text-left',
           'hover:bg-[#1B1B1D] transition-colors duration-150',
-          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#D4AF37]'
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#C9A227]'
         )}
         aria-expanded={open}
         aria-controls={`phase-${phase.id}-items`}
@@ -230,7 +230,7 @@ export default function ChecklistPage() {
         <div className="flex items-end justify-between mb-3">
           <div>
             <div className="text-[9px] tracking-widest uppercase text-[#A7A29A] mb-1">Overall Progress</div>
-            <div className="font-serif text-2xl font-bold text-[#D4AF37]">{overallPct}%</div>
+            <div className="font-serif text-2xl font-bold text-[#C9A227]">{overallPct}%</div>
             <div className="text-xs text-[#A7A29A]">{completedItems} of {totalItems} steps complete</div>
           </div>
           <div className="text-right">
@@ -247,7 +247,7 @@ export default function ChecklistPage() {
           aria-label={`Overall checklist ${overallPct}% complete`}
         >
           <div
-            className="h-full rounded-full bg-[#D4AF37] transition-all duration-700"
+            className="h-full rounded-full bg-[#C9A227] transition-all duration-700"
             style={{ width: `${overallPct}%` }}
           />
         </div>
