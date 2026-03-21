@@ -176,6 +176,7 @@ export function SidebarNav({ collapsed, onToggle, isMobile = false }: SidebarNav
           <div
             className="w-6 h-6 rounded-[4px] flex items-center justify-center flex-shrink-0 font-bold text-[11px] text-black"
             style={{ background: '#C9A227' }}
+            suppressHydrationWarning
             aria-hidden="true"
           >
             D
