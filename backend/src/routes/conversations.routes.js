@@ -1,106 +1,20 @@
 import express from 'express';
-import store   from '../store.js';
-import ConversationMetricsService from '../../services/ConversationMetricsService.js';
-import NotificationService        from '../../services/NotificationService.js';
-import { validate }               from '../middleware/validate.js';
-import { errorResponse }          from '../middleware/errorResponse.js';
+import { validate } from '../middleware/validate.js';
 import { ConversationSchema, ConversationPatchSchema, ConversationTargetSchema } from '../../schemas/index.js';
+import * as controller from '../controllers/conversations.controller.js';
 
 const router = express.Router();
 
-router.get('/api/conversations/kpi', (req, res) => {
-  try {
-    const weekStart = req.query.weekStart ? String(req.query.weekStart) : undefined;
-    res.json(ConversationMetricsService.getKPIStatus(weekStart));
-  } catch (err) { errorResponse(res, 500, 'INTERNAL_ERROR', err.message); }
-});
-
-router.get('/api/conversations/weekly-report', (req, res) => {
-  try {
-    const weekStart = req.query.weekStart ? String(req.query.weekStart) : undefined;
-    res.json(ConversationMetricsService.getWeeklyReport(weekStart));
-  } catch (err) { errorResponse(res, 500, 'INTERNAL_ERROR', err.message); }
-});
-
-router.get('/api/conversations/trends', (req, res) => {
-  try {
-    const weeksBack = req.query.weeks ? Math.min(52, parseInt(req.query.weeks, 10)) : 8;
-    res.json({ trends: ConversationMetricsService.calculateConversationTrends(weeksBack) });
-  } catch (err) { errorResponse(res, 500, 'INTERNAL_ERROR', err.message); }
-});
-
-router.get('/api/conversations/pipeline-health', (req, res) => {
-  try { res.json({ alerts: ConversationMetricsService.getPipelineHealthAlerts() }); }
-  catch (err) { errorResponse(res, 500, 'INTERNAL_ERROR', err.message); }
-});
-
-router.get('/api/conversations/targets', (req, res) => {
-  try { res.json({ targets: ConversationMetricsService.getTargets() }); }
-  catch (err) { errorResponse(res, 500, 'INTERNAL_ERROR', err.message); }
-});
-
-router.patch('/api/conversations/targets', validate(ConversationTargetSchema), (req, res) => {
-  try {
-    const { entityType, weeklyTarget } = req.validated;
-    const updated = ConversationMetricsService.setTarget(entityType, weeklyTarget);
-    res.json({ targets: updated });
-  } catch (err) { errorResponse(res, 500, 'INTERNAL_ERROR', err.message); }
-});
-
-router.get('/api/conversations/agent-context', (req, res) => {
-  try { res.json(ConversationMetricsService.getAgentContext()); }
-  catch (err) { errorResponse(res, 500, 'INTERNAL_ERROR', err.message); }
-});
-
-router.get('/api/conversations', (req, res) => {
-  try {
-    const { entityType, conversationType, search, dateFrom, dateTo, sortDir, page, pageSize } = req.query;
-    res.json(ConversationMetricsService.listConversations({
-      entityType:       entityType       ? String(entityType)       : undefined,
-      conversationType: conversationType ? String(conversationType) : undefined,
-      search:           search           ? String(search).slice(0, 200) : undefined,
-      dateFrom:         dateFrom         ? String(dateFrom)         : undefined,
-      dateTo:           dateTo           ? String(dateTo)           : undefined,
-      sortDir:          sortDir          ? String(sortDir)          : 'desc',
-      page:             page             ? parseInt(page, 10)       : 1,
-      pageSize:         pageSize         ? parseInt(pageSize, 10)   : 50,
-    }));
-  } catch (err) { errorResponse(res, 500, 'INTERNAL_ERROR', err.message); }
-});
-
-router.post('/api/conversations', validate(ConversationSchema), (req, res) => {
-  try {
-    const conversation = ConversationMetricsService.recordConversation(req.validated);
-
-    const alerts = ConversationMetricsService.getPipelineHealthAlerts();
-    for (const alert of alerts.filter((a) => a.severity === 'critical')) {
-      const n = NotificationService.createNotification({
-        type:     'system',
-        title:    alert.title,
-        message:  alert.message,
-        priority: 'high',
-      });
-      store.notifications = [n, ...(store.notifications || [])].slice(0, 100);
-    }
-
-    res.status(201).json({ conversation });
-  } catch (err) { errorResponse(res, 500, 'INTERNAL_ERROR', err.message); }
-});
-
-router.patch('/api/conversations/:id', validate(ConversationPatchSchema), (req, res) => {
-  try {
-    const updated = ConversationMetricsService.updateConversation(req.params.id, req.validated);
-    if (!updated) return errorResponse(res, 404, 'NOT_FOUND', 'Conversation not found');
-    res.json({ conversation: updated });
-  } catch (err) { errorResponse(res, 500, 'INTERNAL_ERROR', err.message); }
-});
-
-router.delete('/api/conversations/:id', (req, res) => {
-  try {
-    const deleted = ConversationMetricsService.deleteConversation(req.params.id);
-    if (!deleted) return errorResponse(res, 404, 'NOT_FOUND', 'Conversation not found');
-    res.json({ deleted: true });
-  } catch (err) { errorResponse(res, 500, 'INTERNAL_ERROR', err.message); }
-});
+router.get('/api/conversations/kpi',             controller.getKpi);
+router.get('/api/conversations/weekly-report',   controller.getWeeklyReport);
+router.get('/api/conversations/trends',          controller.getTrends);
+router.get('/api/conversations/pipeline-health', controller.getPipelineHealth);
+router.get('/api/conversations/targets',         controller.getTargets);
+router.patch('/api/conversations/targets',       validate(ConversationTargetSchema), controller.setTarget);
+router.get('/api/conversations/agent-context',   controller.getAgentContext);
+router.get('/api/conversations',                 controller.list);
+router.post('/api/conversations',                validate(ConversationSchema),       controller.create);
+router.patch('/api/conversations/:id',           validate(ConversationPatchSchema),  controller.update);
+router.delete('/api/conversations/:id',          controller.remove);
 
 export default router;
