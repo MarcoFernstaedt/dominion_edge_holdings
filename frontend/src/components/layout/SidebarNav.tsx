@@ -181,7 +181,23 @@ export function SidebarNav({ collapsed, onToggle, isMobile = false }: SidebarNav
             D
           </div>
 
-          {showLabel && (
+          {showLabel && !isMobile && (
+            /* Desktop: stacked "Dominion Edge / Holdings" with side rule lines */
+            <div className="min-w-0 flex-1 flex items-center justify-center gap-2">
+              <div className="flex-1 h-px bg-[#C9A22740]" aria-hidden="true" />
+              <div className="text-center shrink-0">
+                <div className="text-[11px] font-bold tracking-[0.10em] text-[#C9A227] leading-tight">
+                  DOMINION EDGE
+                </div>
+                <div className="text-[9px] font-semibold tracking-[0.18em] text-[#C9A22799] leading-tight uppercase">
+                  Holdings
+                </div>
+              </div>
+              <div className="flex-1 h-px bg-[#C9A22740]" aria-hidden="true" />
+            </div>
+          )}
+          {showLabel && isMobile && (
+            /* Mobile drawer: compact inline label */
             <div className="min-w-0">
               <div className="text-[11px] font-bold tracking-[0.12em] text-[#C9A227] leading-tight truncate">
                 DOMINION EDGE HOLDINGS

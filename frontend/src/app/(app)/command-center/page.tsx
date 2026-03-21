@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/lib/store';
 import { AFFIRMATIONS } from '@/data/affirmations';
 import { Button } from '@/components/ui/Button';
@@ -29,6 +30,35 @@ import type {
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+
+/**
+ * Maps a NextBestAction to the route the user should navigate to when they
+ * click "Start Now". Returns the most specific URL possible.
+ */
+function getActionRoute(action: NextBestAction): string {
+  switch (action.actionType) {
+    case 'task':
+      return '/command-center'; // scroll to task panel on same page
+    case 'email':
+      return '/inbox';
+    case 'board':
+      return action.linkedEntityId
+        ? `/board`
+        : '/board';
+    case 'deal':
+      return action.linkedEntityId
+        ? `/pipeline/${action.linkedEntityId}`
+        : '/pipeline';
+    case 'checklist':
+      return '/checklist';
+    case 'outreach':
+      return '/outreach';
+    case 'meeting':
+      return '/meetings';
+    default:
+      return '/checklist';
+  }
+}
 
 function generateNextBestActions(
   tasks: Task[], deals: Deal[], emailThreads: EmailThread[],
@@ -91,8 +121,14 @@ function generateNextBestActions(
 // ─── Zone 1: Hero — single best next action ───────────────────────────────────
 
 function HeroAction({ action }: { action: NextBestAction }) {
+  const router = useRouter();
   const urgencyColor = { critical: '#D64545', high: '#E6A23C', medium: '#4D7EA8', low: '#737373' };
   const color = urgencyColor[action.urgency] ?? '#737373';
+  const route = getActionRoute(action);
+
+  function handleStartNow() {
+    router.push(route);
+  }
 
   return (
     <div
@@ -113,7 +149,7 @@ function HeroAction({ action }: { action: NextBestAction }) {
         </div>
       </div>
       <div className="flex-shrink-0">
-        <Button variant="primary" size="lg">
+        <Button variant="primary" size="lg" onClick={handleStartNow}>
           Start Now <ArrowRight size={14} aria-hidden />
         </Button>
       </div>

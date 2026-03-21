@@ -739,22 +739,26 @@ export interface ProbabilityFactors {
 export interface AppState {
   // Companies
   companies: Company[];
+  setCompanies: (companies: Company[]) => void;
   addCompany: (company: Company) => void;
   updateCompany: (id: ID, updates: Partial<Company>) => void;
   deleteCompany: (id: ID) => void;
 
   // Contacts
   contacts: Contact[];
+  setContacts: (contacts: Contact[]) => void;
   addContact: (contact: Contact) => void;
   updateContact: (id: ID, updates: Partial<Contact>) => void;
   deleteContact: (id: ID) => void;
 
   // Interactions
   interactions: Interaction[];
+  setInteractions: (interactions: Interaction[]) => void;
   addInteraction: (interaction: Interaction) => void;
 
   // Deals
   deals: Deal[];
+  setDeals: (deals: Deal[]) => void;
   addDeal: (deal: Deal) => void;
   updateDeal: (id: ID, updates: Partial<Deal>) => void;
   deleteDeal: (id: ID) => void;
@@ -783,6 +787,7 @@ export interface AppState {
 
   // Tasks
   tasks: Task[];
+  setTasks: (tasks: Task[]) => void;
   addTask: (task: Task) => void;
   updateTask: (id: ID, updates: Partial<Task>) => void;
   deleteTask: (id: ID) => void;

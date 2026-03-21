@@ -58,6 +58,7 @@ export const useAppStore = create<AppState>()(
     (set, get) => ({
       // ── Companies ──────────────────────────────────────────────────────────
       companies: [],
+      setCompanies: (companies: Company[]) => set({ companies }),
       addCompany: (company: Company) =>
         set((s) => ({ companies: [...s.companies, company] })),
       updateCompany: (id: ID, updates: Partial<Company>) =>
@@ -71,6 +72,7 @@ export const useAppStore = create<AppState>()(
 
       // ── Contacts ───────────────────────────────────────────────────────────
       contacts: [],
+      setContacts: (contacts: Contact[]) => set({ contacts }),
       addContact: (contact: Contact) =>
         set((s) => ({ contacts: [...s.contacts, contact] })),
       updateContact: (id: ID, updates: Partial<Contact>) =>
@@ -84,11 +86,13 @@ export const useAppStore = create<AppState>()(
 
       // ── Interactions ───────────────────────────────────────────────────────
       interactions: [],
+      setInteractions: (interactions: Interaction[]) => set({ interactions }),
       addInteraction: (interaction: Interaction) =>
         set((s) => ({ interactions: [...s.interactions, interaction] })),
 
       // ── Deals ──────────────────────────────────────────────────────────────
       deals: [],
+      setDeals: (deals: Deal[]) => set({ deals }),
       addDeal: (deal: Deal) =>
         set((s) => ({ deals: [...s.deals, deal] })),
       updateDeal: (id: ID, updates: Partial<Deal>) =>
@@ -161,6 +165,7 @@ export const useAppStore = create<AppState>()(
 
       // ── Tasks ──────────────────────────────────────────────────────────────
       tasks: [],
+      setTasks: (tasks: Task[]) => set({ tasks }),
       addTask: (task: Task) =>
         set((s) => ({ tasks: [...s.tasks, task] })),
       updateTask: (id: ID, updates: Partial<Task>) =>
@@ -303,32 +308,17 @@ export const useAppStore = create<AppState>()(
       storage: createJSONStorage(() =>
         typeof window !== 'undefined' ? localStorage : { getItem: () => null, setItem: () => {}, removeItem: () => {} }
       ),
+      // ── Persist only non-sensitive UI preferences ──────────────────────────
+      // Business data (companies, contacts, deals, tasks, interactions, etc.)
+      // lives in PostgreSQL and is hydrated from the API on mount via useBootstrap.
+      // localStorage is intentionally excluded from all business entity data.
       partialize: (state) => ({
-        companies: state.companies,
-        contacts: state.contacts,
-        interactions: state.interactions,
-        deals: state.deals,
-        underwritingScenarios: state.underwritingScenarios,
-        boardSeats: state.boardSeats,
-        boardCandidates: state.boardCandidates,
-        capTable: state.capTable,
-        checklistPhases: state.checklistPhases,
-        tasks: state.tasks,
-        documents: state.documents,
-        emailThreads: state.emailThreads,
-        outreachTemplates: state.outreachTemplates,
-        meetings: state.meetings,
-        meetingPrepPackets: state.meetingPrepPackets,
-        sourcingCandidates: state.sourcingCandidates,
-        sourceAdapters: state.sourceAdapters,
-        sourcingRadarRuns: state.sourcingRadarRuns,
         settings: state.settings,
         currentAffirmationIndex: state.currentAffirmationIndex,
-        investors: state.investors,
-        capitalStacks: state.capitalStacks,
-        investorMemos: state.investorMemos,
-        firmMessaging: state.firmMessaging,
-        pitchDecks: state.pitchDecks,
+        // Checklist and board seats are seeded from static data and safe to cache
+        checklistPhases: state.checklistPhases,
+        boardSeats: state.boardSeats,
+        outreachTemplates: state.outreachTemplates,
       }),
     }
   )

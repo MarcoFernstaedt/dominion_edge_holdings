@@ -241,6 +241,17 @@ const EMPIRE_PHASES = [
 ];
 
 async function main() {
+  // ─── System User ─────────────────────────────────────────────────────────
+  console.log('Seeding system user...');
+  const systemUser = await db.user.upsert({
+    where: { email: 'marco@dominionedgeholdings.com' },
+    update: { name: 'Marco Fernstaedt', role: 'owner' },
+    create: { email: 'marco@dominionedgeholdings.com', name: 'Marco Fernstaedt', role: 'owner' },
+  });
+  console.log(`System user ready: ${systemUser.id}`);
+  console.log(`\nEnsure .env contains:\nSYSTEM_USER_ID=${systemUser.id}\n`);
+
+  // ─── Empire Phases ───────────────────────────────────────────────────────
   console.log('Seeding Empire Phases...');
   for (const phase of EMPIRE_PHASES) {
     await db.empirePhase.upsert({

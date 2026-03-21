@@ -97,6 +97,9 @@ import CredibilityIndex       from './services/CredibilityIndex.js';
 import NetworkAlerts          from './services/NetworkAlerts.js';
 import ExportService          from './services/ExportService.js';
 
+// ─── Database repository (Prisma-backed, falls back to in-memory) ─────────────
+import repo from './db/repo.js';
+
 dotenv.config();
 
 // ─── Environment validation ───────────────────────────────────────────────────
@@ -599,209 +602,132 @@ app.get('/api/dashboard/briefing', async (req, res) => {
 });
 
 // ─── Companies ────────────────────────────────────────────────────────────────
-app.get('/api/companies', (req, res) => {
-  try {
-    const { status, search, industry } = req.query;
-    let results = [...store.companies];
+app.get('/api/companies', asyncRoute(async (req, res) => {
+  const { status, search, industry } = req.query;
+  const results = await repo.companies.list({ status, search, industry }, store);
+  res.json(results);
+}));
 
-    if (status && typeof status === 'string') results = results.filter((c) => c.status === status);
-    if (industry && typeof industry === 'string') results = results.filter((c) => c.industry === industry);
-    if (search && typeof search === 'string') {
-      const q = search.toLowerCase().slice(0, 100); // cap search length
-      results = results.filter(
-        (c) => c.name?.toLowerCase().includes(q) || c.ownerName?.toLowerCase().includes(q)
-      );
-    }
+app.post('/api/companies', validate(CompanySchema), asyncRoute(async (req, res) => {
+  const validated = req.validated;
+  const sellerSignalScore = SELLER_SIGNAL_FIELDS.filter((f) => validated[f]).length;
+  const company = {
+    id: uid(),
+    createdAt: nowIso(),
+    updatedAt: nowIso(),
+    status: 'target',
+    sellerConversationStatus: 'not_contacted',
+    pipelinePressureLevel: 'active',
+    daysSinceLastInteraction: 0,
+    sellerSignalScore: Math.max(sellerSignalScore, validated.sellerSignalScore ?? 0),
+    ...validated,
+  };
+  const created = await repo.companies.create(company, store);
+  res.status(201).json(created);
+}));
 
-    results.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-    res.json(results);
-  } catch (err) {
-    console.error('[GET /api/companies]', err);
-    errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to retrieve companies');
+app.get('/api/companies/:id', asyncRoute(async (req, res) => {
+  const company = await repo.companies.get(req.params.id, store);
+  if (!company) return errorResponse(res, 404, 'NOT_FOUND', 'Company not found');
+  const interactions = store.interactions.filter((i) => i.companyId === req.params.id);
+  const deals = store.deals.filter((d) => d.companyId === req.params.id);
+  res.json({ ...company, interactions, deals });
+}));
+
+app.patch('/api/companies/:id', validate(CompanySchema.partial()), asyncRoute(async (req, res) => {
+  const existing = await repo.companies.get(req.params.id, store);
+  if (!existing) return errorResponse(res, 404, 'NOT_FOUND', 'Company not found');
+  const updates = { ...req.validated, updatedAt: nowIso() };
+  if (SELLER_SIGNAL_FIELDS.some((f) => f in req.validated)) {
+    const merged = { ...existing, ...updates };
+    updates.sellerSignalScore = SELLER_SIGNAL_FIELDS.filter((f) => merged[f]).length;
   }
-});
+  const updated = await repo.companies.update(req.params.id, updates, store);
+  res.json(updated);
+}));
 
-app.post('/api/companies', validate(CompanySchema), (req, res) => {
-  try {
-    const validated = req.validated;
-    const sellerSignalScore = SELLER_SIGNAL_FIELDS.filter((f) => validated[f]).length;
-    const company = {
-      id: uid(),
-      createdAt: nowIso(),
-      updatedAt: nowIso(),
-      status: 'target',
-      sellerConversationStatus: 'not_contacted',
-      pipelinePressureLevel: 'active',
-      daysSinceLastInteraction: 0,
-      sellerSignalScore,
-      ...validated,
-      sellerSignalScore: Math.max(sellerSignalScore, validated.sellerSignalScore ?? 0),
-    };
-    store.companies.push(company);
-    res.status(201).json(company);
-  } catch (err) {
-    console.error('[POST /api/companies]', err);
-    errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to create company');
-  }
-});
-
-app.get('/api/companies/:id', (req, res) => {
-  try {
-    const company = findById(store.companies, req.params.id);
-    if (!company) return errorResponse(res, 404, 'NOT_FOUND', 'Company not found');
-
-    const interactions = store.interactions.filter((i) => i.companyId === req.params.id);
-    const deals = store.deals.filter((d) => d.companyId === req.params.id);
-    res.json({ ...company, interactions, deals });
-  } catch (err) {
-    console.error('[GET /api/companies/:id]', err);
-    errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to retrieve company');
-  }
-});
-
-app.patch('/api/companies/:id', validate(CompanySchema.partial()), (req, res) => {
-  try {
-    const idx = store.companies.findIndex((c) => c.id === req.params.id);
-    if (idx === -1) return errorResponse(res, 404, 'NOT_FOUND', 'Company not found');
-    const merged = { ...store.companies[idx], ...req.validated, updatedAt: nowIso() };
-    if (SELLER_SIGNAL_FIELDS.some((f) => f in req.validated)) {
-      merged.sellerSignalScore = SELLER_SIGNAL_FIELDS.filter((f) => merged[f]).length;
-    }
-    store.companies[idx] = merged;
-    res.json(store.companies[idx]);
-  } catch (err) {
-    console.error('[PATCH /api/companies/:id]', err);
-    errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to update company');
-  }
-});
-
-app.delete('/api/companies/:id', (req, res) => {
-  try {
-    const exists = findById(store.companies, req.params.id);
-    if (!exists) return errorResponse(res, 404, 'NOT_FOUND', 'Company not found');
-    store.companies = store.companies.filter((c) => c.id !== req.params.id);
-    res.status(204).end();
-  } catch (err) {
-    console.error('[DELETE /api/companies/:id]', err);
-    errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to delete company');
-  }
-});
+app.delete('/api/companies/:id', asyncRoute(async (req, res) => {
+  const existing = await repo.companies.get(req.params.id, store);
+  if (!existing) return errorResponse(res, 404, 'NOT_FOUND', 'Company not found');
+  await repo.companies.delete(req.params.id, store);
+  res.status(204).end();
+}));
 
 // ─── Contacts ─────────────────────────────────────────────────────────────────
-app.get('/api/contacts', (req, res) => {
-  try {
-    const { companyId, type } = req.query;
-    let results = [...store.contacts];
-    if (companyId && typeof companyId === 'string') results = results.filter((c) => c.companyId === companyId);
-    if (type && typeof type === 'string') results = results.filter((c) => c.contactType === type);
-    res.json(results);
-  } catch (err) {
-    errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to retrieve contacts');
-  }
-});
+app.get('/api/contacts', asyncRoute(async (req, res) => {
+  const { companyId, type, search } = req.query;
+  const results = await repo.contacts.list({ companyId, contactType: type, search }, store);
+  res.json(results);
+}));
 
-app.post('/api/contacts', validate(ContactSchema), (req, res) => {
-  try {
-    const contact = {
-      id: uid(),
-      createdAt: nowIso(),
-      updatedAt: nowIso(),
-      fullName: [req.validated.firstName, req.validated.lastName].filter(Boolean).join(' '),
-      ...req.validated,
-    };
-    store.contacts.push(contact);
-    res.status(201).json(contact);
-  } catch (err) {
-    errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to create contact');
-  }
-});
+app.post('/api/contacts', validate(ContactSchema), asyncRoute(async (req, res) => {
+  const contact = {
+    id: uid(),
+    createdAt: nowIso(),
+    updatedAt: nowIso(),
+    fullName: [req.validated.firstName, req.validated.lastName].filter(Boolean).join(' '),
+    name:     [req.validated.firstName, req.validated.lastName].filter(Boolean).join(' '),
+    ...req.validated,
+  };
+  const created = await repo.contacts.create(contact, store);
+  res.status(201).json(created);
+}));
 
-app.get('/api/contacts/:id', (req, res) => {
-  try {
-    const contact = findById(store.contacts, req.params.id);
-    if (!contact) return errorResponse(res, 404, 'NOT_FOUND', 'Contact not found');
-    const interactions = store.interactions.filter((i) => i.contactId === req.params.id);
-    res.json({ ...contact, interactions });
-  } catch (err) {
-    errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to retrieve contact');
-  }
-});
+app.get('/api/contacts/:id', asyncRoute(async (req, res) => {
+  const contact = await repo.contacts.get(req.params.id, store);
+  if (!contact) return errorResponse(res, 404, 'NOT_FOUND', 'Contact not found');
+  const interactions = store.interactions.filter((i) => i.contactId === req.params.id);
+  res.json({ ...contact, interactions });
+}));
 
-app.patch('/api/contacts/:id', validate(ContactSchema.partial()), (req, res) => {
-  try {
-    const idx = store.contacts.findIndex((c) => c.id === req.params.id);
-    if (idx === -1) return errorResponse(res, 404, 'NOT_FOUND', 'Contact not found');
-    store.contacts[idx] = { ...store.contacts[idx], ...req.validated, updatedAt: nowIso() };
-    res.json(store.contacts[idx]);
-  } catch (err) {
-    errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to update contact');
-  }
-});
+app.patch('/api/contacts/:id', validate(ContactSchema.partial()), asyncRoute(async (req, res) => {
+  const existing = await repo.contacts.get(req.params.id, store);
+  if (!existing) return errorResponse(res, 404, 'NOT_FOUND', 'Contact not found');
+  const updated = await repo.contacts.update(req.params.id, { ...req.validated, updatedAt: nowIso() }, store);
+  res.json(updated);
+}));
 
 // ─── Interactions ─────────────────────────────────────────────────────────────
-app.get('/api/interactions', (req, res) => {
-  try {
-    const { companyId, contactId, dealId } = req.query;
-    let results = [...store.interactions];
-    if (companyId && typeof companyId === 'string') results = results.filter((i) => i.companyId === companyId);
-    if (contactId && typeof contactId === 'string') results = results.filter((i) => i.contactId === contactId);
-    if (dealId && typeof dealId === 'string') results = results.filter((i) => i.dealId === dealId);
-    results.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-    res.json(results);
-  } catch (err) {
-    errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to retrieve interactions');
-  }
-});
+app.get('/api/interactions', asyncRoute(async (req, res) => {
+  const { companyId, contactId, dealId, interactionType } = req.query;
+  const results = await repo.interactions.list({ companyId, contactId, dealId, interactionType }, store);
+  res.json(results);
+}));
 
-app.post('/api/interactions', validate(InteractionSchema), (req, res) => {
-  try {
-    const interaction = { id: uid(), createdAt: nowIso(), ...req.validated };
-    store.interactions.push(interaction);
+app.post('/api/interactions', validate(InteractionSchema), asyncRoute(async (req, res) => {
+  const interaction = { id: uid(), createdAt: nowIso(), ...req.validated };
+  const created = await repo.interactions.create(interaction, store);
 
-    const now = nowIso();
-    if (interaction.companyId) touchEntity(store.companies, interaction.companyId, now);
-    if (interaction.contactId) touchEntity(store.contacts,  interaction.contactId,  now);
-    if (interaction.dealId)    touchEntity(store.deals,     interaction.dealId,     now);
+  const now = nowIso();
+  if (created.companyId) touchEntity(store.companies, created.companyId, now);
+  if (created.contactId) touchEntity(store.contacts,  created.contactId,  now);
+  if (created.dealId)    touchEntity(store.deals,     created.dealId,     now);
 
-    res.status(201).json(interaction);
-  } catch (err) {
-    errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to create interaction');
-  }
-});
+  res.status(201).json(created);
+}));
 
 // ─── Deals ────────────────────────────────────────────────────────────────────
-app.get('/api/deals', (req, res) => {
-  try {
-    const { status, stage } = req.query;
-    let results = [...store.deals];
-    if (status && typeof status === 'string') results = results.filter((d) => d.status === status);
-    if (stage && typeof stage === 'string') results = results.filter((d) => d.stage === stage);
-    results.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
-    res.json(results);
-  } catch (err) {
-    errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to retrieve deals');
-  }
-});
+app.get('/api/deals', asyncRoute(async (req, res) => {
+  const { status, stage, companyId } = req.query;
+  const results = await repo.deals.list({ status, stage, companyId }, store);
+  res.json(results);
+}));
 
-app.post('/api/deals', validate(DealSchema), (req, res) => {
-  try {
-    const deal = {
-      id: uid(),
-      createdAt: nowIso(),
-      updatedAt: nowIso(),
-      status: 'active',
-      stage: 'identified',
-      stageEnteredAt: nowIso(),
-      pipelinePressureLevel: 'active',
-      daysSinceLastInteraction: 0,
-      ...req.validated,
-    };
-    store.deals.push(deal);
-    res.status(201).json(deal);
-  } catch (err) {
-    errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to create deal');
-  }
-});
+app.post('/api/deals', validate(DealSchema), asyncRoute(async (req, res) => {
+  const deal = {
+    id: uid(),
+    createdAt: nowIso(),
+    updatedAt: nowIso(),
+    status: 'active',
+    stage: 'identified',
+    stageEnteredAt: nowIso(),
+    pipelinePressureLevel: 'active',
+    daysSinceLastInteraction: 0,
+    ...req.validated,
+  };
+  const created = await repo.deals.create(deal, store);
+  res.status(201).json(created);
+}));
 
 app.get('/api/deals/:id', (req, res) => {
   try {
@@ -1527,66 +1453,42 @@ app.patch('/api/checklist/items/:itemId/complete', (req, res) => {
 });
 
 // ─── Tasks ────────────────────────────────────────────────────────────────────
-app.get('/api/tasks', (req, res) => {
-  try {
-    const { status, priority } = req.query;
-    let results = [...store.tasks];
-    if (status && typeof status === 'string') results = results.filter((t) => t.status === status);
-    if (priority && typeof priority === 'string') results = results.filter((t) => t.priority === priority);
-    results.sort((a, b) => {
-      if (a.dueDate && b.dueDate) return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
-      if (a.dueDate) return -1;
-      if (b.dueDate) return 1;
-      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-    });
-    res.json(results);
-  } catch (err) {
-    errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to retrieve tasks');
-  }
-});
+app.get('/api/tasks', asyncRoute(async (req, res) => {
+  const { status, priority, companyId, dealId } = req.query;
+  const results = await repo.tasks.list({ status, priority, companyId, dealId }, store);
+  res.json(results);
+}));
 
-app.post('/api/tasks', validate(TaskSchema), (req, res) => {
-  try {
-    const task = {
-      id: uid(),
-      createdAt: nowIso(),
-      updatedAt: nowIso(),
-      status: 'todo',
-      priority: 'medium',
-      ...req.validated,
-    };
-    store.tasks.push(task);
-    res.status(201).json(task);
-  } catch (err) {
-    errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to create task');
-  }
-});
+app.post('/api/tasks', validate(TaskSchema), asyncRoute(async (req, res) => {
+  const task = {
+    id: uid(),
+    createdAt: nowIso(),
+    updatedAt: nowIso(),
+    status: 'todo',
+    priority: 'medium',
+    ...req.validated,
+  };
+  const created = await repo.tasks.create(task, store);
+  res.status(201).json(created);
+}));
 
-app.patch('/api/tasks/:id', validate(TaskSchema.partial()), (req, res) => {
-  try {
-    const idx = store.tasks.findIndex((t) => t.id === req.params.id);
-    if (idx === -1) return errorResponse(res, 404, 'NOT_FOUND', 'Task not found');
-    const updates = { ...req.validated, updatedAt: nowIso() };
-    if (updates.status === 'done' && !store.tasks[idx].completedAt) {
-      updates.completedAt = nowIso();
-    }
-    store.tasks[idx] = { ...store.tasks[idx], ...updates };
-    res.json(store.tasks[idx]);
-  } catch (err) {
-    errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to update task');
+app.patch('/api/tasks/:id', validate(TaskSchema.partial()), asyncRoute(async (req, res) => {
+  const existing = await repo.tasks.get(req.params.id, store);
+  if (!existing) return errorResponse(res, 404, 'NOT_FOUND', 'Task not found');
+  const updates = { ...req.validated, updatedAt: nowIso() };
+  if (updates.status === 'done' && !existing.completedAt) {
+    updates.completedAt = nowIso();
   }
-});
+  const updated = await repo.tasks.update(req.params.id, updates, store);
+  res.json(updated);
+}));
 
-app.delete('/api/tasks/:id', (req, res) => {
-  try {
-    const exists = findById(store.tasks, req.params.id);
-    if (!exists) return errorResponse(res, 404, 'NOT_FOUND', 'Task not found');
-    store.tasks = store.tasks.filter((t) => t.id !== req.params.id);
-    res.status(204).end();
-  } catch (err) {
-    errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to delete task');
-  }
-});
+app.delete('/api/tasks/:id', asyncRoute(async (req, res) => {
+  const existing = await repo.tasks.get(req.params.id, store);
+  if (!existing) return errorResponse(res, 404, 'NOT_FOUND', 'Task not found');
+  await repo.tasks.delete(req.params.id, store);
+  res.status(204).end();
+}));
 
 // ─── Inbox ────────────────────────────────────────────────────────────────────
 app.get('/api/inbox/threads', (req, res) => {
@@ -4999,6 +4901,119 @@ if (process.env.NODE_ENV !== 'test') {
       }
     },
   });
+
+  // ─── Automated AI Agent Background Jobs ──────────────────────────────────
+  // These jobs run AI agents automatically without manual API triggers.
+  // All jobs are disabled when ANTHROPIC_API_KEY is not set.
+
+  const aiEnabled = !!process.env.ANTHROPIC_API_KEY;
+
+  // CRM Steward — enriches and scores companies daily
+  BackgroundJobRunner.register({
+    id: 'autoCRMSteward',
+    name: 'AI: CRM Steward (Auto)',
+    intervalMs: 24 * 60 * 60 * 1000, // daily at startup offset
+    enabled: aiEnabled,
+    fn: async () => {
+      if (store.companies.length === 0) return;
+      const stale = store.companies
+        .filter((c) => !c.lastAiEnrichedAt || (Date.now() - new Date(c.lastAiEnrichedAt).getTime()) > 48 * 3600000)
+        .slice(0, 10); // process 10 per run to stay within cost limits
+      for (const company of stale) {
+        try {
+          await AgentOrchestrator.run('CRMStewardAgent', {
+            company,
+            contacts: store.contacts.filter((c) => c.companyId === company.id),
+            interactions: store.interactions.filter((i) => i.companyId === company.id),
+            costFlags: store.settings,
+          });
+        } catch (err) {
+          console.error('[autoCRMSteward] error for', company.id, err.message);
+        }
+      }
+    },
+  });
+
+  // Deal Analysis — auto-scores active deals every 6 hours
+  BackgroundJobRunner.register({
+    id: 'autoDealAnalysis',
+    name: 'AI: Deal Analysis (Auto)',
+    intervalMs: 6 * 60 * 60 * 1000,
+    enabled: aiEnabled,
+    fn: async () => {
+      const activeDeals = store.deals.filter((d) => d.status === 'active').slice(0, 5);
+      for (const deal of activeDeals) {
+        try {
+          const company = store.companies.find((c) => c.id === deal.companyId);
+          await AgentOrchestrator.run('DealAnalysisAgent', {
+            deal,
+            company: company ?? null,
+            interactions: store.interactions.filter((i) => i.dealId === deal.id),
+            costFlags: store.settings,
+          });
+        } catch (err) {
+          console.error('[autoDealAnalysis] error for deal', deal.id, err.message);
+        }
+      }
+    },
+  });
+
+  // Strategy Advisor — daily briefing note to notifications
+  BackgroundJobRunner.register({
+    id: 'autoStrategyAdvisor',
+    name: 'AI: Strategy Advisor Daily Briefing',
+    intervalMs: 24 * 60 * 60 * 1000,
+    enabled: aiEnabled,
+    fn: async () => {
+      try {
+        const result = await AgentOrchestrator.run('StrategyAdvisorAgent', {
+          companies: store.companies.slice(0, 50),
+          deals: store.deals,
+          tasks: store.tasks.filter((t) => t.status !== 'done').slice(0, 20),
+          checklistPhases: store.checklistPhases,
+          costFlags: store.settings,
+        });
+        if (result?.recommendation) {
+          const n = {
+            id: `strategy-${Date.now()}`,
+            type: 'ai_insight',
+            title: 'Strategy Advisor',
+            message: result.recommendation,
+            isRead: false,
+            createdAt: new Date().toISOString(),
+          };
+          store.notifications = [n, ...store.notifications].slice(0, 50);
+        }
+      } catch (err) {
+        console.error('[autoStrategyAdvisor]', err.message);
+      }
+    },
+  });
+
+  // Target Qualification — scores new unqualified companies daily
+  BackgroundJobRunner.register({
+    id: 'autoTargetQualification',
+    name: 'AI: Target Qualification (Auto)',
+    intervalMs: 12 * 60 * 60 * 1000,
+    enabled: aiEnabled,
+    fn: async () => {
+      const unqualified = store.companies
+        .filter((c) => !c.qualificationScore && c.status === 'target')
+        .slice(0, 15);
+      for (const company of unqualified) {
+        try {
+          await AgentOrchestrator.run('TargetQualificationAgent', {
+            company,
+            costFlags: store.settings,
+          });
+        } catch (err) {
+          console.error('[autoTargetQualification] error for', company.id, err.message);
+        }
+      }
+    },
+  });
+
+  // ─── End automated AI agent jobs ─────────────────────────────────────────
 
   // ══════════════════════════════════════════════════════════════════════════
   // BATCH 2 ENGINES — Workflow, Proof, Scoring, Underwriting, Diligence, Seq

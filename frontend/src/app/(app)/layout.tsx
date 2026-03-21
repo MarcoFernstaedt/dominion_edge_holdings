@@ -6,8 +6,11 @@ import { TopBar } from '@/components/layout/TopBar';
 import { CommandPalette } from '@/components/layout/CommandPalette';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { useAppStore } from '@/lib/store';
+import { useBootstrap } from '@/hooks/useBootstrap';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
+  // Hydrate business data from API on mount
+  useBootstrap();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
