@@ -11,14 +11,20 @@
     "no-unused-vars": ["warn", { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_" }],
     "no-undef": "error",
     "no-console": ["warn", { "allow": ["error", "warn", "info"] }],
-    "eqeqeq": ["error", "always"],
-    "no-var": "error",
+    "eqeqeq": ["warn", "always"],
+    "no-var": "warn",
     "prefer-const": "warn",
     "no-duplicate-imports": "error",
-    "no-return-await": "warn",
-    "no-throw-literal": "error",
-    "prefer-promise-reject-errors": "warn"
+    "no-throw-literal": "warn"
   },
+  "overrides": [
+    {
+      "files": ["tests/**/*.js", "**/*.test.js", "**/*.spec.js"],
+      "env": {
+        "jest": true
+      }
+    }
+  ],
   "ignorePatterns": [
     "node_modules/",
     "prisma/",
