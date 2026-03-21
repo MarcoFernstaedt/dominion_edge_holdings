@@ -5,6 +5,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import type {
   AppState,
   AppSettings,
+  Affirmation,
   Company,
   Contact,
   Interaction,
@@ -34,6 +35,7 @@ import type {
 import { CHECKLIST_PHASES } from '@/data/checklistData';
 import { DEFAULT_BOARD_SEATS } from '@/data/boardSeats';
 import { SYSTEM_TEMPLATES } from '@/data/outreachTemplates';
+import { AFFIRMATIONS as DEFAULT_AFFIRMATIONS } from '@/data/affirmations';
 
 const DEFAULT_SETTINGS: AppSettings = {
   reducedMotion: false,
@@ -300,8 +302,26 @@ export const useAppStore = create<AppState>()(
         set((s) => ({ pitchDecks: s.pitchDecks.filter((x) => x.id !== id) })),
 
       // ── Affirmations ───────────────────────────────────────────────────────
+      affirmations: DEFAULT_AFFIRMATIONS,
       currentAffirmationIndex: 0,
       setAffirmationIndex: (idx: number) => set({ currentAffirmationIndex: idx }),
+      addAffirmation: (affirmation: Affirmation) =>
+        set((s) => ({
+          affirmations: [...s.affirmations, { ...affirmation, order: s.affirmations.length + 1 }],
+        })),
+      updateAffirmation: (id: string, updates: Partial<Affirmation>) =>
+        set((s) => ({
+          affirmations: s.affirmations.map((a) => (a.id === id ? { ...a, ...updates } : a)),
+        })),
+      deleteAffirmation: (id: string) =>
+        set((s) => ({
+          affirmations: s.affirmations.filter((a) => a.id !== id),
+          // Reset index if it would be out of bounds
+          currentAffirmationIndex: Math.min(
+            s.currentAffirmationIndex,
+            Math.max(0, s.affirmations.length - 2)
+          ),
+        })),
     }),
     {
       name: 'deh-aos-store',
@@ -314,6 +334,8 @@ export const useAppStore = create<AppState>()(
       // localStorage is intentionally excluded from all business entity data.
       partialize: (state) => ({
         settings: state.settings,
+        // User preferences — affirmations are personalizable, persist all edits
+        affirmations: state.affirmations,
         currentAffirmationIndex: state.currentAffirmationIndex,
         // Checklist and board seats are seeded from static data and safe to cache
         checklistPhases: state.checklistPhases,

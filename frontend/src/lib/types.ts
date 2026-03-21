@@ -839,8 +839,12 @@ export interface AppState {
   updateSettings: (updates: Partial<AppSettings>) => void;
 
   // Affirmations
+  affirmations: Affirmation[];
   currentAffirmationIndex: number;
   setAffirmationIndex: (idx: number) => void;
+  addAffirmation: (affirmation: Affirmation) => void;
+  updateAffirmation: (id: string, updates: Partial<Affirmation>) => void;
+  deleteAffirmation: (id: string) => void;
 
   // Capital Raising
   investors: Investor[];

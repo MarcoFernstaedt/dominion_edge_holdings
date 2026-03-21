@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/lib/store';
-import { AFFIRMATIONS } from '@/data/affirmations';
 import { Button } from '@/components/ui/Button';
 import { Badge, StatusBadge } from '@/components/ui/Badge';
 import { StatCard } from '@/components/ui/Card';
@@ -18,6 +17,7 @@ import {
   CheckCircle2, Circle, ArrowRight, Users, KanbanSquare,
   Bell, Zap, Activity, Flame, BarChart2, TrendingDown,
   MessageSquare, UserCheck, Radar, BookOpen, TrendingUp,
+  Settings2, Pencil, Trash2, Check, X as XIcon,
 } from 'lucide-react';
 import { sourcingRadarApi, meetingPrepApi, dealProbabilityApi } from '@/lib/api';
 import { ConversationKPIWidget } from '@/components/modules/ConversationKPIWidget';
@@ -354,23 +354,179 @@ function PipelineSnapshot() {
 
 // ─── Affirmation strip ────────────────────────────────────────────────────────
 
-function AffirmationStrip() {
-  const idx    = useAppStore((s) => s.currentAffirmationIndex);
-  const setIdx = useAppStore((s) => s.setAffirmationIndex);
-  const aff    = AFFIRMATIONS[idx % AFFIRMATIONS.length];
+const THEME_OPTIONS = [
+  'mindset', 'capital', 'board', 'sourcing', 'finance', 'urgency', 'vision',
+  'discipline', 'execution', 'outreach', 'resilience', 'operations', 'identity',
+];
 
+function AffirmationStrip() {
+  const affirmations     = useAppStore((s) => s.affirmations);
+  const idx              = useAppStore((s) => s.currentAffirmationIndex);
+  const setIdx           = useAppStore((s) => s.setAffirmationIndex);
+  const addAffirmation    = useAppStore((s) => s.addAffirmation);
+  const updateAffirmation = useAppStore((s) => s.updateAffirmation);
+  const deleteAffirmation = useAppStore((s) => s.deleteAffirmation);
+
+  const [managing, setManaging] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState({ text: '', theme: 'mindset' });
+  const [addDraft, setAddDraft] = useState({ text: '', theme: 'mindset' });
+  const [adding, setAdding] = useState(false);
+
+  const active = affirmations.filter((a) => a.isActive !== false);
+  const aff = active.length > 0 ? active[idx % active.length] : null;
+  const total = active.length;
+
+  function startEdit(a: typeof affirmations[0]) {
+    setEditingId(a.id);
+    setEditDraft({ text: a.text, theme: a.theme });
+  }
+
+  function commitEdit() {
+    if (!editingId || !editDraft.text.trim()) return;
+    updateAffirmation(editingId, { text: editDraft.text.trim(), theme: editDraft.theme });
+    setEditingId(null);
+  }
+
+  function commitAdd() {
+    if (!addDraft.text.trim()) return;
+    addAffirmation({
+      id: `a-${Date.now()}`,
+      text: addDraft.text.trim(),
+      theme: addDraft.theme,
+      isActive: true,
+      order: affirmations.length + 1,
+    });
+    setAddDraft({ text: '', theme: 'mindset' });
+    setAdding(false);
+  }
+
+  if (!aff && !managing) return null;
+
+  // ── Manage panel ──
+  if (managing) {
+    return (
+      <div className="bg-[#111111] border border-[#262626] rounded-[10px] p-4 space-y-3" style={{ borderLeftWidth: 2, borderLeftColor: '#C9A22760' }}>
+        <div className="flex items-center justify-between">
+          <span className="text-[11px] font-semibold tracking-[0.12em] uppercase text-[#C9A227]">
+            Affirmations · {total} active
+          </span>
+          <div className="flex gap-1.5">
+            <button
+              onClick={() => setAdding((v) => !v)}
+              className="h-6 px-2 text-[10px] font-medium rounded bg-[#C9A22718] text-[#C9A227] hover:bg-[#C9A22730] transition-colors flex items-center gap-1"
+            >
+              <Plus size={10} aria-hidden /> Add
+            </button>
+            <button
+              onClick={() => { setManaging(false); setEditingId(null); setAdding(false); }}
+              className="w-6 h-6 flex items-center justify-center text-[#737373] hover:text-[#E5E5E5] rounded transition-colors"
+              aria-label="Close manager"
+            >
+              <XIcon size={12} aria-hidden />
+            </button>
+          </div>
+        </div>
+
+        {adding && (
+          <div className="bg-[#1A1A1A] border border-[#C9A22730] rounded-[8px] p-3 space-y-2">
+            <textarea
+              className="w-full bg-[#111111] border border-[#333333] rounded-[6px] px-3 py-2 text-sm text-[#E5E5E5] placeholder:text-[#737373] focus:outline-none focus:ring-1 focus:ring-[#C9A227] resize-none"
+              rows={2}
+              placeholder="Enter your affirmation…"
+              value={addDraft.text}
+              onChange={(e) => setAddDraft((d) => ({ ...d, text: e.target.value }))}
+              autoFocus
+            />
+            <div className="flex items-center gap-2">
+              <select
+                className="flex-1 bg-[#111111] border border-[#333333] rounded-[6px] px-2 py-1.5 text-xs text-[#E5E5E5] focus:outline-none focus:ring-1 focus:ring-[#C9A227]"
+                value={addDraft.theme}
+                onChange={(e) => setAddDraft((d) => ({ ...d, theme: e.target.value }))}
+              >
+                {THEME_OPTIONS.map((t) => <option key={t} value={t}>{t}</option>)}
+              </select>
+              <button onClick={commitAdd} className="h-7 px-3 text-[11px] font-medium rounded bg-[#C9A227] text-black hover:bg-[#E0B93B] transition-colors">Save</button>
+              <button onClick={() => setAdding(false)} className="h-7 px-2 text-[11px] text-[#737373] hover:text-[#E5E5E5] rounded transition-colors">Cancel</button>
+            </div>
+          </div>
+        )}
+
+        <ul className="space-y-1.5 max-h-64 overflow-y-auto">
+          {affirmations.map((a) => (
+            <li key={a.id} className="bg-[#1A1A1A] border border-[#262626] rounded-[8px] px-3 py-2.5">
+              {editingId === a.id ? (
+                <div className="space-y-2">
+                  <textarea
+                    className="w-full bg-[#111111] border border-[#333333] rounded-[6px] px-2 py-1.5 text-sm text-[#E5E5E5] focus:outline-none focus:ring-1 focus:ring-[#C9A227] resize-none"
+                    rows={2}
+                    value={editDraft.text}
+                    onChange={(e) => setEditDraft((d) => ({ ...d, text: e.target.value }))}
+                    autoFocus
+                    onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); commitEdit(); } if (e.key === 'Escape') setEditingId(null); }}
+                  />
+                  <div className="flex items-center gap-2">
+                    <select
+                      className="flex-1 bg-[#111111] border border-[#333333] rounded-[6px] px-2 py-1 text-xs text-[#E5E5E5] focus:outline-none focus:ring-1 focus:ring-[#C9A227]"
+                      value={editDraft.theme}
+                      onChange={(e) => setEditDraft((d) => ({ ...d, theme: e.target.value }))}
+                    >
+                      {THEME_OPTIONS.map((t) => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                    <button onClick={commitEdit} className="w-6 h-6 flex items-center justify-center text-[#4CAF50] hover:text-[#66BB6A] rounded transition-colors" aria-label="Save">
+                      <Check size={12} aria-hidden />
+                    </button>
+                    <button onClick={() => setEditingId(null)} className="w-6 h-6 flex items-center justify-center text-[#737373] hover:text-[#E5E5E5] rounded transition-colors" aria-label="Cancel">
+                      <XIcon size={12} aria-hidden />
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-start gap-2">
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[9px] uppercase tracking-wider text-[#C9A22799] mb-0.5">{a.theme}</div>
+                    <p className="text-xs text-[#A3A3A3] leading-relaxed line-clamp-2">{a.text}</p>
+                  </div>
+                  <div className="flex gap-1 flex-shrink-0 mt-0.5">
+                    <button onClick={() => startEdit(a)} className="w-5 h-5 flex items-center justify-center text-[#737373] hover:text-[#C9A227] rounded transition-colors" aria-label={`Edit "${a.text.slice(0, 20)}…"`}>
+                      <Pencil size={10} aria-hidden />
+                    </button>
+                    <button
+                      onClick={() => {
+                        deleteAffirmation(a.id);
+                        if (idx >= total - 1) setIdx(Math.max(0, total - 2));
+                      }}
+                      className="w-5 h-5 flex items-center justify-center text-[#737373] hover:text-[#D64545] rounded transition-colors"
+                      aria-label={`Delete "${a.text.slice(0, 20)}…"`}
+                    >
+                      <Trash2 size={10} aria-hidden />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </li>
+          ))}
+        </ul>
+      </div>
+    );
+  }
+
+  // ── Display strip ──
   return (
     <div className="bg-[#111111] border border-[#262626] rounded-[10px] px-5 py-4 flex items-center gap-4" style={{ borderLeftWidth: 2, borderLeftColor: '#C9A22760' }}>
       <div className="flex-1 min-w-0">
-        <div className="text-[10px] tracking-[0.12em] uppercase text-[#C9A227] mb-1.5">{aff.theme}</div>
-        <blockquote className="font-serif text-base italic text-[#A3A3A3] leading-relaxed">&ldquo;{aff.text}&rdquo;</blockquote>
+        <div className="text-[10px] tracking-[0.12em] uppercase text-[#C9A227] mb-1.5">{aff!.theme}</div>
+        <blockquote className="font-serif text-base italic text-[#A3A3A3] leading-relaxed">&ldquo;{aff!.text}&rdquo;</blockquote>
       </div>
       <div className="flex gap-1 flex-shrink-0">
-        <button onClick={() => setIdx((idx - 1 + AFFIRMATIONS.length) % AFFIRMATIONS.length)} className="w-6 h-6 flex items-center justify-center text-[#737373] hover:text-[#E5E5E5] rounded transition-colors" aria-label="Previous">
+        <button onClick={() => setIdx((idx - 1 + total) % total)} className="w-6 h-6 flex items-center justify-center text-[#737373] hover:text-[#E5E5E5] rounded transition-colors" aria-label="Previous affirmation">
           <ChevronLeft size={12} aria-hidden />
         </button>
-        <button onClick={() => setIdx((idx + 1) % AFFIRMATIONS.length)} className="w-6 h-6 flex items-center justify-center text-[#737373] hover:text-[#E5E5E5] rounded transition-colors" aria-label="Next">
+        <button onClick={() => setIdx((idx + 1) % total)} className="w-6 h-6 flex items-center justify-center text-[#737373] hover:text-[#E5E5E5] rounded transition-colors" aria-label="Next affirmation">
           <ChevronRight size={12} aria-hidden />
+        </button>
+        <button onClick={() => setManaging(true)} className="w-6 h-6 flex items-center justify-center text-[#737373] hover:text-[#C9A227] rounded transition-colors" aria-label="Manage affirmations">
+          <Settings2 size={11} aria-hidden />
         </button>
       </div>
     </div>
