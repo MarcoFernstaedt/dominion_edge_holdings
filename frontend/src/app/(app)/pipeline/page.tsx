@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useAppStore } from '@/lib/store';
+import { useScrollTarget } from '@/hooks/useScrollTarget';
 import { cn, generateId, nowIso, formatCurrency, STAGE_ORDER, STAGE_LABELS, daysSince, formatRelativeDate } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
 import { Badge, StatusBadge } from '@/components/ui/Badge';
@@ -218,6 +219,7 @@ function KanbanColumn({ stage, deals }: { stage: typeof STAGE_ORDER[number]; dea
 }
 
 export default function PipelinePage() {
+  useScrollTarget();
   const deals = useAppStore((s) => s.deals);
   const [showAdd, setShowAdd] = useState(false);
   const [view, setView] = useState<'kanban' | 'list'>('kanban');
@@ -233,7 +235,7 @@ export default function PipelinePage() {
 
   return (
     <div className="page-container space-y-5">
-      <header className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+      <header id="section-pipeline-board" className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 scroll-mt-6">
         <div>
           <h1 className="font-serif text-3xl font-semibold text-[#E5E5E5]">Pipeline</h1>
           <p className="text-sm text-[#737373] mt-1">

@@ -20,6 +20,8 @@ import {
   Settings2, Pencil, Trash2, Check, X as XIcon,
 } from 'lucide-react';
 import { sourcingRadarApi, meetingPrepApi, dealProbabilityApi } from '@/lib/api';
+import { smoothScrollTo, navigateWithScroll } from '@/lib/scrollTo';
+import { useScrollTarget } from '@/hooks/useScrollTarget';
 import { ConversationKPIWidget } from '@/components/modules/ConversationKPIWidget';
 import type {
   Task, NextBestAction, PipelinePressureMetrics, AcquisitionScoreboard,
@@ -35,28 +37,27 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
  * Maps a NextBestAction to the route the user should navigate to when they
  * click "Start Now". Returns the most specific URL possible.
  */
-function getActionRoute(action: NextBestAction): string {
+/** Returns { route, scrollId } — scrollId is a section ID to focus after navigation */
+function getActionDestination(action: NextBestAction): { route: string; scrollId: string } {
   switch (action.actionType) {
     case 'task':
-      return '/command-center'; // scroll to task panel on same page
+      return { route: '/command-center', scrollId: 'section-tasks' };
     case 'email':
-      return '/inbox';
+      return { route: '/inbox', scrollId: 'section-inbox' };
     case 'board':
-      return action.linkedEntityId
-        ? `/board`
-        : '/board';
+      return { route: '/board', scrollId: 'section-board-candidates' };
     case 'deal':
       return action.linkedEntityId
-        ? `/pipeline/${action.linkedEntityId}`
-        : '/pipeline';
+        ? { route: `/pipeline/${action.linkedEntityId}`, scrollId: 'section-deal-detail' }
+        : { route: '/pipeline', scrollId: 'section-pipeline-board' };
     case 'checklist':
-      return '/checklist';
+      return { route: '/checklist', scrollId: 'section-checklist' };
     case 'outreach':
-      return '/outreach';
+      return { route: '/outreach', scrollId: 'section-outreach' };
     case 'meeting':
-      return '/meetings';
+      return { route: '/meetings', scrollId: 'section-meetings' };
     default:
-      return '/checklist';
+      return { route: '/checklist', scrollId: 'section-checklist' };
   }
 }
 
@@ -124,10 +125,18 @@ function HeroAction({ action }: { action: NextBestAction }) {
   const router = useRouter();
   const urgencyColor = { critical: '#D64545', high: '#E6A23C', medium: '#4D7EA8', low: '#737373' };
   const color = urgencyColor[action.urgency] ?? '#737373';
-  const route = getActionRoute(action);
+  const { route, scrollId } = getActionDestination(action);
 
   function handleStartNow() {
-    router.push(route);
+    const isCurrentPage = typeof window !== 'undefined' && window.location.pathname === route;
+    if (isCurrentPage) {
+      // Already on this page — smooth scroll directly to the section
+      smoothScrollTo(scrollId);
+    } else {
+      // Navigating away — store scroll target, then push
+      navigateWithScroll(scrollId);
+      router.push(route);
+    }
   }
 
   return (
@@ -727,6 +736,9 @@ export default function CommandCenterPage() {
   const boardCandidates = useAppStore((s) => s.boardCandidates);
   const checklistPhases = useAppStore((s) => s.checklistPhases);
 
+  // Auto-scroll to a section if navigated here via navigateWithScroll()
+  useScrollTarget();
+
   const actions = generateNextBestActions(tasks, deals, emailThreads, boardCandidates, checklistPhases);
   const hero    = actions[0];
 
@@ -749,13 +761,13 @@ export default function CommandCenterPage() {
       <PriorityBand />
 
       {/* ── Zone 3: Main work area — actions + tasks/pipeline ───────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div id="section-tasks" className="grid grid-cols-1 lg:grid-cols-2 gap-6 scroll-mt-6">
         <NextActionsQueue actions={actions} />
         <TaskPanel />
       </div>
 
       {/* ── Zone 4: Pipeline + affirmation ──────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div id="section-pipeline-snapshot" className="grid grid-cols-1 lg:grid-cols-2 gap-6 scroll-mt-6">
         <PipelineSnapshot />
         <div className="space-y-4">
           <AffirmationStrip />
@@ -764,7 +776,7 @@ export default function CommandCenterPage() {
       </div>
 
       {/* ── Zone 5: Intelligence systems ────────────────────────────────── */}
-      <div>
+      <div id="section-intelligence">
         <SectionHeader title="Performance Systems" icon={Activity} className="mb-4" />
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <PipelinePressurePanel />

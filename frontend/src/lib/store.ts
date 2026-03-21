@@ -322,6 +322,10 @@ export const useAppStore = create<AppState>()(
             Math.max(0, s.affirmations.length - 2)
           ),
         })),
+
+      // ── Bootstrap state ────────────────────────────────────────────────────
+      dataReady: false,
+      setDataReady: (ready: boolean) => set({ dataReady: ready }),
     }),
     {
       name: 'deh-aos-store',

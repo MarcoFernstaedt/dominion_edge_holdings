@@ -1,11 +1,28 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
+import { useAppStore } from '@/lib/store';
 
 type Phase = 'enter' | 'hold' | 'exit' | 'gone';
 
+// Minimum time (ms) to hold the splash before allowing exit
+const MIN_HOLD_MS = 2400;
+
 export default function SplashScreen() {
   const [phase, setPhase] = useState<Phase>('enter');
+  const dataReady = useAppStore((s) => s.dataReady);
+  const minHoldReached = useRef(false);
+  const dataReadyRef = useRef(false);
+
+  // Track refs so the setTimeout callbacks always read current values
+  useEffect(() => { dataReadyRef.current = dataReady; }, [dataReady]);
+
+  function tryExit() {
+    if (minHoldReached.current && dataReadyRef.current) {
+      setPhase('exit');
+      setTimeout(() => setPhase('gone'), 800);
+    }
+  }
 
   useEffect(() => {
     // Show once per browser session
@@ -16,14 +33,34 @@ export default function SplashScreen() {
     sessionStorage.setItem('deh_splash_shown', '1');
 
     const t1 = setTimeout(() => setPhase('hold'), 500);
-    const t2 = setTimeout(() => setPhase('exit'), 2400);
-    const t3 = setTimeout(() => setPhase('gone'), 3200);
+
+    // After minimum hold, attempt exit (will also need dataReady)
+    const t2 = setTimeout(() => {
+      minHoldReached.current = true;
+      tryExit();
+    }, MIN_HOLD_MS);
+
+    // Safety valve — exit after 5s regardless of data state
+    const t3 = setTimeout(() => {
+      minHoldReached.current = true;
+      dataReadyRef.current = true;
+      setPhase('exit');
+      setTimeout(() => setPhase('gone'), 800);
+    }, 5000);
+
     return () => {
       clearTimeout(t1);
       clearTimeout(t2);
       clearTimeout(t3);
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // When dataReady flips to true, try to exit (min hold may already be reached)
+  useEffect(() => {
+    if (dataReady) tryExit();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dataReady]);
 
   if (phase === 'gone') return null;
 
@@ -37,7 +74,7 @@ export default function SplashScreen() {
     alignItems: 'center',
     justifyContent: 'center',
     gap: 0,
-    transition: phase === 'exit' ? 'opacity 800ms cubic-bezier(0.4, 0, 1, 1)' : 'opacity 500ms ease',
+    transition: phase === 'exit' ? 'opacity 800ms cubic-bezier(0.4,0,1,1)' : 'opacity 500ms ease',
     opacity: phase === 'enter' ? 0 : phase === 'exit' ? 0 : 1,
     pointerEvents: phase === 'exit' ? 'none' : 'auto',
   };

@@ -25,6 +25,7 @@ export function useBootstrap() {
   const setDeals        = useAppStore((s) => s.setDeals);
   const setTasks        = useAppStore((s) => s.setTasks);
   const setInteractions = useAppStore((s) => s.setInteractions);
+  const setDataReady    = useAppStore((s) => s.setDataReady);
 
   useEffect(() => {
     if (hydrated.current) return;
@@ -40,16 +41,19 @@ export function useBootstrap() {
           interactionsApi.list({}),
         ]);
 
-        if (companies.status  === 'fulfilled') setCompanies(companies.value  as Company[]);
-        if (contacts.status   === 'fulfilled') setContacts(contacts.value    as Contact[]);
-        if (deals.status      === 'fulfilled') setDeals(deals.value          as Deal[]);
-        if (tasks.status      === 'fulfilled') setTasks(tasks.value          as Task[]);
+        if (companies.status    === 'fulfilled') setCompanies(companies.value       as Company[]);
+        if (contacts.status     === 'fulfilled') setContacts(contacts.value         as Contact[]);
+        if (deals.status        === 'fulfilled') setDeals(deals.value               as Deal[]);
+        if (tasks.status        === 'fulfilled') setTasks(tasks.value               as Task[]);
         if (interactions.status === 'fulfilled') setInteractions(interactions.value as Interaction[]);
       } catch {
         // Silently fail — app works with local data if API is unavailable
+      } finally {
+        // Signal that bootstrap is complete regardless of success/failure
+        setDataReady(true);
       }
     }
 
     hydrate();
-  }, [setCompanies, setContacts, setDeals, setTasks, setInteractions]);
+  }, [setCompanies, setContacts, setDeals, setTasks, setInteractions, setDataReady]);
 }

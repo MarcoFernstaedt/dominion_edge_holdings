@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAppStore } from '@/lib/store';
+import { useScrollTarget } from '@/hooks/useScrollTarget';
 import { cn, generateId, nowIso, formatDate, statusLabel } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
 import { Badge, StatusBadge } from '@/components/ui/Badge';
@@ -242,6 +243,7 @@ function healthDot(state: string) {
 }
 
 export default function BoardPage() {
+  useScrollTarget();
   const boardSeats = useAppStore((s) => s.boardSeats);
   const boardCandidates = useAppStore((s) => s.boardCandidates);
   const updateCandidate = useAppStore((s) => s.updateCandidate);

@@ -865,6 +865,10 @@ export interface AppState {
   addPitchDeck: (d: PitchDeck) => void;
   updatePitchDeck: (id: ID, updates: Partial<PitchDeck>) => void;
   deletePitchDeck: (id: ID) => void;
+
+  // Bootstrap state
+  dataReady: boolean;
+  setDataReady: (ready: boolean) => void;
 }
 
 // ─── Capital Raising ──────────────────────────────────────────────────────────

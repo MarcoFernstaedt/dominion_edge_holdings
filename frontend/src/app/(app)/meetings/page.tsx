@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAppStore } from '@/lib/store';
+import { useScrollTarget } from '@/hooks/useScrollTarget';
 import { cn, formatDate, nowIso, generateId } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -589,6 +590,7 @@ function MeetingCard({ meeting }: { meeting: Meeting }) {
 }
 
 export default function MeetingsPage() {
+  useScrollTarget();
   const meetings = useAppStore((s) => s.meetings);
   const [showCreate, setShowCreate] = useState(false);
   const [filterStatus, setFilterStatus] = useState<'all' | 'upcoming' | 'completed'>('upcoming');
