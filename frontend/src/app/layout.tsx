@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import SplashScreen from '@/components/ui/SplashScreen';
 
 export const metadata: Metadata = {
   title: 'Dominion Edge Holdings — Acquisition OS',
@@ -20,6 +21,7 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
       </head>
       <body suppressHydrationWarning>
+        <SplashScreen />
         <a href="#main-content" className="skip-link">
           Skip to main content
         </a>
