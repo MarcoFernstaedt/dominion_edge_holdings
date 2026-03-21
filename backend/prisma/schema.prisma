@@ -286,6 +286,10 @@ model Company {
   contacts     Contact[]
   deals        Deal[]
   interactions Interaction[]
+
+  @@index([userId, status])
+  @@index([userId, createdAt])
+  @@index([userId, lastInteractionAt])
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -326,6 +330,11 @@ model Contact {
 
   interactions         Interaction[]
   meetingAttendees     MeetingAttendee[]
+
+  @@index([userId, contactType])
+  @@index([userId, status])
+  @@index([userId, companyId])
+  @@index([userId, relationshipStage])
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -358,6 +367,11 @@ model Interaction {
   nextConversationGoal  String?
   createdAt             DateTime        @default(now())
   updatedAt             DateTime        @updatedAt
+
+  @@index([companyId, createdAt])
+  @@index([contactId, createdAt])
+  @@index([dealId, createdAt])
+  @@index([userId, interactionType])
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -409,6 +423,11 @@ model Deal {
   documents            Document[]
   tasks                Task[]
   diligenceItems       DiligenceItem[]
+
+  @@index([userId, stage])
+  @@index([userId, createdAt])
+  @@index([userId, riskLevel])
+  @@index([companyId, stage])
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -473,6 +492,10 @@ model DiligenceItem {
   dueDate      DateTime?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+
+  @@index([dealId, category])
+  @@index([dealId, received])
+  @@index([dealId, blocksClose])
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -606,6 +629,11 @@ model Task {
   completedAt      DateTime?
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
+
+  @@index([userId, status])
+  @@index([userId, priority])
+  @@index([userId, dueDate])
+  @@index([dealId, status])
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -634,6 +662,9 @@ model Meeting {
 
   attendees       MeetingAttendee[]
   prepPacket      MeetingPrepPacket?
+
+  @@index([userId, scheduledAt])
+  @@index([userId, status])
 }
 
 model MeetingAttendee {
@@ -678,6 +709,10 @@ model Document {
   sentAt       DateTime?
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
+
+  @@index([userId, documentType])
+  @@index([userId, status])
+  @@index([dealId, documentType])
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -867,6 +902,10 @@ model DealFeedListing {
   scrapedAt        DateTime @default(now())
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
+
+  @@index([status, fitScore])
+  @@index([sourceAdapter, status])
+  @@index([industry, status])
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -883,6 +922,8 @@ model Notification {
   linkedEntityId   String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  @@index([isRead, createdAt])
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -899,4 +940,8 @@ model AuditLog {
   ipAddress  String?
   requestId  String?
   createdAt  DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([entityType, entityId])
+  @@index([action, createdAt])
 }

@@ -6,10 +6,17 @@
     "dev:frontend": "cd frontend && npm run dev",
     "dev:backend": "cd backend && npm run dev",
     "dev": "concurrently \"npm run dev:frontend\" \"npm run dev:backend\"",
-    "build": "cd frontend && npm run build",
+    "build": "npm run build:frontend",
+    "build:frontend": "cd frontend && npm run build",
+    "build:all": "npm run build:frontend",
+    "test:all": "npm --prefix frontend run test && npm --prefix backend run test",
+    "lint:all": "npm --prefix frontend run lint && npm --prefix backend run lint",
+    "type-check": "npm --prefix frontend run type-check",
+    "format": "npm --prefix frontend run format && npm --prefix backend run format",
     "install:all": "cd frontend && npm install && cd ../backend && npm install"
   },
   "devDependencies": {
-    "concurrently": "^9.0.0"
+    "concurrently": "^9.0.0",
+    "husky": "^9.0.0"
   }
 }

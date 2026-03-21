@@ -709,4 +709,11 @@ function _filterInteractions(arr, { companyId, contactId, dealId, interactionTyp
   return result.slice(offset, offset + limit);
 }
 
-export default { companies, contacts, deals, tasks, interactions, getSystemUserId };
+// ─── Health ping ──────────────────────────────────────────────────────────────
+export async function healthPing() {
+  if (!HAS_DB) return true; // no DB configured — pass silently in dev
+  await db.$queryRaw`SELECT 1`;
+  return true;
+}
+
+export default { companies, contacts, deals, tasks, interactions, getSystemUserId, healthPing };

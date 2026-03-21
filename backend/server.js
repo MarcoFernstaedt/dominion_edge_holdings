@@ -7,6 +7,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import dotenv from 'dotenv';
 import crypto from 'crypto';
 import { z } from 'zod';
+import pino from 'pino';
 
 // ─── Schemas ──────────────────────────────────────────────────────────────────
 import {
@@ -38,6 +39,7 @@ import NotificationService     from './services/NotificationService.js';
 import IntegrationRegistry     from './services/IntegrationRegistry.js';
 import IntegrationHealthService from './services/IntegrationHealthService.js';
 import PipelinePressureService  from './services/PipelinePressureService.js';
+import VelocityService          from './services/VelocityService.js';
 import SourceAdapterRegistryService from './services/SourceAdapterRegistryService.js';
 import SourcingRadarService    from './services/SourcingRadarService.js';
 import CandidateDeduplicationService from './services/CandidateDeduplicationService.js';
@@ -102,9 +104,18 @@ import repo from './db/repo.js';
 
 dotenv.config();
 
+// ─── Structured logging ───────────────────────────────────────────────────────
+const logger = pino({
+  level: process.env.LOG_LEVEL || 'info',
+  ...(process.env.NODE_ENV !== 'production' && {
+    transport: { target: 'pino-pretty', options: { colorize: true, ignore: 'pid,hostname' } },
+  }),
+  base: { service: 'deh-backend', env: process.env.NODE_ENV || 'development' },
+});
+
 // ─── Environment validation ───────────────────────────────────────────────────
 if (!process.env.ANTHROPIC_API_KEY && process.env.NODE_ENV !== 'test') {
-  console.error('FATAL: ANTHROPIC_API_KEY is not set.');
+  logger.fatal('ANTHROPIC_API_KEY is not set — refusing to start');
   process.exit(1);
 }
 
@@ -160,9 +171,16 @@ app.use(compression());
 app.use(express.json({ limit: '512kb' }));
 app.use(express.urlencoded({ extended: false, limit: '128kb' }));
 
-// Request ID for tracing
-app.use((req, _res, next) => {
+// Request ID for tracing + structured request logging
+app.use((req, res, next) => {
   req.id = crypto.randomUUID();
+  req.log = logger.child({ reqId: req.id });
+  const start = Date.now();
+  res.on('finish', () => {
+    const ms = Date.now() - start;
+    const level = res.statusCode >= 500 ? 'error' : res.statusCode >= 400 ? 'warn' : 'info';
+    req.log[level]({ method: req.method, url: req.url, status: res.statusCode, ms });
+  });
   next();
 });
 
@@ -433,13 +451,37 @@ function getSafeModel() {
 }
 
 // ─── Health ───────────────────────────────────────────────────────────────────
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok', ts: nowIso(), env: NODE_ENV });
+async function getHealthPayload() {
+  const checks = { db: 'unknown', ai: 'unchecked' };
+  let overallOk = true;
+
+  // DB liveness — fast raw query
+  try {
+    await repo.healthPing();          // see db/repo.js — executes SELECT 1
+    checks.db = 'ok';
+  } catch (err) {
+    checks.db = 'degraded';
+    overallOk = false;
+    logger.error({ err }, 'Health check: DB ping failed');
+  }
+
+  return {
+    status: overallOk ? 'ok' : 'degraded',
+    ts: nowIso(),
+    env: NODE_ENV,
+    checks,
+  };
+}
+
+app.get('/health', async (req, res) => {
+  const payload = await getHealthPayload();
+  res.status(payload.status === 'ok' ? 200 : 503).json(payload);
 });
 
-// /api/health — accessible via frontend proxy (mirrors /health)
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', ts: nowIso(), env: NODE_ENV });
+// /api/health — accessible via frontend proxy
+app.get('/api/health', async (req, res) => {
+  const payload = await getHealthPayload();
+  res.status(payload.status === 'ok' ? 200 : 503).json(payload);
 });
 
 // ─── AI Chat (streaming) ──────────────────────────────────────────────────────
@@ -2576,6 +2618,22 @@ app.post('/api/integrations/health/check-all', async (req, res) => {
     errorResponse(res, 500, 'INTERNAL_ERROR', 'Health checks failed');
   }
 });
+
+// ─── Velocity Intelligence ────────────────────────────────────────────────────
+
+// GET /api/velocity — full pipeline velocity metrics + stall analysis
+app.get('/api/velocity', asyncRoute(async (req, res) => {
+  const userId = await repo.getSystemUserId();
+  const metrics = await VelocityService.computeVelocityMetrics(userId, store.deals);
+  res.json(metrics);
+}));
+
+// GET /api/velocity/trend — week-over-week activity trend
+app.get('/api/velocity/trend', asyncRoute(async (req, res) => {
+  const userId = await repo.getSystemUserId();
+  const trend = await VelocityService.getWeeklyVelocityTrend(userId);
+  res.json(trend ?? { message: 'Trend data requires database connection' });
+}));
 
 // ─── Performance Systems (Systems 1-8) ───────────────────────────────────────
 

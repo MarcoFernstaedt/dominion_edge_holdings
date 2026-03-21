@@ -1,0 +1,27 @@
+{
+  "env": {
+    "node": true,
+    "es2022": true
+  },
+  "parserOptions": {
+    "ecmaVersion": 2022,
+    "sourceType": "module"
+  },
+  "rules": {
+    "no-unused-vars": ["warn", { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_" }],
+    "no-undef": "error",
+    "no-console": ["warn", { "allow": ["error", "warn", "info"] }],
+    "eqeqeq": ["error", "always"],
+    "no-var": "error",
+    "prefer-const": "warn",
+    "no-duplicate-imports": "error",
+    "no-return-await": "warn",
+    "no-throw-literal": "error",
+    "prefer-promise-reject-errors": "warn"
+  },
+  "ignorePatterns": [
+    "node_modules/",
+    "prisma/",
+    "*.min.js"
+  ]
+}
