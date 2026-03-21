@@ -703,6 +703,9 @@ app.post('/api/interactions', validate(InteractionSchema), asyncRoute(async (req
   if (created.contactId) touchEntity(store.contacts,  created.contactId,  now);
   if (created.dealId)    touchEntity(store.deals,     created.dealId,     now);
 
+  // Fire automation rules (triggers event-driven AI drafting etc.)
+  AutomationRuleEngine.fire('interaction_logged', { interaction: created }, serviceCtx);
+
   res.status(201).json(created);
 }));
 
@@ -742,22 +745,20 @@ app.get('/api/deals/:id', (req, res) => {
   }
 });
 
-app.patch('/api/deals/:id', validate(DealSchema.partial()), (req, res) => {
-  try {
-    const idx = store.deals.findIndex((d) => d.id === req.params.id);
-    if (idx === -1) return errorResponse(res, 404, 'NOT_FOUND', 'Deal not found');
-    const existing = store.deals[idx];
-    const updates  = { ...req.validated, updatedAt: nowIso() };
-    // Track stage entry time for velocity monitoring (System 7)
-    if (updates.stage && updates.stage !== existing.stage) {
-      updates.stageEnteredAt = nowIso();
-    }
-    store.deals[idx] = { ...existing, ...updates };
-    res.json(store.deals[idx]);
-  } catch (err) {
-    errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to update deal');
+app.patch('/api/deals/:id', validate(DealSchema.partial()), asyncRoute(async (req, res) => {
+  const existing = await repo.deals.get(req.params.id, store);
+  if (!existing) return errorResponse(res, 404, 'NOT_FOUND', 'Deal not found');
+  const updates = { ...req.validated, updatedAt: nowIso() };
+  // Track stage entry time for velocity monitoring
+  const stageChanged = updates.stage && updates.stage !== existing.stage;
+  if (stageChanged) updates.stageEnteredAt = nowIso();
+  const updated = await repo.deals.update(req.params.id, updates, store);
+  // Fire stage-change automation (triggers AI draft etc.)
+  if (stageChanged) {
+    AutomationRuleEngine.fire('deal_stage_changed', { deal: updated, stage: updated.stage }, serviceCtx);
   }
-});
+  res.json(updated);
+}));
 
 // ─── Underwriting ─────────────────────────────────────────────────────────────
 function calcMonthlyPayment(principal, annualRatePct, termMonths) {
@@ -4790,6 +4791,216 @@ AutomationRuleEngine.register({
 });
 
 if (process.env.NODE_ENV !== 'test') {
+  // ─── Event-driven AI automation rules (approval-gated) ─────────────────────
+  // These rules fire when the operator enters data (company added, interaction
+  // logged, deal stage changed). Agents draft outputs but NEVER send or apply
+  // anything without explicit operator approval via /api/approvals.
+  //
+  // All rules are disabled when ANTHROPIC_API_KEY is not set.
+
+  if (process.env.ANTHROPIC_API_KEY) {
+
+    // ── company_created → draft initial outreach email ──────────────────────
+    AutomationRuleEngine.register({
+      id: 'ai_draft_outreach_on_company_created',
+      description: 'When a company is added to CRM → AI drafts first outreach email for operator approval',
+      trigger: 'company_created',
+      condition: (ctx) => !!ctx.company?.id && ctx.company.status !== 'closed' && ctx.company.status !== 'lost',
+      action: async (ctx, { store: s, notificationService }) => {
+        const { company } = ctx;
+        try {
+          const result = await AgentOrchestrator.run('OutreachGenerationAgent', {
+            company,
+            contacts:     s.contacts.filter((c) => c.companyId === company.id),
+            interactions: s.interactions.filter((i) => i.companyId === company.id),
+            sequenceType: 'initial_contact',
+            costFlags:    s.settings,
+          });
+
+          const draft = result?.email ?? result?.draft ?? result?.output;
+          if (!draft) return { skipped: true, reason: 'no_draft_produced' };
+
+          const approval = ApprovalService.createApproval({
+            artifactType:  'seller_email',
+            approvalScope: 'send_message',
+            agentName:     'OutreachGenerationAgent',
+            entityType:    'company',
+            entityId:      company.id,
+            submittedBy:   'system',
+            autoSubmit:    true,
+            draft: {
+              subject: draft.subject ?? `Introduction — ${company.name}`,
+              body:    draft.body ?? draft,
+              to:      company.ownerEmail ?? '',
+              context: { companyId: company.id, companyName: company.name, trigger: 'company_created' },
+            },
+          });
+
+          const n = notificationService.createNotification({
+            type:       'ai_draft',
+            title:      `Outreach draft ready: ${company.name}`,
+            message:    `AI drafted an initial outreach email for ${company.ownerName || company.name}. Review and approve before sending.`,
+            priority:   'high',
+            entityType: 'approval',
+            entityId:   approval.id,
+            actionUrl:  `/approvals/${approval.id}`,
+          });
+          s.notifications = [n, ...(s.notifications || [])].slice(0, 100);
+          return { approvalId: approval.id, draftReady: true };
+        } catch (err) {
+          console.error('[ai_draft_outreach_on_company_created]', err.message);
+          return { error: err.message };
+        }
+      },
+      enabled: true,
+    });
+
+    // ── interaction_logged → draft follow-up email ──────────────────────────
+    AutomationRuleEngine.register({
+      id: 'ai_draft_follow_up_on_interaction',
+      description: 'When an interaction is logged → AI drafts follow-up email for operator approval',
+      trigger: 'interaction_logged',
+      condition: (ctx) => {
+        const i = ctx.interaction;
+        return !!i?.id && (i.interactionType === 'email' || i.interactionType === 'call' || i.interactionType === 'meeting');
+      },
+      action: async (ctx, { store: s, notificationService }) => {
+        const { interaction } = ctx;
+        const company = interaction.companyId ? s.companies.find((c) => c.id === interaction.companyId) : null;
+        const contact = interaction.contactId ? s.contacts.find((c) => c.id === interaction.contactId) : null;
+        if (!company && !contact) return { skipped: true, reason: 'no_linked_entity' };
+
+        try {
+          const result = await AgentOrchestrator.run('OutreachGenerationAgent', {
+            company:         company ?? null,
+            contact:         contact ?? null,
+            interactions:    s.interactions
+              .filter((i) => i.companyId === interaction.companyId || i.contactId === interaction.contactId)
+              .slice(0, 10),
+            lastInteraction: interaction,
+            sequenceType:    'follow_up',
+            costFlags:       s.settings,
+          });
+
+          const draft = result?.email ?? result?.draft ?? result?.output;
+          if (!draft) return { skipped: true, reason: 'no_draft_produced' };
+
+          const entityName = company?.name ?? contact?.name ?? 'Contact';
+          const toEmail    = contact?.email ?? company?.ownerEmail ?? '';
+
+          const approval = ApprovalService.createApproval({
+            artifactType:  'seller_email',
+            approvalScope: 'send_message',
+            agentName:     'OutreachGenerationAgent',
+            entityType:    company ? 'company' : 'contact',
+            entityId:      company?.id ?? contact?.id,
+            submittedBy:   'system',
+            autoSubmit:    true,
+            draft: {
+              subject: draft.subject ?? `Follow-up — ${entityName}`,
+              body:    draft.body ?? draft,
+              to:      toEmail,
+              context: {
+                companyId:     company?.id,
+                contactId:     contact?.id,
+                interactionId: interaction.id,
+                trigger:       'interaction_logged',
+              },
+            },
+          });
+
+          const n = notificationService.createNotification({
+            type:       'ai_draft',
+            title:      `Follow-up draft ready: ${entityName}`,
+            message:    `After your ${interaction.interactionType} with ${entityName}, AI drafted a follow-up. Review and approve before sending.`,
+            priority:   'high',
+            entityType: 'approval',
+            entityId:   approval.id,
+            actionUrl:  `/approvals/${approval.id}`,
+          });
+          s.notifications = [n, ...(s.notifications || [])].slice(0, 100);
+          return { approvalId: approval.id, draftReady: true };
+        } catch (err) {
+          console.error('[ai_draft_follow_up_on_interaction]', err.message);
+          return { error: err.message };
+        }
+      },
+      enabled: true,
+    });
+
+    // ── deal_stage_changed → draft stage-appropriate email ──────────────────
+    AutomationRuleEngine.register({
+      id: 'ai_draft_on_deal_stage_change',
+      description: 'When a deal advances stage → AI drafts a contextual email for operator approval',
+      trigger: 'deal_stage_changed',
+      condition: (ctx) => {
+        const actionableStages = ['contacted', 'discovery', 'loi_discussion', 'due_diligence'];
+        return actionableStages.includes(ctx.stage ?? ctx.deal?.stage);
+      },
+      action: async (ctx, { store: s, notificationService }) => {
+        const { deal, stage } = ctx;
+        const company = deal.companyId ? s.companies.find((c) => c.id === deal.companyId) : null;
+
+        const sequenceMap = {
+          contacted:      'discovery_call_request',
+          discovery:      'financial_document_request',
+          loi_discussion: 'loi_intro',
+          due_diligence:  'diligence_kickoff',
+        };
+        const sequenceType = sequenceMap[stage] ?? 'follow_up';
+
+        try {
+          const result = await AgentOrchestrator.run('OutreachGenerationAgent', {
+            company:      company ?? null,
+            deal,
+            interactions: s.interactions.filter((i) => i.dealId === deal.id).slice(0, 8),
+            sequenceType,
+            dealStage:    stage,
+            costFlags:    s.settings,
+          });
+
+          const draft = result?.email ?? result?.draft ?? result?.output;
+          if (!draft) return { skipped: true, reason: 'no_draft_produced' };
+
+          const entityName = company?.name ?? deal.companyName ?? deal.name ?? 'Deal';
+
+          const approval = ApprovalService.createApproval({
+            artifactType:  stage === 'loi_discussion' ? 'loi_draft' : 'seller_email',
+            approvalScope: 'send_message',
+            agentName:     'OutreachGenerationAgent',
+            entityType:    'deal',
+            entityId:      deal.id,
+            submittedBy:   'system',
+            autoSubmit:    true,
+            draft: {
+              subject: draft.subject ?? `Next steps — ${entityName}`,
+              body:    draft.body ?? draft,
+              to:      company?.ownerEmail ?? '',
+              context: { dealId: deal.id, stage, trigger: 'deal_stage_changed' },
+            },
+          });
+
+          const n = notificationService.createNotification({
+            type:       'ai_draft',
+            title:      `Stage email ready: ${entityName}`,
+            message:    `Deal advanced to ${stage}. AI drafted a contextual email. Review and approve before sending.`,
+            priority:   'high',
+            entityType: 'approval',
+            entityId:   approval.id,
+            actionUrl:  `/approvals/${approval.id}`,
+          });
+          s.notifications = [n, ...(s.notifications || [])].slice(0, 100);
+          return { approvalId: approval.id, draftReady: true };
+        } catch (err) {
+          console.error('[ai_draft_on_deal_stage_change]', err.message);
+          return { error: err.message };
+        }
+      },
+      enabled: true,
+    });
+
+  } // end if (ANTHROPIC_API_KEY)
+
   BackgroundJobRunner.init(store, AgentOrchestrator);
 
   // Register new background jobs
@@ -4901,119 +5112,6 @@ if (process.env.NODE_ENV !== 'test') {
       }
     },
   });
-
-  // ─── Automated AI Agent Background Jobs ──────────────────────────────────
-  // These jobs run AI agents automatically without manual API triggers.
-  // All jobs are disabled when ANTHROPIC_API_KEY is not set.
-
-  const aiEnabled = !!process.env.ANTHROPIC_API_KEY;
-
-  // CRM Steward — enriches and scores companies daily
-  BackgroundJobRunner.register({
-    id: 'autoCRMSteward',
-    name: 'AI: CRM Steward (Auto)',
-    intervalMs: 24 * 60 * 60 * 1000, // daily at startup offset
-    enabled: aiEnabled,
-    fn: async () => {
-      if (store.companies.length === 0) return;
-      const stale = store.companies
-        .filter((c) => !c.lastAiEnrichedAt || (Date.now() - new Date(c.lastAiEnrichedAt).getTime()) > 48 * 3600000)
-        .slice(0, 10); // process 10 per run to stay within cost limits
-      for (const company of stale) {
-        try {
-          await AgentOrchestrator.run('CRMStewardAgent', {
-            company,
-            contacts: store.contacts.filter((c) => c.companyId === company.id),
-            interactions: store.interactions.filter((i) => i.companyId === company.id),
-            costFlags: store.settings,
-          });
-        } catch (err) {
-          console.error('[autoCRMSteward] error for', company.id, err.message);
-        }
-      }
-    },
-  });
-
-  // Deal Analysis — auto-scores active deals every 6 hours
-  BackgroundJobRunner.register({
-    id: 'autoDealAnalysis',
-    name: 'AI: Deal Analysis (Auto)',
-    intervalMs: 6 * 60 * 60 * 1000,
-    enabled: aiEnabled,
-    fn: async () => {
-      const activeDeals = store.deals.filter((d) => d.status === 'active').slice(0, 5);
-      for (const deal of activeDeals) {
-        try {
-          const company = store.companies.find((c) => c.id === deal.companyId);
-          await AgentOrchestrator.run('DealAnalysisAgent', {
-            deal,
-            company: company ?? null,
-            interactions: store.interactions.filter((i) => i.dealId === deal.id),
-            costFlags: store.settings,
-          });
-        } catch (err) {
-          console.error('[autoDealAnalysis] error for deal', deal.id, err.message);
-        }
-      }
-    },
-  });
-
-  // Strategy Advisor — daily briefing note to notifications
-  BackgroundJobRunner.register({
-    id: 'autoStrategyAdvisor',
-    name: 'AI: Strategy Advisor Daily Briefing',
-    intervalMs: 24 * 60 * 60 * 1000,
-    enabled: aiEnabled,
-    fn: async () => {
-      try {
-        const result = await AgentOrchestrator.run('StrategyAdvisorAgent', {
-          companies: store.companies.slice(0, 50),
-          deals: store.deals,
-          tasks: store.tasks.filter((t) => t.status !== 'done').slice(0, 20),
-          checklistPhases: store.checklistPhases,
-          costFlags: store.settings,
-        });
-        if (result?.recommendation) {
-          const n = {
-            id: `strategy-${Date.now()}`,
-            type: 'ai_insight',
-            title: 'Strategy Advisor',
-            message: result.recommendation,
-            isRead: false,
-            createdAt: new Date().toISOString(),
-          };
-          store.notifications = [n, ...store.notifications].slice(0, 50);
-        }
-      } catch (err) {
-        console.error('[autoStrategyAdvisor]', err.message);
-      }
-    },
-  });
-
-  // Target Qualification — scores new unqualified companies daily
-  BackgroundJobRunner.register({
-    id: 'autoTargetQualification',
-    name: 'AI: Target Qualification (Auto)',
-    intervalMs: 12 * 60 * 60 * 1000,
-    enabled: aiEnabled,
-    fn: async () => {
-      const unqualified = store.companies
-        .filter((c) => !c.qualificationScore && c.status === 'target')
-        .slice(0, 15);
-      for (const company of unqualified) {
-        try {
-          await AgentOrchestrator.run('TargetQualificationAgent', {
-            company,
-            costFlags: store.settings,
-          });
-        } catch (err) {
-          console.error('[autoTargetQualification] error for', company.id, err.message);
-        }
-      }
-    },
-  });
-
-  // ─── End automated AI agent jobs ─────────────────────────────────────────
 
   // ══════════════════════════════════════════════════════════════════════════
   // BATCH 2 ENGINES — Workflow, Proof, Scoring, Underwriting, Diligence, Seq
