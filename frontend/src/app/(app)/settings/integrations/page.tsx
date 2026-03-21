@@ -205,6 +205,8 @@ function IntegrationCard({ name, label, description, status, fields, onTest, onS
             {name === 'ai'       && 'AI disabled. Agents will use keyword heuristics and deterministic templates.'}
             {name === 'calendar' && 'Calendar disabled. Meetings will only exist inside the platform.'}
             {name === 'email'    && 'Email disabled. Emails will be saved as drafts for manual sending.'}
+            {name === 'google'   && 'Google Workspace disabled. Set GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, and GOOGLE_REFRESH_TOKEN in your environment to enable Gmail and Google Calendar.'}
+            {name === 'storage'  && 'Object storage disabled. Set AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, and S3_BUCKET in your environment to enable file storage.'}
           </p>
         </div>
       )}
@@ -312,6 +314,18 @@ export default function IntegrationsPage() {
       fields: [
         { key: 'calendarProvider', label: 'Provider', type: 'select', options: ['google', 'outlook', 'none'] },
       ],
+    },
+    {
+      name: 'google',
+      label: 'Google Workspace (Gmail + Calendar)',
+      description: 'Real Gmail sending and thread sync, plus Google Calendar event creation and availability checking. Configured via environment variables (OAuth2 refresh token). No credentials stored in the database.',
+      fields: [],
+    },
+    {
+      name: 'storage',
+      label: 'Object Storage (S3-compatible)',
+      description: 'Store deal documents, proof of concept attachments, and exported artifacts in S3-compatible object storage (AWS S3, Cloudflare R2, MinIO). Configured via environment variables. Files go browser → S3 directly via presigned URLs.',
+      fields: [],
     },
   ];
 

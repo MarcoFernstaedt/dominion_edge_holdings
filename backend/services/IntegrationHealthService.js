@@ -143,6 +143,53 @@ export async function checkEmailConnection() {
 }
 
 /**
+ * Check Google Workspace connectivity.
+ * Uses the lightweight calendar list endpoint.
+ */
+export async function checkGoogleConnection() {
+  const guard = IntegrationRegistry.guard('google');
+  if (!guard.ok) {
+    return { integration: 'google', reachable: false, reason: guard.reason, message: guard.degradedMessage };
+  }
+
+  try {
+    const { GoogleWorkspaceProvider } = await import('./providers/GoogleWorkspaceProvider.js');
+    const result = await GoogleWorkspaceProvider.healthCheck();
+    if (result.reachable) {
+      IntegrationRegistry.recordSuccess('google');
+      return { integration: 'google', reachable: true };
+    }
+    throw new Error(result.reason || 'Google health check failed');
+  } catch (err) {
+    IntegrationRegistry.recordError('google', err.message);
+    return { integration: 'google', reachable: false, reason: 'REQUEST_FAILED', message: err.message };
+  }
+}
+
+/**
+ * Check object storage connectivity.
+ */
+export async function checkStorageConnection() {
+  const guard = IntegrationRegistry.guard('storage');
+  if (!guard.ok) {
+    return { integration: 'storage', reachable: false, reason: guard.reason, message: guard.degradedMessage };
+  }
+
+  try {
+    const { S3StorageProvider } = await import('./providers/S3StorageProvider.js');
+    const result = await S3StorageProvider.healthCheck();
+    if (result.reachable) {
+      IntegrationRegistry.recordSuccess('storage');
+      return { integration: 'storage', reachable: true };
+    }
+    throw new Error(result.reason || 'Storage health check failed');
+  } catch (err) {
+    IntegrationRegistry.recordError('storage', err.message);
+    return { integration: 'storage', reachable: false, reason: 'REQUEST_FAILED', message: err.message };
+  }
+}
+
+/**
  * Run all health checks in parallel.
  * Returns an array of results — never throws.
  */
@@ -152,6 +199,8 @@ export async function checkAll() {
     checkAIConnection(),
     checkCalendarConnection(),
     checkEmailConnection(),
+    checkGoogleConnection(),
+    checkStorageConnection(),
   ]);
 
   return checks.map((c) =>
@@ -166,6 +215,8 @@ export const IntegrationHealthService = {
   checkAIConnection,
   checkCalendarConnection,
   checkEmailConnection,
+  checkGoogleConnection,
+  checkStorageConnection,
   checkAll,
 };
 export default IntegrationHealthService;

@@ -36,12 +36,32 @@ export const DEFAULT_INTEGRATIONS = {
   },
   email: {
     enabled:    false,
-    provider:   'smtp',     // 'smtp' | 'sendgrid' | 'resend' | 'none'
+    provider:   'smtp',     // 'smtp' | 'sendgrid' | 'resend' | 'google' | 'none'
     host:       null,
     port:       587,
     user:       null,
     fromName:   '',
     fromEmail:  '',
+  },
+  // Google Workspace — Gmail + Calendar via OAuth2
+  google: {
+    enabled:      false,
+    clientId:     null,
+    hasSecret:    false,    // never expose the secret
+    hasToken:     false,    // true when GOOGLE_REFRESH_TOKEN is set
+    calendarId:   'primary',
+    fromEmail:    null,
+    fromName:     'Dominion Edge',
+    capabilities: ['gmail_send', 'gmail_read', 'calendar_read', 'calendar_write'],
+  },
+  // Object storage — S3-compatible
+  storage: {
+    enabled:    false,
+    bucket:     null,
+    region:     'us-east-1',
+    endpoint:   null,       // for non-AWS providers
+    hasKey:     false,      // true when AWS_ACCESS_KEY_ID is set
+    capabilities: ['upload', 'download', 'delete'],
   },
 };
 
@@ -72,16 +92,20 @@ class IntegrationRegistryClass {
   }
 
   /**
-   * Sync registry from store.settings (call at startup and on settings change).
+   * Sync registry from store.settings and env vars.
+   * Call at startup and on settings change.
    */
   syncFromSettings(settings) {
-    if (!settings) return;
+    if (!settings) {
+      this._syncFromEnv();
+      return;
+    }
 
     // AI
     this._config.ai.enabled  = settings.aiDraftingEnabled !== false;
     this._config.ai.apiKey   = process.env.ANTHROPIC_API_KEY || null;
 
-    // Email
+    // Email (SMTP path)
     this._config.email.enabled    = !!(settings.smtpHost && settings.smtpUser && settings.fromEmail);
     this._config.email.host       = settings.smtpHost   || null;
     this._config.email.port       = settings.smtpPort   || 587;
@@ -94,12 +118,72 @@ class IntegrationRegistryClass {
     this._config.apollo.enabled = !!(settings.apolloEnabled && settings.apolloApiKey);
     this._config.apollo.apiKey  = settings.apolloApiKey || null;
 
-    // Calendar
+    // Calendar (legacy path — uses google provider internally)
     this._config.calendar.enabled  = !!(settings.calendarEnabled && settings.calendarProvider);
     this._config.calendar.provider = settings.calendarProvider || 'none';
 
+    // Google Workspace — env-driven (settings can override enabled flag)
+    this._syncGoogleFromEnv(settings);
+
+    // Storage — env-driven
+    this._syncStorageFromEnv();
+
     // Update status snapshots
     this._refreshStatus();
+  }
+
+  /**
+   * Sync Google + Storage from environment when no user settings are provided.
+   * Called at startup before any DB query succeeds.
+   */
+  _syncFromEnv() {
+    this._config.ai.enabled = true;
+    this._config.ai.apiKey  = process.env.ANTHROPIC_API_KEY || null;
+
+    const apolloKey = process.env.APOLLO_API_KEY;
+    if (apolloKey) {
+      this._config.apollo.enabled = true;
+      this._config.apollo.apiKey  = apolloKey;
+    }
+
+    this._syncGoogleFromEnv(null);
+    this._syncStorageFromEnv();
+    this._refreshStatus();
+  }
+
+  _syncGoogleFromEnv(settings) {
+    const clientId  = process.env.GOOGLE_CLIENT_ID;
+    const hasSecret = !!(process.env.GOOGLE_CLIENT_SECRET);
+    const hasToken  = !!(process.env.GOOGLE_REFRESH_TOKEN);
+
+    this._config.google.clientId   = clientId   || null;
+    this._config.google.hasSecret  = hasSecret;
+    this._config.google.hasToken   = hasToken;
+    this._config.google.calendarId = process.env.GOOGLE_CALENDAR_ID || 'primary';
+    this._config.google.fromEmail  = process.env.GMAIL_FROM_EMAIL   || null;
+    this._config.google.fromName   = process.env.GMAIL_FROM_NAME    || 'Dominion Edge';
+
+    // Enabled when all OAuth2 pieces are present
+    const googleReady = !!(clientId && hasSecret && hasToken);
+    // settings can override the enabled flag
+    this._config.google.enabled = settings?.googleEnabled !== undefined
+      ? !!(settings.googleEnabled && googleReady)
+      : googleReady;
+
+    // If Google is enabled, also enable the calendar integration
+    if (this._config.google.enabled) {
+      this._config.calendar.enabled  = true;
+      this._config.calendar.provider = 'google';
+    }
+  }
+
+  _syncStorageFromEnv() {
+    const hasKey = !!(process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY);
+    this._config.storage.bucket   = process.env.S3_BUCKET    || 'dominion-edge';
+    this._config.storage.region   = process.env.S3_REGION    || 'us-east-1';
+    this._config.storage.endpoint = process.env.S3_ENDPOINT  || null;
+    this._config.storage.hasKey   = hasKey;
+    this._config.storage.enabled  = hasKey && !!(process.env.S3_BUCKET);
   }
 
   _refreshStatus() {
@@ -126,6 +210,8 @@ class IntegrationRegistryClass {
       case 'apollo':   return !!(cfg.apiKey);
       case 'email':    return !!(cfg.host && cfg.user && cfg.fromEmail);
       case 'calendar': return !!(cfg.provider && cfg.provider !== 'none');
+      case 'google':   return !!(cfg.clientId && cfg.hasSecret && cfg.hasToken);
+      case 'storage':  return !!(cfg.hasKey && cfg.bucket);
       default:         return false;
     }
   }
@@ -218,6 +304,8 @@ class IntegrationRegistryClass {
       ai:       'AI features are disabled. Template responses will be used instead.',
       calendar: 'Calendar integration is not configured. This meeting will only exist inside the platform.',
       email:    'Email sending is disabled because no email provider is configured. Emails will be saved as drafts.',
+      google:   'Google Workspace is not configured. Set GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, and GOOGLE_REFRESH_TOKEN.',
+      storage:  'Object storage is not configured. Files will be stored locally. Set AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, and S3_BUCKET.',
     };
     return messages[name] ?? `${name} integration is disabled.`;
   }
@@ -228,6 +316,8 @@ class IntegrationRegistryClass {
       ai:       'AI API key is not configured. Add your Anthropic API key in Settings → Integrations.',
       calendar: 'Calendar credentials are not configured. Add them in Settings → Integrations.',
       email:    'Email provider is not fully configured (missing host, user, or from address). Check Settings → Integrations.',
+      google:   'Google OAuth credentials are incomplete. Ensure GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, and GOOGLE_REFRESH_TOKEN are all set.',
+      storage:  'Storage credentials are incomplete. Ensure AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, and S3_BUCKET are all set.',
     };
     return messages[name] ?? `${name} integration credentials are missing.`;
   }
@@ -238,6 +328,8 @@ class IntegrationRegistryClass {
       ai:       'AI service is temporarily unavailable. Draft generation skipped. Please try again shortly.',
       calendar: 'Calendar provider is unreachable. Meeting saved locally only.',
       email:    'Email service is unreachable. Your email has been saved as a draft.',
+      google:   'Google Workspace is temporarily unreachable. Emails and calendar events will not sync until connection is restored.',
+      storage:  'Object storage is temporarily unreachable. File uploads are disabled until connection is restored.',
     };
     return messages[name] ?? `${name} service is temporarily unavailable.`;
   }

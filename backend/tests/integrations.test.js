@@ -106,7 +106,7 @@ describe('POST /api/integrations/health/check-all', () => {
     const res = await request(app).post('/api/integrations/health/check-all');
     expect(res.status).toBe(200);
     expect(Array.isArray(res.body.results)).toBe(true);
-    expect(res.body.results).toHaveLength(4);
+    expect(res.body.results.length).toBeGreaterThanOrEqual(4);
     expect(res.body.checkedAt).toBeDefined();
   });
 

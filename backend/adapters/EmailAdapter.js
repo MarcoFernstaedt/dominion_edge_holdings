@@ -54,13 +54,40 @@ async function smtpSend(email, cfg) {
   });
 }
 
+// ─── Gmail send (requires GOOGLE_REFRESH_TOKEN) ───────────────────────────────
+async function gmailSend(email) {
+  const { GoogleWorkspaceProvider } = await import('../services/providers/GoogleWorkspaceProvider.js');
+  return GoogleWorkspaceProvider.sendEmail({
+    to:             email.to,
+    subject:        email.subject,
+    body:           email.body,
+    html:           email.html,
+    replyToThreadId: email.replyToThreadId,
+  });
+}
+
 // ─── Adapter interface ────────────────────────────────────────────────────────
 
 /**
  * Send a single email.
+ * Provider selection: 'google' → Gmail API, 'smtp' → SMTP, otherwise draft.
  * Returns draft result if email integration is disabled or fails.
  */
 export async function sendEmail(email) {
+  // Try Google provider first if configured
+  const googleGuard = IntegrationRegistry.guard('google');
+  if (googleGuard.ok) {
+    try {
+      const result = await gmailSend(email);
+      IntegrationRegistry.recordSuccess('google');
+      IntegrationRegistry.recordSuccess('email');
+      return { sent: true, draft: false, provider: 'gmail', ...result };
+    } catch (err) {
+      IntegrationRegistry.recordError('google', err.message);
+      // Fall through to SMTP if gmail fails
+    }
+  }
+
   const guard = IntegrationRegistry.guard('email');
   if (!guard.ok) return draftResult(email, guard);
 
@@ -82,7 +109,7 @@ export async function sendEmail(email) {
     }
 
     IntegrationRegistry.recordSuccess('email');
-    return { sent: true, draft: false, ...result };
+    return { sent: true, draft: false, provider: 'smtp', ...result };
   } catch (err) {
     // Critical failures (partial send) bubble up with abort flag
     if (err.critical) throw err;
@@ -135,6 +162,48 @@ export function validateEmail(address) {
 }
 
 /**
+ * List email threads from Gmail.
+ * Falls back to empty list when Google is not configured.
+ */
+export async function listThreads({ query = '', maxResults = 20, pageToken } = {}) {
+  const guard = IntegrationRegistry.guard('google');
+  if (!guard.ok) {
+    return {
+      threads: [],
+      source:  'internal',
+      warning: guard.degradedMessage,
+    };
+  }
+  try {
+    const { GoogleWorkspaceProvider } = await import('../services/providers/GoogleWorkspaceProvider.js');
+    const result = await GoogleWorkspaceProvider.listThreads({ query, maxResults, pageToken });
+    IntegrationRegistry.recordSuccess('google');
+    return { ...result, source: 'gmail' };
+  } catch (err) {
+    IntegrationRegistry.recordError('google', err.message);
+    return { threads: [], source: 'internal', warning: err.message };
+  }
+}
+
+/**
+ * Get a single Gmail thread.
+ */
+export async function getThread(threadId) {
+  const guard = IntegrationRegistry.guard('google');
+  if (!guard.ok) return { thread: null, warning: guard.degradedMessage };
+
+  try {
+    const { GoogleWorkspaceProvider } = await import('../services/providers/GoogleWorkspaceProvider.js');
+    const result = await GoogleWorkspaceProvider.getThread(threadId);
+    IntegrationRegistry.recordSuccess('google');
+    return { thread: result, source: 'gmail' };
+  } catch (err) {
+    IntegrationRegistry.recordError('google', err.message);
+    return { thread: null, warning: err.message };
+  }
+}
+
+/**
  * Save email as draft (local storage — always works, no external call).
  */
 export function saveDraft(email, store) {
@@ -149,5 +218,5 @@ export function saveDraft(email, store) {
   return draft;
 }
 
-export const EmailAdapter = { sendEmail, sendBatch, validateEmail, saveDraft };
+export const EmailAdapter = { sendEmail, sendBatch, validateEmail, saveDraft, listThreads, getThread };
 export default EmailAdapter;

@@ -7,7 +7,6 @@
  */
 
 import IntegrationRegistry from '../services/IntegrationRegistry.js';
-import { withRetry } from '../utils/retry.js';
 
 // ─── Degradation response shape ───────────────────────────────────────────────
 function internalOnly(message) {
@@ -44,27 +43,10 @@ function generateInternalWindows(durationMinutes = 30) {
   return slots;
 }
 
-// ─── Google Calendar API calls ────────────────────────────────────────────────
-async function googleFetch(path, method, body, accessToken) {
-  return withRetry(async () => {
-    const res = await fetch(`https://www.googleapis.com/calendar/v3${path}`, {
-      method,
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization:  `Bearer ${accessToken}`,
-      },
-      body: body ? JSON.stringify(body) : undefined,
-      signal: AbortSignal.timeout(10000),
-    });
-    if (res.status === 401) throw Object.assign(new Error('Calendar auth expired'), { retryable: false });
-    if (!res.ok) throw new Error(`Google Calendar returned ${res.status}`);
-    return res.json();
-  }, {
-    maxRetries:  3,
-    baseDelayMs: 800,
-    shouldRetry: (err) => err.retryable !== false,
-    onRetry:     (attempt, err, delay) => console.warn(`[CalendarAdapter] retry ${attempt} in ${delay}ms — ${err.message}`),
-  });
+// ─── Google Calendar via GoogleWorkspaceProvider ──────────────────────────────
+async function getGoogleProvider() {
+  const { GoogleWorkspaceProvider } = await import('../services/providers/GoogleWorkspaceProvider.js');
+  return GoogleWorkspaceProvider;
 }
 
 // ─── Adapter interface ────────────────────────────────────────────────────────
@@ -89,15 +71,9 @@ export async function listAvailableWindows({ durationMinutes = 30, startDate, en
     if (cfg.provider === 'google') {
       const now  = new Date(startDate || Date.now());
       const end  = new Date(endDate   || now.getTime() + 7 * 86400000);
-      const data = await googleFetch(
-        `/freeBusy`,
-        'POST',
-        { timeMin: now.toISOString(), timeMax: end.toISOString(), items: [{ id: 'primary' }] },
-        cfg.credentials?.access_token
-      );
+      const gp   = await getGoogleProvider();
+      const busy = await gp.getFreeBusy({ timeMin: now.toISOString(), timeMax: end.toISOString() });
       IntegrationRegistry.recordSuccess('calendar');
-      // Build available slots around busy times
-      const busy  = data.calendars?.primary?.busy || [];
       const slots = _buildSlotsAvoidingBusy(busy, durationMinutes, now, end);
       return { slots, source: 'google' };
     }
@@ -127,20 +103,14 @@ export async function createEvent({ title, startsAt, endsAt, attendees = [], loc
   const cfg = IntegrationRegistry.getConfig('calendar');
   try {
     if (cfg.provider === 'google') {
-      const event = await googleFetch('/calendars/primary/events', 'POST', {
-        summary:     title,
-        description: description || '',
-        start:       { dateTime: startsAt },
-        end:         { dateTime: endsAt   },
-        attendees:   attendees.map((email) => ({ email })),
-        conferenceData: locationType === 'google_meet' ? { createRequest: { requestId: `deh_${Date.now()}` } } : undefined,
-      }, cfg.credentials?.access_token);
+      const gp    = await getGoogleProvider();
+      const event = await gp.createCalendarEvent({ title, description, startsAt, endsAt, attendees, locationType });
 
       IntegrationRegistry.recordSuccess('calendar');
       return {
         source:      'google',
-        eventId:     event.id,
-        meetingLink: event.hangoutLink || null,
+        eventId:     event.eventId,
+        meetingLink: event.meetingLink,
         calendarLink: event.htmlLink || null,
       };
     }
@@ -161,7 +131,8 @@ export async function updateEvent({ eventId, updates = {} } = {}) {
   const cfg = IntegrationRegistry.getConfig('calendar');
   try {
     if (cfg.provider === 'google' && eventId) {
-      await googleFetch(`/calendars/primary/events/${eventId}`, 'PATCH', updates, cfg.credentials?.access_token);
+      const gp = await getGoogleProvider();
+      await gp.updateCalendarEvent(eventId, updates);
       IntegrationRegistry.recordSuccess('calendar');
       return { updated: true, eventId };
     }
@@ -182,7 +153,8 @@ export async function cancelEvent({ eventId, reason } = {}) {
   const cfg = IntegrationRegistry.getConfig('calendar');
   try {
     if (cfg.provider === 'google' && eventId) {
-      await googleFetch(`/calendars/primary/events/${eventId}`, 'DELETE', null, cfg.credentials?.access_token);
+      const gp = await getGoogleProvider();
+      await gp.cancelCalendarEvent(eventId);
       IntegrationRegistry.recordSuccess('calendar');
       return { cancelled: true, eventId };
     }

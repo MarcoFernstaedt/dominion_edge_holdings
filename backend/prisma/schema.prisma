@@ -657,6 +657,7 @@ model Meeting {
   outcome         String?
   status          String    @default("scheduled") // scheduled, completed, cancelled, no_show
   aiPrepped       Boolean   @default(false)
+  calendarEventId String?   // Google Calendar event ID when synced
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
@@ -924,6 +925,97 @@ model Notification {
   updatedAt   DateTime @updatedAt
 
   @@index([isRead, createdAt])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// OAUTH TOKENS — external provider credentials
+// ─────────────────────────────────────────────────────────────────────────────
+
+model OAuthToken {
+  id           String    @id @default(cuid())
+  provider     String    // 'google'
+  userId       String?
+  accessToken  String
+  refreshToken String?
+  tokenType    String    @default("Bearer")
+  scope        String?
+  expiresAt    DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@unique([provider])
+  @@index([provider])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// EMAIL THREADS + MESSAGES — synced from Gmail
+// ─────────────────────────────────────────────────────────────────────────────
+
+model EmailThread {
+  id            String         @id @default(cuid())
+  gmailThreadId String         @unique
+  subject       String?
+  snippet       String?
+  contactId     String?
+  companyId     String?
+  lastMessageAt DateTime?
+  messageCount  Int            @default(0)
+  labelIds      String[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  messages EmailMessage[]
+
+  @@index([gmailThreadId])
+  @@index([contactId, lastMessageAt])
+  @@index([companyId, lastMessageAt])
+}
+
+model EmailMessage {
+  id             String      @id @default(cuid())
+  gmailMessageId String      @unique
+  threadId       String
+  thread         EmailThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  from           String?
+  to             String?
+  subject        String?
+  bodyPreview    String?
+  bodyText       String?
+  sentAt         DateTime?
+  direction      String      @default("inbound") // inbound | outbound
+  isRead         Boolean     @default(false)
+  labelIds       String[]
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  @@index([threadId])
+  @@index([sentAt])
+  @@index([direction, sentAt])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// STORED FILES — S3-compatible object storage metadata
+// ─────────────────────────────────────────────────────────────────────────────
+
+model StoredFile {
+  id           String   @id @default(cuid())
+  bucket       String
+  key          String
+  originalName String
+  mimeType     String?
+  sizeBytes    Int?
+  entityType   String?  // 'deal' | 'contact' | 'company' | 'artifact' | 'proof'
+  entityId     String?
+  uploadedBy   String?
+  metadata     Json?
+  isPublic     Boolean  @default(false)
+  expiresAt    DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([bucket, key])
+  @@index([entityType, entityId])
+  @@index([uploadedBy, createdAt])
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

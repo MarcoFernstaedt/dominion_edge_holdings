@@ -33,6 +33,7 @@ import dealFeedRouter      from './dealFeed.routes.js';
 import relationshipsRouter from './relationships.routes.js';
 import conversationsRouter from './conversations.routes.js';
 import notificationsRouter from './notifications.routes.js';
+import filesRouter         from './files.routes.js';
 
 /**
  * @param {import('express').Application} app
@@ -66,4 +67,5 @@ export default function mountRoutes(app) {
   app.use(relationshipsRouter);
   app.use(conversationsRouter);
   app.use(notificationsRouter);
+  app.use(filesRouter);
 }
