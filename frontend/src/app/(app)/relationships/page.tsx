@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { relationshipsApi } from '@/lib/api';
+import { Skeleton } from '@/components/ui/Skeleton';
 import {
   Users,
   Search,
@@ -505,7 +506,7 @@ export default function RelationshipsPage() {
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="page-container space-y-6">
       {/* Header */}
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
@@ -569,7 +570,73 @@ export default function RelationshipsPage() {
 
       {/* Content */}
       {loading ? (
-        <p className="text-sm text-[var(--color-text-muted)]" aria-live="polite">Loading…</p>
+        <div className="space-y-4" aria-busy="true" aria-label="Loading relationships">
+          {/* Dashboard widget skeleton */}
+          <div className="bg-[#111111] border border-[#262626] rounded-[10px] p-4 space-y-4">
+            <div className="flex items-center justify-between">
+              <Skeleton className="h-4 w-40" />
+              <Skeleton className="h-5 w-20 rounded-full" />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {[0, 1, 2].map((i) => (
+                <div key={i} className="border border-[#262626] rounded-[10px] p-3 space-y-2">
+                  <Skeleton className="h-2.5 w-20" />
+                  {[0, 1, 2].map((j) => (
+                    <Skeleton key={j} className="h-3" style={{ width: `${55 + j * 15}%` }} />
+                  ))}
+                </div>
+              ))}
+            </div>
+            <div className="grid grid-cols-4 gap-2 pt-2 border-t border-[#262626]">
+              {[0, 1, 2, 3].map((i) => (
+                <div key={i} className="text-center space-y-1.5">
+                  <Skeleton className="h-5 w-8 mx-auto" />
+                  <Skeleton className="h-2 w-12 mx-auto" />
+                </div>
+              ))}
+            </div>
+          </div>
+          {/* Table skeleton — desktop */}
+          <div className="hidden md:block bg-[#111111] border border-[#262626] rounded-[10px] overflow-hidden">
+            <div className="px-4 py-2.5 border-b border-[#262626] flex gap-6">
+              {[28, 12, 12, 12, 14, 14].map((w, i) => (
+                <Skeleton key={i} className="h-2.5" style={{ width: `${w}%` }} />
+              ))}
+            </div>
+            {[0, 1, 2, 3, 4, 5].map((i) => (
+              <div key={i} className="px-4 py-3.5 border-b border-[#262626] last:border-0 flex gap-6 items-center">
+                <div className="space-y-1.5" style={{ width: '28%' }}>
+                  <Skeleton className="h-3 w-36" />
+                  <Skeleton className="h-2.5 w-24" />
+                </div>
+                <Skeleton className="h-3" style={{ width: '12%' }} />
+                <Skeleton className="h-5 w-16 rounded-full" style={{ width: '12%' }} />
+                <Skeleton className="h-3" style={{ width: '12%' }} />
+                <Skeleton className="h-3" style={{ width: '14%' }} />
+                <Skeleton className="h-3" style={{ width: '14%' }} />
+              </div>
+            ))}
+          </div>
+          {/* Card skeleton — mobile */}
+          <div className="md:hidden space-y-3">
+            {[0, 1, 2, 3].map((i) => (
+              <div key={i} className="bg-[#111111] border border-[#262626] rounded-[10px] p-4 space-y-3">
+                <div className="flex items-start justify-between">
+                  <div className="space-y-1.5">
+                    <Skeleton className="h-4 w-32" />
+                    <Skeleton className="h-3 w-20" />
+                  </div>
+                  <Skeleton className="h-7 w-20 rounded-[8px]" />
+                </div>
+                <div className="flex gap-2">
+                  <Skeleton className="h-5 w-14 rounded" />
+                  <Skeleton className="h-5 w-14 rounded" />
+                  <Skeleton className="h-5 w-10 rounded" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       ) : relationships.length === 0 ? (
         <div className="text-center py-16 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl" aria-live="polite">
           <Users size={32} className="mx-auto mb-3 text-[var(--color-text-muted)]" aria-hidden />
