@@ -19,6 +19,35 @@ import type {
   PlaybookStage,
   PlaybookTaskWithProgress,
 } from '@/lib/types';
+import { Skeleton } from '@/components/ui/Skeleton';
+
+/* ─── skeleton ──────────────────────────────────────────────────── */
+
+function PlaybookSkeleton() {
+  return (
+    <div className="space-y-3" aria-busy="true" aria-label="Loading playbook">
+      <Skeleton className="h-3 w-28 mb-1" />
+      {Array.from({ length: 6 }, (_, i) => (
+        <div key={i} className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-4 flex items-center gap-3">
+          {/* Stage order circle */}
+          <Skeleton className="w-7 h-7 rounded-full flex-shrink-0" />
+          <div className="flex-1 min-w-0 space-y-1.5">
+            {/* Name + badge row */}
+            <div className="flex items-center gap-2">
+              <Skeleton className="h-4 w-40" />
+              <Skeleton className="h-4 w-16 rounded-full" />
+            </div>
+            {/* Task count */}
+            <Skeleton className="h-2.5 w-32" />
+            {/* Progress bar */}
+            <Skeleton className="h-1.5 w-full rounded-full mt-1" />
+          </div>
+          <Skeleton className="w-3.5 h-3.5 flex-shrink-0" />
+        </div>
+      ))}
+    </div>
+  );
+}
 
 /* ─── helpers ───────────────────────────────────────────────────── */
 
@@ -454,7 +483,7 @@ export default function PlaybookPage() {
 
       {/* Stage list */}
       {loading ? (
-        <p className="text-sm text-[var(--color-text-muted)]">Loading playbook…</p>
+        <PlaybookSkeleton />
       ) : (
         <div className="space-y-3">
           <h2 className="text-sm font-semibold text-[var(--color-text-primary)] uppercase tracking-widest">

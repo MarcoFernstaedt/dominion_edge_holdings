@@ -12,6 +12,7 @@ import { meetingPrepApi } from '@/lib/api';
 import type { MeetingPrepPacket } from '@/lib/types';
 import type { Meeting, MeetingStatus, MeetingType } from '@/lib/types';
 import { useFormField } from '@/hooks/useFormField';
+import { Skeleton } from '@/components/ui/Skeleton';
 
 const MEETING_TYPE_LABELS: Record<MeetingType, string> = {
   seller_discovery: 'Seller Discovery',
@@ -252,7 +253,36 @@ function PrepPacketSection({ meetingId }: { meetingId: string }) {
     }
   };
 
-  if (loading) return <div className="text-xs text-[#A7A29A]">Loading prep packet…</div>;
+  if (loading) return (
+    <div className="border border-[#2A2A2E] rounded-md p-3 bg-[#0D0D0D] space-y-3" aria-busy="true" aria-label="Loading prep packet">
+      {/* Header row */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-1.5">
+          <Skeleton className="h-2.5 w-20" />
+        </div>
+        <Skeleton className="h-6 w-24 rounded" />
+      </div>
+      {/* Objectives */}
+      <div className="space-y-1.5">
+        <Skeleton className="h-2 w-16" />
+        <Skeleton className="h-2.5 w-48" />
+        <Skeleton className="h-2.5 w-40" />
+      </div>
+      {/* Agenda */}
+      <div className="space-y-1.5">
+        <Skeleton className="h-2 w-12" />
+        <Skeleton className="h-2.5 w-52" />
+        <Skeleton className="h-2.5 w-44" />
+        <Skeleton className="h-2.5 w-36" />
+      </div>
+      {/* Questions */}
+      <div className="space-y-1.5">
+        <Skeleton className="h-2 w-28" />
+        <Skeleton className="h-2.5 w-56" />
+        <Skeleton className="h-2.5 w-48" />
+      </div>
+    </div>
+  );
 
   return (
     <div className="border border-[#2A2A2E] rounded-md p-3 bg-[#0D0D0D]">

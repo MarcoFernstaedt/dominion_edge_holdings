@@ -14,6 +14,64 @@ import {
   TrendingUp,
 } from 'lucide-react';
 import type { DailyActionPlan, DailyAction } from '@/lib/types';
+import { Skeleton } from '@/components/ui/Skeleton';
+
+/* ─── skeleton ──────────────────────────────────────────────────── */
+
+function ActionCardSkeleton() {
+  return (
+    <div className="bg-[var(--color-surface)] border-l-4 border border-[var(--color-border)] rounded-lg p-4">
+      <div className="flex items-start gap-3">
+        {/* complete circle */}
+        <Skeleton className="w-4 h-4 rounded-full flex-shrink-0 mt-0.5" />
+        <div className="flex-1 space-y-2">
+          {/* title + source badge */}
+          <div className="flex items-center gap-2">
+            <Skeleton className="h-4 w-48" />
+            <Skeleton className="h-4 w-16 rounded" />
+          </div>
+          {/* description */}
+          <Skeleton className="h-3 w-full" />
+          <Skeleton className="h-3 w-4/5" />
+          {/* meta */}
+          <div className="flex gap-3 mt-1">
+            <Skeleton className="h-2.5 w-14" />
+            <Skeleton className="h-2.5 w-24" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PlaybookTodaySkeleton() {
+  return (
+    <div className="space-y-8" aria-busy="true" aria-label="Loading today's actions">
+      {/* High priority section */}
+      <div>
+        <div className="flex items-center gap-2 mb-3">
+          <Skeleton className="h-4 w-4" />
+          <Skeleton className="h-4 w-36" />
+          <Skeleton className="h-4 w-6 rounded-full" />
+        </div>
+        <div className="space-y-2.5">
+          {[0, 1].map((i) => <ActionCardSkeleton key={i} />)}
+        </div>
+      </div>
+      {/* Standard section */}
+      <div>
+        <div className="flex items-center gap-2 mb-3">
+          <Skeleton className="h-4 w-4" />
+          <Skeleton className="h-4 w-40" />
+          <Skeleton className="h-4 w-6 rounded-full" />
+        </div>
+        <div className="space-y-2.5">
+          {[0, 1, 2, 3].map((i) => <ActionCardSkeleton key={i} />)}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 /* ─── helpers ───────────────────────────────────────────────────── */
 
@@ -299,7 +357,7 @@ export default function PlaybookTodayPage() {
       )}
 
       {loading ? (
-        <p className="text-sm text-[var(--color-text-muted)]">Loading today&apos;s actions…</p>
+        <PlaybookTodaySkeleton />
       ) : allActions.length === 0 ? (
         <div className="text-center py-12 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl">
           <CheckCircle2 size={32} className="text-emerald-400 mx-auto mb-3" aria-hidden />

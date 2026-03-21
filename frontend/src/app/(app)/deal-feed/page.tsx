@@ -19,6 +19,47 @@ import {
   Upload,
 } from 'lucide-react';
 import type { DealFeedListing, DealFeedFilters, DealFeedSummary } from '@/lib/types';
+import { Skeleton } from '@/components/ui/Skeleton';
+
+// ─── Skeleton ─────────────────────────────────────────────────────────────────
+
+function ListingCardSkeleton() {
+  return (
+    <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-4 flex flex-col gap-3">
+      {/* Header */}
+      <div className="flex items-start gap-2">
+        <div className="flex-1 min-w-0 space-y-1.5">
+          <Skeleton className="h-4 w-40" />
+          <Skeleton className="h-3 w-28" />
+        </div>
+        <Skeleton className="h-7 w-10 rounded-md flex-shrink-0" />
+      </div>
+      {/* Financials grid */}
+      <div className="grid grid-cols-4 gap-2">
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} className="space-y-1">
+            <Skeleton className="h-2.5 w-12" />
+            <Skeleton className="h-4 w-14" />
+          </div>
+        ))}
+      </div>
+      {/* Actions */}
+      <div className="flex items-center gap-2 pt-1">
+        <Skeleton className="h-7 w-14 rounded-lg" />
+        <Skeleton className="h-7 w-14 rounded-lg" />
+        <Skeleton className="h-7 w-28 rounded-lg" />
+      </div>
+    </div>
+  );
+}
+
+function DealFeedSkeleton() {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4" aria-busy="true" aria-label="Loading listings">
+      {Array.from({ length: 6 }, (_, i) => <ListingCardSkeleton key={i} />)}
+    </div>
+  );
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -565,7 +606,7 @@ export default function DealFeedPage() {
 
       {/* Listing grid */}
       {loading ? (
-        <p className="text-sm text-[var(--color-text-muted)]" aria-live="polite">Loading listings…</p>
+        <DealFeedSkeleton />
       ) : listings.length === 0 ? (
         <div className="text-center py-16 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl" aria-live="polite">
           <Store size={32} className="mx-auto mb-3 text-[var(--color-text-muted)]" aria-hidden />

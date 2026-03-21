@@ -31,6 +31,80 @@ import type {
   ConversationTrendWeek,
   ConversationWeeklyReport,
 } from '@/lib/types';
+import { Skeleton } from '@/components/ui/Skeleton';
+
+// ─── Skeleton ─────────────────────────────────────────────────────────────────
+
+function ConversationsSkeleton() {
+  return (
+    <>
+      {/* Desktop table */}
+      <div className="hidden md:block overflow-x-auto rounded-xl border border-[var(--color-border)]" aria-busy="true" aria-label="Loading conversations">
+        <table className="w-full min-w-[640px]">
+          <thead className="bg-[#1A1A1E] border-b border-[var(--color-border)]">
+            <tr>
+              {['Contact', 'Type', 'Channel', 'Date', 'Summary', ''].map((h, i) => (
+                <th key={i} className="py-2 px-4 text-left">
+                  <Skeleton className="h-2.5" style={{ width: h === '' ? 24 : `${50 + i * 10}%` }} />
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {Array.from({ length: 6 }, (_, i) => (
+              <tr key={i} className="border-b border-[var(--color-border)] last:border-0">
+                {/* Contact */}
+                <td className="py-3 px-4">
+                  <div className="flex items-center gap-2">
+                    <Skeleton className="w-3.5 h-3.5 rounded flex-shrink-0" />
+                    <div className="space-y-1">
+                      <Skeleton className="h-3 w-28" />
+                      <Skeleton className="h-2.5 w-20" />
+                    </div>
+                  </div>
+                </td>
+                {/* Type badge */}
+                <td className="py-3 px-4"><Skeleton className="h-5 w-20 rounded-full" /></td>
+                {/* Channel */}
+                <td className="py-3 px-4"><Skeleton className="h-5 w-16 rounded-full" /></td>
+                {/* Date */}
+                <td className="py-3 px-4"><Skeleton className="h-3 w-20" /></td>
+                {/* Summary */}
+                <td className="py-3 px-4"><Skeleton className="h-3 w-48" /></td>
+                {/* Delete */}
+                <td className="py-3 px-4 text-right"><Skeleton className="h-5 w-5 ml-auto rounded" /></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {/* Mobile cards */}
+      <div className="md:hidden space-y-3" aria-busy="true" aria-label="Loading conversations">
+        {Array.from({ length: 4 }, (_, i) => (
+          <div key={i} className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-4 space-y-2">
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <Skeleton className="w-3.5 h-3.5 rounded flex-shrink-0" />
+                <div className="space-y-1">
+                  <Skeleton className="h-4 w-36" />
+                  <Skeleton className="h-3 w-24" />
+                </div>
+              </div>
+              <Skeleton className="w-5 h-5 rounded" />
+            </div>
+            <div className="flex gap-2">
+              <Skeleton className="h-5 w-16 rounded" />
+              <Skeleton className="h-5 w-20 rounded" />
+              <Skeleton className="h-5 w-16 rounded" />
+            </div>
+            <Skeleton className="h-3 w-full" />
+            <Skeleton className="h-3 w-3/4" />
+          </div>
+        ))}
+      </div>
+    </>
+  );
+}
 
 // ─── Display helpers ──────────────────────────────────────────────────────────
 
@@ -525,7 +599,7 @@ export default function ConversationsPage() {
 
       {/* List */}
       {loading ? (
-        <p className="text-sm text-[var(--color-text-muted)]" aria-live="polite">Loading…</p>
+        <ConversationsSkeleton />
       ) : conversations.length === 0 ? (
         <div className="text-center py-16 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl" aria-live="polite">
           <MessageCircle size={32} className="mx-auto mb-3 text-[var(--color-text-muted)]" aria-hidden />

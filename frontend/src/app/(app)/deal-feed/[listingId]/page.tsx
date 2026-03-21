@@ -27,6 +27,88 @@ import type {
   DealFeedListing,
   DealFeedScoreBreakdownItem,
 } from '@/lib/types';
+import { Skeleton } from '@/components/ui/Skeleton';
+
+// ─── Detail skeleton ───────────────────────────────────────────────────────────
+
+function ListingDetailSkeleton() {
+  return (
+    <div className="p-6 space-y-6 max-w-5xl mx-auto" aria-busy="true" aria-label="Loading listing">
+      {/* Back nav */}
+      <Skeleton className="h-4 w-24" />
+      {/* Hero */}
+      <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-6">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="space-y-2">
+            <Skeleton className="h-6 w-56" />
+            <Skeleton className="h-4 w-36" />
+          </div>
+          {/* Score ring placeholder */}
+          <Skeleton className="w-20 h-20 rounded-full flex-shrink-0" />
+        </div>
+        {/* Action buttons */}
+        <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-[var(--color-border)]">
+          <Skeleton className="h-9 w-32 rounded-lg" />
+          <Skeleton className="h-9 w-44 rounded-lg" />
+          <Skeleton className="h-9 w-20 rounded-lg" />
+        </div>
+      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left: financials + description + score breakdown */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Financial estimates */}
+          <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-4 space-y-4">
+            <Skeleton className="h-4 w-36" />
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              {[0, 1, 2, 3].map((i) => (
+                <div key={i} className="space-y-1.5">
+                  <Skeleton className="h-2.5 w-14" />
+                  <Skeleton className="h-5 w-20" />
+                </div>
+              ))}
+            </div>
+          </div>
+          {/* Description */}
+          <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-4 space-y-3">
+            <Skeleton className="h-4 w-28" />
+            <Skeleton className="h-3 w-full" />
+            <Skeleton className="h-3 w-5/6" />
+            <Skeleton className="h-3 w-4/5" />
+          </div>
+          {/* Score breakdown */}
+          <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-4 space-y-3">
+            <Skeleton className="h-4 w-36" />
+            {[0, 1, 2, 3, 4].map((i) => (
+              <div key={i} className="flex items-center gap-3">
+                <Skeleton className="h-3 w-32" />
+                <Skeleton className="h-2 flex-1 rounded-full" />
+                <Skeleton className="h-3 w-8" />
+              </div>
+            ))}
+          </div>
+        </div>
+        {/* Right: details + contact */}
+        <div className="space-y-6">
+          <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-4 space-y-3">
+            <Skeleton className="h-4 w-20" />
+            {[0, 1, 2, 3].map((i) => (
+              <div key={i} className="flex justify-between gap-2">
+                <Skeleton className="h-3 w-24" />
+                <Skeleton className="h-3 w-20" />
+              </div>
+            ))}
+          </div>
+          <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-4 space-y-3">
+            <Skeleton className="h-4 w-28" />
+            <Skeleton className="h-3 w-36" />
+            <Skeleton className="h-3 w-32" />
+            <Skeleton className="h-3 w-40" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -223,11 +305,7 @@ export default function ListingDetailPage() {
   };
 
   if (loading) {
-    return (
-      <div className="p-6 flex items-center gap-2 text-sm text-[var(--color-text-muted)]">
-        <RefreshCw size={14} className="animate-spin" aria-hidden /> Loading listing…
-      </div>
-    );
+    return <ListingDetailSkeleton />;
   }
 
   if (error || !listing) {
