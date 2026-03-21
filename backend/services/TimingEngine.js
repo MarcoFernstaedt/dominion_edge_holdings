@@ -90,7 +90,7 @@ export function calcTaskSlaState(task) {
   const createdAt = task.created_at ?? task.createdAt;
 
   // Resolve effective due timestamp
-  let dueTs = dueTsRaw
+  const dueTs = dueTsRaw
     ? new Date(dueTsRaw)
     : createdAt
       ? new Date(new Date(createdAt).getTime() + TASK_THRESHOLDS.default_due_hours[priority] * 3_600_000)

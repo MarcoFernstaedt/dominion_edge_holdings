@@ -175,15 +175,15 @@ class DealFeedScoringService {
     const ebitda  = listing.ebitdaEstimate   || 0;
     const price   = listing.listingPrice     || 0;
 
-    let longevity = Math.round(normalize(years, 0, 10) * 25);
-    let industry  = matchesIndustrySet(listing.industry, HIGH_VALUE_INDUSTRIES) ? 20 : (listing.industry ? 5 : 0);
+    const longevity = Math.round(normalize(years, 0, 10) * 25);
+    const industry  = matchesIndustrySet(listing.industry, HIGH_VALUE_INDUSTRIES) ? 20 : (listing.industry ? 5 : 0);
     let stability = 0;
     if (rev > 0 && ebitda > 0) {
       stability = Math.round(normalize(ebitda / rev, 0, 0.25) * 20);
     } else if (rev > 0) {
       stability = Math.round(normalize(rev, 250_000, 5_000_000) * 10);
     }
-    let fragmented = matchesIndustrySet(listing.industry, FRAGMENTED_INDUSTRIES) ? 15 : 0;
+    const fragmented = matchesIndustrySet(listing.industry, FRAGMENTED_INDUSTRIES) ? 15 : 0;
     let retirement = 0;
     if (listing.ownerRetirementSignal) retirement = 15;
     else if (years >= 10 && listing.noWebsiteSignal) retirement = 10;

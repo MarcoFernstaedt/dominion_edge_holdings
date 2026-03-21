@@ -456,7 +456,7 @@ class ConversationMetricsService {
     const dayInvest  = convAll.filter((c) => c.date === date && c.entityType === 'investor').length;
 
     const daily = this._store.executionDailyStats || [];
-    let dayStat = daily.find((s) => s.date === date);
+    const dayStat = daily.find((s) => s.date === date);
     if (dayStat) {
       dayStat.sellerConversations    = daySeller;
       dayStat.boardConversations     = dayBoard;
@@ -470,7 +470,7 @@ class ConversationMetricsService {
     const weekInvest  = convAll.filter((c) => c.date >= wStart && c.date < wEnd && c.entityType === 'investor').length;
 
     const weekly = this._store.executionWeeklyStats || [];
-    let weekStat = weekly.find((s) => s.weekStartDate === wStart);
+    const weekStat = weekly.find((s) => s.weekStartDate === wStart);
     if (weekStat) {
       weekStat.sellerConversations   = weekSeller;
       weekStat.boardConversations    = weekBoard;
