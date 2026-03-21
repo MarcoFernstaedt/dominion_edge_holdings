@@ -1,9 +1,12 @@
 'use client';
 
 import Link from 'next/link';
-import { Search, Menu } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Search, Menu, LogOut } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { NotificationsPanel } from './NotificationsPanel';
+import { logout, getAuthStatus } from '@/lib/auth';
+import { useState, useEffect } from 'react';
 
 interface TopBarProps {
   onSearchOpen: () => void;
@@ -12,6 +15,18 @@ interface TopBarProps {
 }
 
 export function TopBar({ onSearchOpen, onMobileMenuOpen }: TopBarProps) {
+  const router = useRouter();
+  const [authEnabled, setAuthEnabled] = useState(false);
+
+  useEffect(() => {
+    getAuthStatus().then((s) => s && setAuthEnabled(s.authEnabled));
+  }, []);
+
+  const handleLogout = async () => {
+    await logout();
+    router.replace('/login');
+  };
+
   return (
     <header
       className="h-12 flex items-center justify-between px-3 border-b border-[#262626] bg-[#0A0A0A] flex-shrink-0 sticky top-0 z-20"
@@ -72,6 +87,22 @@ export function TopBar({ onSearchOpen, onMobileMenuOpen }: TopBarProps) {
 
         {/* Notifications — live panel with real API data */}
         <NotificationsPanel />
+
+        {/* Logout — only shown when auth is enabled */}
+        {authEnabled && (
+          <button
+            onClick={handleLogout}
+            className={cn(
+              'flex items-center justify-center w-8 h-8 rounded-lg',
+              'text-[#737373] hover:text-[#E5E5E5] hover:bg-[#1A1A1A] transition-colors duration-150',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A227]'
+            )}
+            aria-label="Sign out"
+            title="Sign out"
+          >
+            <LogOut size={14} aria-hidden />
+          </button>
+        )}
       </div>
     </header>
   );

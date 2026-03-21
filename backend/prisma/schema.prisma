@@ -189,12 +189,14 @@ enum EmpirePhaseStatus {
 // ─────────────────────────────────────────────────────────────────────────────
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String
-  avatarUrl String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String
+  avatarUrl    String?
+  passwordHash String?  // bcrypt hash; null for legacy/SSO accounts
+  role         String   @default("owner") // owner | admin | viewer — extend as needed
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   settings  UserSettings?
   companies Company[]

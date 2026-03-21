@@ -39,9 +39,12 @@ const env = {
   // AI
   ANTHROPIC_API_KEY: required('ANTHROPIC_API_KEY'),
 
-  // Auth
-  AUTH_SECRET:         optional('AUTH_SECRET', null),
+  // Auth — JWT
+  // AUTH_ENABLED=true enforces auth in dev/test; production always enforces it.
   AUTH_ENABLED:        optional('AUTH_ENABLED', 'false') === 'true',
+  AUTH_JWT_SECRET:     optional('AUTH_JWT_SECRET', null),
+  AUTH_JWT_EXPIRES_IN: optional('AUTH_JWT_EXPIRES_IN', '7d'),
+  // Legacy single-user token (kept for backwards compatibility, superseded by JWT)
   SINGLE_USER_TOKEN:   optional('SINGLE_USER_TOKEN', null),
 
   // CORS
@@ -79,9 +82,13 @@ const env = {
   SYSTEM_USER_ID:      optional('SYSTEM_USER_ID'),
 };
 
-// In production, warn about any optional-but-important vars that are missing
+// In production, enforce critical auth vars
 if (isProd) {
-  const recommended = ['AUTH_SECRET', 'SINGLE_USER_TOKEN', 'SYSTEM_USER_ID'];
+  if (!process.env.AUTH_JWT_SECRET) {
+    console.error('[env] FATAL: AUTH_JWT_SECRET is required in production');
+    process.exit(1);
+  }
+  const recommended = ['SYSTEM_USER_ID'];
   for (const k of recommended) {
     if (!process.env[k]) {
       console.warn(`[env] WARNING: ${k} is not set — some features may be degraded`);

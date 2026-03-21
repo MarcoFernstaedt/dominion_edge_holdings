@@ -1,14 +1,33 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { SidebarNav } from '@/components/layout/SidebarNav';
 import { TopBar } from '@/components/layout/TopBar';
 import { CommandPalette } from '@/components/layout/CommandPalette';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { useAppStore } from '@/lib/store';
 import { useBootstrap } from '@/hooks/useBootstrap';
+import { getMe, getAuthStatus } from '@/lib/auth';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
+
+  // Auth guard — redirect to /login if auth is enabled and session is absent
+  useEffect(() => {
+    async function checkAuth() {
+      const status = await getAuthStatus();
+      // If auth is not enabled server-side, no redirect needed
+      if (!status?.authEnabled) return;
+      const user = await getMe();
+      if (!user) {
+        router.replace('/login');
+      }
+    }
+    checkAuth();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Hydrate business data from API on mount
   useBootstrap();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);

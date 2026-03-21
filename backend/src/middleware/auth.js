@@ -1,62 +1,130 @@
 /**
- * auth.js — Authentication middleware scaffolding.
+ * auth.js — Production JWT authentication middleware.
  *
- * Current mode: single-user token auth (opt-in via AUTH_ENABLED env var).
- * Upgrade path: replace verifyToken() with a full JWT/session check
- * and extend requireAuth to call a multi-user session store.
+ * Token sources (in priority order):
+ *   1. HttpOnly cookie: deh_token  (web clients)
+ *   2. Authorization: Bearer <jwt> header  (API clients / tests)
  *
- * To enable auth: set AUTH_ENABLED=true and SINGLE_USER_TOKEN=<secret> in .env
+ * Auth enforcement:
+ *   - NODE_ENV=production  → always required
+ *   - AUTH_ENABLED=true     → required in dev/test too
+ *   - otherwise             → bypassed (req.user set to system identity)
+ *
+ * Upgrade path to multi-user:
+ *   - User record already has `id`, `role`, `email`
+ *   - Just add more users to the DB; JWT validation is identical
+ *   - Role-based middleware can be layered on top of requireAuth
  */
+
+import jwt from 'jsonwebtoken';
 import env from '../config/env.js';
 import { errorResponse } from './errorResponse.js';
 
-/**
- * Verify a bearer token against the configured single-user token.
- * @returns {boolean}
- */
-function verifyToken(token) {
-  if (!env.SINGLE_USER_TOKEN) return false;
-  return token === env.SINGLE_USER_TOKEN;
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function isAuthEnforced() {
+  return env.isProd || env.AUTH_ENABLED;
 }
+
+function extractToken(req) {
+  // 1. HttpOnly cookie (set by /api/auth/login)
+  if (req.cookies?.deh_token) return req.cookies.deh_token;
+
+  // 2. Bearer header (API clients, supertest tests when auth is explicitly tested)
+  const header = req.headers['authorization'] ?? '';
+  if (header.startsWith('Bearer ')) return header.slice(7);
+
+  return null;
+}
+
+function verifyToken(token) {
+  if (!env.AUTH_JWT_SECRET) {
+    throw Object.assign(new Error('AUTH_JWT_SECRET is not set'), { code: 'SERVER_MISCONFIGURED' });
+  }
+  return jwt.verify(token, env.AUTH_JWT_SECRET);
+}
+
+// ─── Middleware ───────────────────────────────────────────────────────────────
 
 /**
  * requireAuth — protect a route from unauthenticated access.
  *
- * When AUTH_ENABLED=false (default), passes all requests through so the app
- * behaves identically to the current single-user deployment.
- *
- * When AUTH_ENABLED=true, validates the Bearer token.
+ * When auth is not enforced (dev/test without AUTH_ENABLED), passes all
+ * requests through with a system identity attached to req.user.
  */
 export function requireAuth(req, res, next) {
-  if (!env.AUTH_ENABLED) return next();
+  if (!isAuthEnforced()) {
+    req.user = {
+      id:    env.SYSTEM_USER_ID ?? 'single-user',
+      role:  'owner',
+      email: null,
+    };
+    return next();
+  }
 
-  const header = req.headers['authorization'] ?? '';
-  const token  = header.startsWith('Bearer ') ? header.slice(7) : null;
+  if (!env.AUTH_JWT_SECRET) {
+    return errorResponse(res, 503, 'SERVER_MISCONFIGURED', 'Auth is enabled but AUTH_JWT_SECRET is not set.');
+  }
 
-  if (!token || !verifyToken(token)) {
+  const token = extractToken(req);
+  if (!token) {
     return errorResponse(res, 401, 'UNAUTHORIZED', 'Authentication required');
   }
 
-  // Attach a minimal identity object — extend this when multi-user is added
-  req.user = { id: env.SYSTEM_USER_ID ?? 'single-user', role: 'owner' };
+  try {
+    const payload = verifyToken(token);
+    req.user = {
+      id:    payload.sub,
+      role:  payload.role  ?? 'owner',
+      email: payload.email ?? null,
+    };
+    next();
+  } catch (err) {
+    const code = err.name === 'TokenExpiredError' ? 'TOKEN_EXPIRED' : 'TOKEN_INVALID';
+    return errorResponse(res, 401, code, 'Session expired — please log in again');
+  }
+}
+
+/**
+ * optionalAuth — sets req.user if a valid token is present, never rejects.
+ * Useful for routes that behave differently when authenticated vs anonymous.
+ */
+export function optionalAuth(req, res, next) {
+  if (!isAuthEnforced()) {
+    req.user = {
+      id:    env.SYSTEM_USER_ID ?? 'single-user',
+      role:  'owner',
+      email: null,
+    };
+    return next();
+  }
+
+  const token = extractToken(req);
+  if (token) {
+    try {
+      const payload = verifyToken(token);
+      req.user = { id: payload.sub, role: payload.role ?? 'owner', email: payload.email ?? null };
+    } catch {
+      // Invalid/expired token — treat as anonymous
+    }
+  }
   next();
 }
 
 /**
- * optionalAuth — parses auth if present but never rejects.
- * Useful for routes that behave differently when authenticated.
+ * requireRole — layer on top of requireAuth to enforce minimum role.
+ * Call after requireAuth.
+ *
+ * @param {...string} roles  Allowed roles (e.g. 'owner', 'admin')
  */
-export function optionalAuth(req, res, next) {
-  if (!env.AUTH_ENABLED) {
-    req.user = { id: env.SYSTEM_USER_ID ?? 'single-user', role: 'owner' };
-    return next();
-  }
-
-  const header = req.headers['authorization'] ?? '';
-  const token  = header.startsWith('Bearer ') ? header.slice(7) : null;
-
-  if (token && verifyToken(token)) {
-    req.user = { id: env.SYSTEM_USER_ID ?? 'single-user', role: 'owner' };
-  }
-  next();
+export function requireRole(...roles) {
+  return (req, res, next) => {
+    if (!req.user) {
+      return errorResponse(res, 401, 'UNAUTHORIZED', 'Authentication required');
+    }
+    if (!roles.includes(req.user.role)) {
+      return errorResponse(res, 403, 'FORBIDDEN', 'Insufficient permissions');
+    }
+    next();
+  };
 }

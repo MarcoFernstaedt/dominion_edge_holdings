@@ -10,8 +10,13 @@ import cors         from 'cors';
 import helmet       from 'helmet';
 import compression  from 'compression';
 import rateLimit    from 'express-rate-limit';
+import cookieParser from 'cookie-parser';
 import crypto       from 'crypto';
 import pino         from 'pino';
+
+// ─── Auth ─────────────────────────────────────────────────────────────────────
+import authRouter          from './routes/auth.routes.js';
+import { requireAuth }     from './middleware/auth.js';
 
 // ─── Route files ──────────────────────────────────────────────────────────────
 import healthRouter        from './routes/health.routes.js';
@@ -42,6 +47,7 @@ import dealFeedRouter      from './routes/dealFeed.routes.js';
 import relationshipsRouter from './routes/relationships.routes.js';
 import conversationsRouter from './routes/conversations.routes.js';
 import notificationsRouter from './routes/notifications.routes.js';
+import filesRouter         from './routes/files.routes.js';
 
 // ─── Structured logging ───────────────────────────────────────────────────────
 const logger = pino({
@@ -95,6 +101,7 @@ app.use(
 app.use(compression());
 app.use(express.json({ limit: '512kb' }));
 app.use(express.urlencoded({ extended: false, limit: '128kb' }));
+app.use(cookieParser());
 
 // Request ID + structured logging
 app.use((req, res, next) => {
@@ -138,7 +145,13 @@ app.use('/api/capital-raising/pitch-deck/generate', aiLimiter);
 app.use('/api/capital-raising/outreach/generate', aiLimiter);
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
-app.use(healthRouter);
+// Public routes — no auth required
+app.use(healthRouter);   // GET /health
+app.use(authRouter);     // POST /api/auth/login, /api/auth/setup, GET /api/auth/status
+
+// Protected — requireAuth applied globally to all remaining /api/* routes
+app.use('/api', requireAuth);
+
 app.use(chatRouter);
 app.use(dashboardRouter);
 app.use(companiesRouter);
@@ -166,6 +179,7 @@ app.use(dealFeedRouter);
 app.use(relationshipsRouter);
 app.use(conversationsRouter);
 app.use(notificationsRouter);
+app.use(filesRouter);
 
 // ─── 404 ──────────────────────────────────────────────────────────────────────
 app.use((req, res) => {
