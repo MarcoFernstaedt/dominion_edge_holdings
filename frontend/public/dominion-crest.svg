@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 228" width="200" height="228" role="img" aria-label="Dominion Edge Holdings crest">
+  <defs>
+    <linearGradient id="gold-v" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#EDD68A"/>
+      <stop offset="22%"  stop-color="#C9A227"/>
+      <stop offset="58%"  stop-color="#9E7914"/>
+      <stop offset="82%"  stop-color="#B8941F"/>
+      <stop offset="100%" stop-color="#C9A84C"/>
+    </linearGradient>
+    <linearGradient id="gold-d" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%"   stop-color="#EDD68A"/>
+      <stop offset="42%"  stop-color="#C9A227"/>
+      <stop offset="100%" stop-color="#7A5E10"/>
+    </linearGradient>
+    <linearGradient id="gold-hl" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%"   stop-color="#9E7914" stop-opacity="0.5"/>
+      <stop offset="30%"  stop-color="#EDD68A" stop-opacity="0.9"/>
+      <stop offset="70%"  stop-color="#EDD68A" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#9E7914" stop-opacity="0.5"/>
+    </linearGradient>
+    <radialGradient id="interior" cx="50%" cy="34%" r="58%">
+      <stop offset="0%"   stop-color="#181818"/>
+      <stop offset="100%" stop-color="#060606"/>
+    </radialGradient>
+    <filter id="glow" x="-15%" y="-15%" width="130%" height="130%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="1.2" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- Shield fill -->
+  <path d="M 26 24 L 174 24 L 174 146 L 100 218 L 26 146 Z" fill="url(#interior)"/>
+
+  <!-- Outer border -->
+  <path d="M 26 24 L 174 24 L 174 146 L 100 218 L 26 146 Z"
+        fill="none" stroke="url(#gold-d)" stroke-width="1.6" filter="url(#glow)"/>
+
+  <!-- Top edge highlight -->
+  <line x1="26" y1="24" x2="174" y2="24" stroke="url(#gold-hl)" stroke-width="1"/>
+
+  <!-- Inner liner -->
+  <path d="M 40 38 L 160 38 L 160 144 L 100 206 L 40 144 Z"
+        fill="none" stroke="url(#gold-v)" stroke-width="0.6" opacity="0.32"/>
+
+  <!-- Top rule -->
+  <line x1="62" y1="58" x2="138" y2="58" stroke="url(#gold-d)" stroke-width="0.55" opacity="0.6"/>
+  <circle cx="62"  cy="58" r="1.1" fill="#C9A227" opacity="0.6"/>
+  <circle cx="138" cy="58" r="1.1" fill="#C9A227" opacity="0.6"/>
+
+  <!-- DE Monogram -->
+  <text x="100" y="130" text-anchor="middle" dominant-baseline="middle"
+        font-family="'Cormorant Garamond', Georgia, serif"
+        font-size="62" font-weight="600" fill="url(#gold-v)" letter-spacing="5">DE</text>
+
+  <!-- Bottom rule -->
+  <line x1="74" y1="186" x2="126" y2="186" stroke="url(#gold-d)" stroke-width="0.45" opacity="0.38"/>
+</svg>
