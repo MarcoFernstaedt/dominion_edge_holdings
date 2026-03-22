@@ -43,7 +43,7 @@ export function patchIntegration(req, res) {
   if (patch.calendarProvider) store.settings.calendarProvider = patch.calendarProvider;
 
   IntegrationRegistry.syncFromSettings(store.settings);
-  AuditLogService.log(AuditLogService.AUDIT_EVENTS.SETTINGS_UPDATED, 'integration', name, { patch: Object.keys(patch) });
+  AuditLogService.log(AuditLogService.AUDIT_EVENTS.SETTINGS_UPDATED, 'integration', name, { patch: Object.keys(patch) }, req.user?.id ?? 'system');
 
   res.json({ name, status: IntegrationRegistry.getStatus(name), message: `Integration "${name}" updated.` });
 }

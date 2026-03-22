@@ -16,6 +16,7 @@ import jwt    from 'jsonwebtoken';
 import prisma from '../lib/prisma.js';
 import env    from '../config/env.js';
 import { errorResponse } from '../middleware/errorResponse.js';
+import AuditLogService from '../../services/AuditLogService.js';
 
 const COOKIE_NAME    = 'deh_token';
 const COOKIE_MAX_AGE = 7 * 24 * 60 * 60 * 1000; // 7 days in ms
@@ -60,7 +61,13 @@ export async function login(req, res) {
     return errorResponse(res, 400, 'VALIDATION_ERROR', 'email and password are required');
   }
 
-  const user = await prisma.user.findUnique({ where: { email: email.toLowerCase().trim() } });
+  let user;
+  try {
+    user = await prisma.user.findUnique({ where: { email: email.toLowerCase().trim() } });
+  } catch (err) {
+    console.error('[auth/login] DB error:', err.message);
+    return errorResponse(res, 503, 'SERVICE_UNAVAILABLE', 'Authentication service temporarily unavailable');
+  }
 
   // Constant-time response to avoid user enumeration
   const dummyHash = '$2a$12$invalidhashpaddingtoensureconstanttimexyz';
@@ -73,13 +80,17 @@ export async function login(req, res) {
 
   const token = signToken(user);
   res.cookie(COOKIE_NAME, token, cookieOptions());
+  AuditLogService.log(AuditLogService.AUDIT_EVENTS.AUTH_LOGIN, 'user', user.id, { email: user.email, role: user.role }, user.id);
   res.json({ user: safeUser(user) });
 }
 
 /**
  * POST /api/auth/logout
  */
-export function logout(_req, res) {
+export function logout(req, res) {
+  if (req.user?.id && req.user.id !== 'single-user') {
+    AuditLogService.log(AuditLogService.AUDIT_EVENTS.AUTH_LOGOUT, 'user', req.user.id, {}, req.user.id);
+  }
   res.clearCookie(COOKIE_NAME, { path: '/' });
   res.json({ ok: true });
 }
@@ -143,6 +154,7 @@ export async function setup(req, res) {
   // Auto-login after setup
   const token = signToken(user);
   res.cookie(COOKIE_NAME, token, cookieOptions());
+  AuditLogService.log(AuditLogService.AUDIT_EVENTS.AUTH_SETUP, 'user', user.id, { email: user.email, role: user.role }, user.id);
   res.status(201).json({ user: safeUser(user) });
 }
 

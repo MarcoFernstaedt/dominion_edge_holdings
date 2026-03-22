@@ -6,7 +6,7 @@
 import express from 'express';
 import { z }   from 'zod';
 import { validate }  from '../middleware/validate.js';
-import { requireAuth } from '../middleware/auth.js';
+import { requireAuth, optionalAuth } from '../middleware/auth.js';
 import * as controller from '../controllers/auth.controller.js';
 
 const router = express.Router();
@@ -30,8 +30,11 @@ router.post('/api/auth/setup',
 );
 
 // ─── Authenticated ────────────────────────────────────────────────────────────
-router.get ('/api/auth/me',      requireAuth, controller.me);
-router.post('/api/auth/logout',  requireAuth, controller.logout);
-router.post('/api/auth/refresh', requireAuth, controller.refresh);
+router.get ('/api/auth/me',      requireAuth,  controller.me);
+// Logout uses optionalAuth — clearing a cookie is always safe, even with an
+// expired or absent token. Using requireAuth here would block logout for
+// sessions whose JWT has just expired.
+router.post('/api/auth/logout',  optionalAuth, controller.logout);
+router.post('/api/auth/refresh', requireAuth,  controller.refresh);
 
 export default router;

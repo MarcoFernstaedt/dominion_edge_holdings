@@ -43,6 +43,9 @@ export const AUDIT_EVENTS = {
 
   // Auth / System
   SYSTEM_STARTUP:         'system.startup',
+  AUTH_LOGIN:             'auth.login',
+  AUTH_LOGOUT:            'auth.logout',
+  AUTH_SETUP:             'auth.setup',
 };
 
 /**
