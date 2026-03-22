@@ -1,12 +1,18 @@
 /**
- * jobs/index.js — Background job registration and startup.
+ * src/jobs/index.js — Background job registration and startup.
  *
- * All jobs are registered here. This module is imported once during app boot.
+ * All jobs are registered with BackgroundJobRunner here.
+ * This module is imported once during app boot.
  * No job logic should be inline in app.js or server.js.
  */
+import logger               from '../lib/logger.js';
+import BackgroundJobRunner  from '../../services/BackgroundJobRunner.js';
 import DealFeedIngestionJob   from '../../jobs/DealFeedIngestionJob.js';
 import RelationshipFollowUpJob from '../../jobs/RelationshipFollowUpJob.js';
-import BackgroundJobRunner     from '../../services/BackgroundJobRunner.js';
+import SourcingRadarJob       from './SourcingRadarJob.js';
+import HealthCheckJob         from './HealthCheckJob.js';
+import PrepPacketJob          from './PrepPacketJob.js';
+import PlaybookSyncJob        from './PlaybookSyncJob.js';
 
 let _started = false;
 
@@ -14,38 +20,48 @@ let _started = false;
  * Register and start all background jobs.
  * Safe to call multiple times — only starts once.
  *
- * @param {object} store   In-memory store reference
- * @param {object} ctx     Service context { notificationService, taskService, ... }
+ * @param {object} store        In-memory store reference
+ * @param {object} orchestrator Agent orchestrator
  */
-export function startJobs(store, ctx = {}) {
+export function startJobs(store, orchestrator = null) {
   if (_started) return;
   _started = true;
 
-  try {
-    DealFeedIngestionJob.start(store);
-  } catch (err) {
-    console.error('[jobs] DealFeedIngestionJob failed to start:', err.message);
+  // Initialize the runner (registers built-in jobs)
+  BackgroundJobRunner.init(store, orchestrator);
+
+  // Register additional domain-specific jobs
+  const domainJobs = [
+    DealFeedIngestionJob,
+    RelationshipFollowUpJob,
+    SourcingRadarJob,
+    HealthCheckJob,
+    PrepPacketJob,
+    PlaybookSyncJob,
+  ];
+
+  for (const job of domainJobs) {
+    try {
+      BackgroundJobRunner.register({
+        id:         job.id,
+        name:       job.name,
+        intervalMs: job.intervalMs,
+        fn:         (ctx) => job.run(ctx),
+      });
+    } catch (err) {
+      logger.error({ jobId: job.id, err }, `[jobs] Failed to register job: ${job.name}`);
+    }
   }
 
-  try {
-    RelationshipFollowUpJob.start(store, ctx);
-  } catch (err) {
-    console.error('[jobs] RelationshipFollowUpJob failed to start:', err.message);
-  }
-
-  console.log('[jobs] Background jobs started');
+  logger.info({ jobCount: BackgroundJobRunner.status().length }, '[jobs] Background jobs registered');
 }
 
 /**
- * Stop all registered jobs cleanly (for graceful shutdown).
+ * Graceful shutdown — delegates to BackgroundJobRunner.
+ * @param {number} [timeoutMs=10000]
  */
-export function stopJobs() {
-  try {
-    if (typeof DealFeedIngestionJob.stop === 'function')   DealFeedIngestionJob.stop();
-    if (typeof RelationshipFollowUpJob.stop === 'function') RelationshipFollowUpJob.stop();
-  } catch (err) {
-    console.error('[jobs] Error stopping jobs:', err.message);
-  }
+export async function stopJobs(timeoutMs = 10_000) {
+  await BackgroundJobRunner.shutdown(timeoutMs);
   _started = false;
 }
 

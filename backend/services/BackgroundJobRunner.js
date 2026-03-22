@@ -1,28 +1,34 @@
 /**
  * BackgroundJobRunner
  *
- * Simple in-process async job queue. Jobs run on configurable intervals.
- * Replace with Bull/BullMQ + Redis for production-scale async processing.
+ * In-process async job queue with run history, structured logging, and
+ * graceful shutdown. For production-scale async processing, replace the
+ * interval-based scheduler with BullMQ + Redis, keeping this interface.
  *
- * Built-in jobs (per spec):
- *   syncMailbox, sendEmailBatch, generateDailyBriefing, classifyReply,
- *   detectStalledDeals, generateDocument, refreshDashboardMetrics
+ * Each job execution is recorded with status/duration/error for observability.
+ * Failed runs are collected in a global ring buffer (last 200 failures).
  */
 
+import logger               from '../src/lib/logger.js';
 import CacheService            from './CacheService.js';
 import AuditLogService         from './AuditLogService.js';
 import NotificationService     from './NotificationService.js';
 import AutomationRuleEngine    from './AutomationRuleEngine.js';
 import TaskService             from './TaskService.js';
 import PipelinePressureService from './PipelinePressureService.js';
+import crypto                  from 'crypto';
+
+const MAX_RUN_HISTORY   = 20;   // per job
+const MAX_FAILED_BUFFER = 200;  // global ring buffer
 
 // ─── Job registry ─────────────────────────────────────────────────────────────
 class BackgroundJobRunnerClass {
   constructor() {
-    this._jobs    = new Map();  // jobId → { name, fn, intervalMs, lastRun, running, enabled }
+    this._jobs    = new Map();  // jobId → { name, fn, intervalMs, lastRun, running, enabled, history }
     this._timers  = new Map();  // jobId → NodeJS timer
     this._store   = null;       // injected via init()
     this._orchestrator = null;  // injected via init()
+    this._failedRuns = [];      // global ring buffer of recent failures
   }
 
   /**
@@ -33,11 +39,12 @@ class BackgroundJobRunnerClass {
     this._orchestrator = orchestrator;
     this._registerBuiltInJobs();
     AuditLogService.log(AuditLogService.AUDIT_EVENTS.SYSTEM_STARTUP, 'system', 'background_jobs', { jobCount: this._jobs.size });
+    logger.info({ jobCount: this._jobs.size }, '[BackgroundJobRunner] Initialized');
   }
 
   /** Register and schedule a job. */
   register({ id, name, fn, intervalMs, enabled = true }) {
-    this._jobs.set(id, { id, name, fn, intervalMs, lastRun: null, running: false, enabled });
+    this._jobs.set(id, { id, name, fn, intervalMs, lastRun: null, running: false, enabled, history: [] });
     if (enabled) this._schedule(id);
   }
 
@@ -56,14 +63,45 @@ class BackgroundJobRunnerClass {
     if (!job || job.running) return;
     job.running = true;
     const start = Date.now();
+    const runId = crypto.randomUUID();
+    logger.info({ jobId, jobName: job.name, runId }, '[BackgroundJobRunner] Job started');
     try {
       await job.fn({ store: this._store, orchestrator: this._orchestrator });
-      job.lastRun = new Date().toISOString();
+      const durationMs = Date.now() - start;
+      job.lastRun   = new Date().toISOString();
+      job.durationMs = durationMs;
+      const record = { runId, status: 'ok', startedAt: new Date(start).toISOString(), durationMs };
+      this._appendHistory(job, record);
+      logger.info({ jobId, jobName: job.name, runId, durationMs }, '[BackgroundJobRunner] Job completed');
     } catch (err) {
-      console.error(`[BackgroundJobRunner] Job ${job.name} failed:`, err.message);
+      const durationMs = Date.now() - start;
+      job.durationMs = durationMs;
+      const record = {
+        runId,
+        status:    'failed',
+        startedAt: new Date(start).toISOString(),
+        durationMs,
+        error:     err.message,
+      };
+      this._appendHistory(job, record);
+      this._recordFailure({ jobId, jobName: job.name, ...record });
+      logger.error({ jobId, jobName: job.name, runId, durationMs, err }, '[BackgroundJobRunner] Job failed');
     } finally {
-      job.running  = false;
-      job.durationMs = Date.now() - start;
+      job.running = false;
+    }
+  }
+
+  _appendHistory(job, record) {
+    job.history.push(record);
+    if (job.history.length > MAX_RUN_HISTORY) {
+      job.history.shift();
+    }
+  }
+
+  _recordFailure(entry) {
+    this._failedRuns.push(entry);
+    if (this._failedRuns.length > MAX_FAILED_BUFFER) {
+      this._failedRuns.shift();
     }
   }
 
@@ -84,9 +122,31 @@ class BackgroundJobRunnerClass {
   }
 
   status() {
-    return [...this._jobs.values()].map(({ id, name, intervalMs, lastRun, running, enabled, durationMs }) => ({
-      id, name, intervalMs, lastRun, running, enabled, durationMs: durationMs ?? null,
+    return [...this._jobs.values()].map(({ id, name, intervalMs, lastRun, running, enabled, durationMs, history }) => ({
+      id, name, intervalMs, lastRun, running, enabled,
+      durationMs:  durationMs ?? null,
+      recentRuns:  history.slice(-5),
     }));
+  }
+
+  /** Returns the global failed-run ring buffer (up to last 200). */
+  failedRuns() {
+    return [...this._failedRuns];
+  }
+
+  /** Graceful shutdown: clear all timers and wait for running jobs to finish. */
+  async shutdown(timeoutMs = 10_000) {
+    logger.info('[BackgroundJobRunner] Shutting down — clearing timers');
+    for (const [, timer] of this._timers) clearInterval(timer);
+    this._timers.clear();
+
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      const anyRunning = [...this._jobs.values()].some((j) => j.running);
+      if (!anyRunning) break;
+      await new Promise((r) => setTimeout(r, 100));
+    }
+    logger.info('[BackgroundJobRunner] Shutdown complete');
   }
 
   // ─── Built-in jobs ─────────────────────────────────────────────────────────
@@ -146,7 +206,7 @@ class BackgroundJobRunnerClass {
       intervalMs: 60 * 60 * 1000,
       fn: async () => {
         const removed = CacheService.sweep();
-        if (removed > 0) console.log(`[CacheService] Swept ${removed} expired entries`);
+        if (removed > 0) logger.info({ removed }, '[CacheService] Swept expired entries');
       },
     });
 
@@ -189,7 +249,7 @@ class BackgroundJobRunnerClass {
           () => new Date().toISOString(),
         );
         if (created.length > 0) {
-          console.log(`[PipelinePressure] Created ${created.length} follow-up tasks for stalled entities`);
+          logger.info({ count: created.length }, '[PipelinePressure] Created follow-up tasks for stalled entities');
         }
         // Notify if significant stall count
         const metrics = PipelinePressureService.getDashboardMetrics(store);
@@ -222,8 +282,6 @@ class BackgroundJobRunnerClass {
     });
   }
 }
-
-import crypto from 'crypto';
 
 export const BackgroundJobRunner = new BackgroundJobRunnerClass();
 export default BackgroundJobRunner;
