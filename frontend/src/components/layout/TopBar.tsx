@@ -48,19 +48,6 @@ export function TopBar({ onSearchOpen, onMobileMenuOpen }: TopBarProps) {
         </button>
       </div>
 
-      {/* Center: brand name — mobile only */}
-      <Link
-        href="/command-center"
-        className={cn(
-          'md:hidden absolute left-1/2 -translate-x-1/2',
-          'text-[11px] font-bold tracking-[0.14em] text-[#C9A227] uppercase',
-          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A227] rounded px-1'
-        )}
-        aria-label="Dominion Edge Holdings — go to Command Center"
-      >
-        DOMINION EDGE HOLDINGS
-      </Link>
-
       {/* Right: search + notifications */}
       <div className="flex items-center gap-1">
         {/* Command palette trigger */}
