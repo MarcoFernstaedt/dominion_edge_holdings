@@ -15,6 +15,7 @@ import type {
   BoardCandidate,
   CapTableEntry,
   ChecklistPhase,
+  ChecklistSubmission,
   Task,
   Document,
   EmailThread,
@@ -157,6 +158,30 @@ export const useAppStore = create<AppState>()(
                           ...item,
                           isComplete: !item.isComplete,
                           completedAt: !item.isComplete ? new Date().toISOString() : undefined,
+                        }
+                      : item
+                  ),
+                }
+              : phase
+          ),
+        })),
+
+      submitChecklistItem: (phaseId: string, itemId: ID, submission: ChecklistSubmission) =>
+        set((s) => ({
+          checklistPhases: s.checklistPhases.map((phase) =>
+            phase.id === phaseId
+              ? {
+                  ...phase,
+                  items: phase.items.map((item) =>
+                    item.id === itemId
+                      ? {
+                          ...item,
+                          submission,
+                          // Auto-mark complete when grade passes
+                          isComplete: submission.grade?.passed ? true : item.isComplete,
+                          completedAt: submission.grade?.passed && !item.isComplete
+                            ? new Date().toISOString()
+                            : item.completedAt,
                         }
                       : item
                   ),

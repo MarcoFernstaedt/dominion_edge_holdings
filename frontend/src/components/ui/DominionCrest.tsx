@@ -132,7 +132,7 @@ export default function DominionCrest({
       */}
       <text
         x="100"
-        y="130"
+        y="108"
         textAnchor="middle"
         dominantBaseline="middle"
         fontFamily="'Cormorant Garamond', 'Georgia', serif"

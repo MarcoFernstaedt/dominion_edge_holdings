@@ -368,6 +368,22 @@ export type CompletionType =
   | 'requires-meeting'
   | 'requires-financial-model';
 
+export interface ChecklistGrade {
+  score:        number;
+  level:        'elite' | 'solid' | 'needs_work' | 'reject';
+  passed:       boolean;
+  headline:     string;
+  feedback:     string;
+  improvements: string[];
+}
+
+export interface ChecklistSubmission {
+  text?:       string;
+  fileName?:   string;
+  submittedAt: string;
+  grade?:      ChecklistGrade;
+}
+
 export interface ChecklistItem {
   id: ID;
   phase: string;
@@ -384,6 +400,7 @@ export interface ChecklistItem {
   notes?: string;
   autoGenerateTasks?: boolean;
   sortOrder: number;
+  submission?: ChecklistSubmission;
 }
 
 export interface ChecklistPhase {
@@ -784,6 +801,7 @@ export interface AppState {
   // Checklist
   checklistPhases: ChecklistPhase[];
   toggleChecklistItem: (phaseId: string, itemId: ID) => void;
+  submitChecklistItem: (phaseId: string, itemId: ID, submission: ChecklistSubmission) => void;
 
   // Tasks
   tasks: Task[];
