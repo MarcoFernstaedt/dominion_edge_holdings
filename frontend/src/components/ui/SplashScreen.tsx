@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useAppStore } from '@/lib/store';
 import DominionCrest from './DominionCrest';
 
-type Phase = 'enter' | 'hold' | 'exit' | 'gone';
+type Phase = 'hold' | 'exit' | 'gone';
 
 // Minimum ms in 'hold' before allowing exit (after enter completes)
 const MIN_HOLD_MS = 1200;
@@ -16,7 +16,7 @@ const EXIT_MS = 520;
 const SAFETY_MS = 4200;
 
 export default function SplashScreen() {
-  const [phase, setPhase] = useState<Phase>('enter');
+  const [phase, setPhase] = useState<Phase>('hold');
   const dataReady = useAppStore((s) => s.dataReady);
   const minHoldReached = useRef(false);
   const dataReadyRef   = useRef(false);
@@ -42,7 +42,6 @@ export default function SplashScreen() {
 
     // Reduced-motion path — no animation, short hold, quick exit
     if (reducedMotion.current) {
-      setPhase('hold');
       const t = setTimeout(() => {
         setPhase('exit');
         setTimeout(() => setPhase('gone'), 200);
@@ -50,13 +49,12 @@ export default function SplashScreen() {
       return () => clearTimeout(t);
     }
 
-    // Normal animated path
-    const t1 = setTimeout(() => setPhase('hold'), ENTER_MS);
-
+    // Normal path — splash is immediately visible (phase='hold').
+    // Wait MIN_HOLD_MS before allowing exit, then check if data is ready.
     const t2 = setTimeout(() => {
       minHoldReached.current = true;
       tryExit();
-    }, ENTER_MS + MIN_HOLD_MS);
+    }, MIN_HOLD_MS);
 
     // Safety valve
     const t3 = setTimeout(() => {
@@ -67,7 +65,6 @@ export default function SplashScreen() {
     }, SAFETY_MS);
 
     return () => {
-      clearTimeout(t1);
       clearTimeout(t2);
       clearTimeout(t3);
     };
@@ -82,10 +79,9 @@ export default function SplashScreen() {
 
   if (phase === 'gone') return null;
 
-  const isEntering = phase === 'enter';
-  const isExiting  = phase === 'exit';
+  const isExiting = phase === 'exit';
 
-  /* ── Container styles (JS-driven for enter/exit opacity + scale) ── */
+  /* ── Container styles — visible immediately; fades out on exit ── */
   const containerStyle: React.CSSProperties = {
     position:        'fixed',
     inset:           0,
@@ -96,28 +92,23 @@ export default function SplashScreen() {
     alignItems:      'center',
     justifyContent:  'center',
     pointerEvents:   isExiting ? 'none' : 'auto',
-    transition:      isExiting
-      ? `opacity ${EXIT_MS}ms cubic-bezier(0.4, 0, 1, 1)`
-      : `opacity ${ENTER_MS}ms ease`,
-    opacity:         isEntering || isExiting ? 0 : 1,
-    // Subtle noise texture — tasteful depth without visible pattern
+    transition:      isExiting ? `opacity ${EXIT_MS}ms cubic-bezier(0.4, 0, 1, 1)` : undefined,
+    opacity:         isExiting ? 0 : 1,
     backgroundImage:
       'radial-gradient(ellipse 80% 60% at 50% 40%, #111111 0%, #070707 100%)',
   };
 
-  /* ── Crest wrapper — scale + fade on enter/exit ── */
+  /* ── Crest wrapper — scales out on exit ── */
   const crestWrapStyle: React.CSSProperties = {
-    position:   'relative',
-    overflow:   'hidden',
-    // Small border-radius clips the sweep to the crest bounds
+    position:     'relative',
+    overflow:     'hidden',
     borderRadius: 2,
-    transition:  isExiting
+    transition:   isExiting
       ? `transform ${EXIT_MS}ms cubic-bezier(0.4, 0, 1, 1),
          opacity   ${EXIT_MS}ms ease`
-      : `transform ${ENTER_MS + 120}ms cubic-bezier(0.16, 1, 0.3, 1),
-         opacity   ${ENTER_MS + 120}ms ease`,
-    transform:   isEntering ? 'scale(0.93)' : isExiting ? 'scale(1.04)' : 'scale(1)',
-    opacity:     isEntering || isExiting ? 0 : 1,
+      : undefined,
+    transform:    isExiting ? 'scale(1.04)' : 'scale(1)',
+    opacity:      isExiting ? 0 : 1,
   };
 
   return (

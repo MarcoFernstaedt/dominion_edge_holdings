@@ -136,10 +136,10 @@ export default function DominionCrest({
         textAnchor="middle"
         dominantBaseline="middle"
         fontFamily="'Cormorant Garamond', 'Georgia', serif"
-        fontSize="62"
+        fontSize="74"
         fontWeight="600"
         fill={`url(#${goldV})`}
-        letterSpacing="5"
+        letterSpacing="6"
       >
         DE
       </text>
