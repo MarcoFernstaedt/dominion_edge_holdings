@@ -13,6 +13,7 @@ import rateLimit    from 'express-rate-limit';
 import cookieParser from 'cookie-parser';
 import crypto       from 'crypto';
 import pino         from 'pino';
+import env          from './config/env.js';
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 import authRouter          from './routes/auth.routes.js';
@@ -52,9 +53,10 @@ import adminRouter         from './routes/admin.routes.js';
 
 // ─── Structured logging ───────────────────────────────────────────────────────
 const logger = pino({
-  level: process.env.LOG_LEVEL || 'info',
-  ...(process.env.NODE_ENV !== 'production' && {
-    transport: { target: 'pino-pretty', options: { colorize: true, ignore: 'pid,hostname' } },
+  level: env.LOG_LEVEL || 'info',
+  base: { service: 'deh-backend', env: env.NODE_ENV },
+  ...(!env.isProd && {
+    transport: { target: 'pino-pretty', options: { colorize: true, ignore: 'pid,hostname,service,env' } },
   }),
 });
 
@@ -80,10 +82,8 @@ app.use(
   })
 );
 
-// CORS
-const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS
-  ? process.env.ALLOWED_ORIGINS.split(',').map((o) => o.trim())
-  : ['http://localhost:3000'];
+// CORS — uses env.ALLOWED_ORIGINS (parsed in env.js, never re-read here)
+const ALLOWED_ORIGINS = env.ALLOWED_ORIGINS;
 
 app.use(
   cors({

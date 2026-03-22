@@ -17,17 +17,27 @@ Dominion Edge AOS combines deterministic scoring engines, relationship intellige
 
 ```
 dominion_edge_holdings/
-├── frontend/          # Next.js 14 · React 18 · TypeScript · Tailwind CSS
+├── frontend/             # Next.js 14 · React 18 · TypeScript · Tailwind CSS
 │   └── src/
-│       ├── app/       # App Router pages (48 pages across 12 modules)
-│       ├── components/ # Shared UI components + layout
-│       └── lib/       # API client, Zustand store, types, utils
-└── backend/           # Node.js · Express 5 · ES Modules
-    ├── services/      # 62 deterministic service modules
-    ├── agents/        # 15 Claude-powered AI agents
-    ├── adapters/      # 9 integration adapters
-    ├── jobs/          # Background job runners
-    └── tests/         # Integration + unit test suites
+│       ├── app/          # App Router pages (48 pages across 12 modules)
+│       ├── components/   # Shared UI components + layout
+│       └── lib/          # API client, Zustand store, auth utils, types
+└── backend/              # Node.js · Express 5 · ES Modules
+    ├── src/              # Production entry point (Prisma-backed, JWT auth)
+    │   ├── app.js        # Express factory — routes, middleware, auth guard
+    │   ├── index.js      # Server listen + job scheduler + process handlers
+    │   ├── controllers/  # Route handlers (thin, delegate to services/repos)
+    │   ├── routes/       # Express routers (one file per domain)
+    │   ├── middleware/    # auth, validate, errorResponse, globalError
+    │   ├── jobs/         # Background job definitions (isolated handlers)
+    │   ├── config/       # env.js — single source of truth for all env vars
+    │   └── lib/          # logger, prisma client, helpers
+    ├── services/         # Deterministic domain service modules
+    ├── agents/           # Claude-powered AI agents
+    ├── adapters/         # Integration adapters (Apollo, Google, S3)
+    ├── db/               # Prisma repo layer (repo.js + healthPing)
+    ├── prisma/           # schema.prisma + migrations
+    └── tests/            # Jest + Supertest integration tests
 ```
 
 ### Tech Stack
@@ -350,13 +360,29 @@ Fonts: System serif for headings (`font-serif`), system sans-serif for body. No 
 
 ## Project Status
 
-| Spec | Status | Description |
+| Batch | Status | Description |
 |---|---|---|
 | Core Platform | Complete | CRM, Pipeline, Board, Underwriting, Checklist, Playbook |
-| AI Agent Suite | Complete | 15 Claude agents with PromptRegistry (1,105-line registry) |
-| Spec 3 — Credibility & Network | Complete | Board Intelligence, Relationship Graph, Investor Scoring, Credibility Index, Network Alerts |
-| Spec 4 — Artifacts & Approvals | Complete | ArtifactStore, NotificationService, ExportService, Quick Actions, 18 new API routes |
-| UI Completion | Complete | Network Intel page, Artifacts page, live Notifications panel, Board health scores |
+| AI Agent Suite | Complete | 15 Claude agents with PromptRegistry |
+| Credibility & Network | Complete | Board Intelligence, Relationship Graph, Investor Scoring, Credibility Index, Network Alerts |
+| Artifacts & Approvals | Complete | ArtifactStore, NotificationService, ExportService, Quick Actions |
+| Batch 2 — Integrations | Complete | Google Workspace (Gmail + Calendar), Apollo enrichment, S3 object storage, integration registry/health |
+| Batch 3 — Auth | Complete | JWT + httpOnly cookie auth, global route protection, requireRole, audit log actor tracking, first-run setup |
+| Batch 4 — Reliability | Complete | BackgroundJobRunner retry/backoff, health endpoint integration status, admin route fixes, structured logging |
+| Batch 5 — Polish | Complete | Dead code removal, env consolidation, deployment-ready config |
+
+### Production Prerequisites
+
+| Requirement | Variable | Notes |
+|---|---|---|
+| Database | `DATABASE_URL` | PostgreSQL; run `npx prisma migrate deploy` before first boot |
+| Auth secret | `AUTH_JWT_SECRET` | Min 32 random bytes; required in production |
+| AI (optional) | `ANTHROPIC_API_KEY` | Needed for AI drafts, briefings, agents |
+| Gmail + Calendar | `GOOGLE_CLIENT_ID/SECRET/REFRESH_TOKEN` | OAuth2 — required for inbox/meeting sync |
+| Apollo | `APOLLO_API_KEY` | Lead discovery and contact enrichment |
+| Object storage | `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `S3_BUCKET` | S3 or compatible (R2, MinIO, B2) |
+| Frontend URL | `ALLOWED_ORIGINS` | Comma-separated CORS origins for production frontend |
+| System user | `SYSTEM_USER_ID` | Set after first `POST /api/auth/setup` |
 
 ---
 

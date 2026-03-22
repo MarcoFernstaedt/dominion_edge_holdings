@@ -44,8 +44,6 @@ const env = {
   AUTH_ENABLED:        optional('AUTH_ENABLED', 'false') === 'true',
   AUTH_JWT_SECRET:     optional('AUTH_JWT_SECRET', null),
   AUTH_JWT_EXPIRES_IN: optional('AUTH_JWT_EXPIRES_IN', '7d'),
-  // Legacy single-user token (kept for backwards compatibility, superseded by JWT)
-  SINGLE_USER_TOKEN:   optional('SINGLE_USER_TOKEN', null),
 
   // CORS
   ALLOWED_ORIGINS: optional('ALLOWED_ORIGINS', 'http://localhost:3000')
