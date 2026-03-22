@@ -19,8 +19,9 @@
  *  - bizquest   : same
  */
 
-import DealFeedService from '../services/DealFeedService.js';
-import AuditLogService from '../services/AuditLogService.js';
+import DealFeedService        from '../services/DealFeedService.js';
+import AuditLogService        from '../services/AuditLogService.js';
+import DealFeedScoringService from '../services/DealFeedScoringService.js';
 
 // ─── CSV row normaliser ───────────────────────────────────────────────────────
 
@@ -160,23 +161,24 @@ const DealFeedIngestionJob = {
       results.push({ source: 'bizquest', error: true });
     }
 
-    // Re-score all listings to pick up any model changes
-    DealFeedService._store && DealFeedService.constructor &&
-      (() => {
-        const listings = store.dealFeedListings || [];
-        let rescored = 0;
-        for (const l of listings) {
-          const prev = l.acquisitionScore;
-          const next = require('../services/DealFeedScoringService.js').default?.score(l);
-          if (typeof next === 'number' && next !== prev) {
-            l.acquisitionScore = next;
-            rescored++;
-          }
+    // Re-score all in-memory listings to pick up any model / weight changes.
+    // This operates only on the ephemeral store used by the deal feed; it will
+    // be replaced once deal feed listings are migrated to Prisma-backed storage.
+    if (store && Array.isArray(store.dealFeedListings)) {
+      const listings = store.dealFeedListings;
+      let rescored = 0;
+      for (const l of listings) {
+        const prev = l.acquisitionScore;
+        const next = DealFeedScoringService.score?.(l);
+        if (typeof next === 'number' && next !== prev) {
+          l.acquisitionScore = next;
+          rescored++;
         }
-        if (rescored > 0) {
-          AuditLogService.log('deal_feed_rescored', { count: rescored });
-        }
-      })();
+      }
+      if (rescored > 0) {
+        AuditLogService.log('deal_feed_rescored', { count: rescored });
+      }
+    }
 
     return results;
   },

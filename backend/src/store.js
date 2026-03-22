@@ -1,17 +1,24 @@
 /**
  * store.js — In-memory runtime store (singleton).
  *
- * ARCHITECTURE NOTE:
- * This store is a temporary runtime layer. The authoritative data is in
- * Postgres/Prisma. For entities with full Prisma-backed repository support,
- * route handlers should call the repository layer directly.
+ * ARCHITECTURE: DEV/TEST ONLY for HTTP routes.
  *
- * This store exists for:
- * 1. Entities not yet migrated to Prisma (deal feed listings, relationships, etc.)
- * 2. Ephemeral runtime state (export jobs, approval queues, notification inbox)
- * 3. Settings cache (loaded from DB on boot, written back on mutation)
+ * Production entry point (src/index.js → src/app.js) routes all HTTP traffic
+ * through Prisma-backed repositories in src/repositories/. Those paths NEVER
+ * read from or write to this store.
  *
- * Do NOT add new domain data here — create a Prisma model and repository instead.
+ * This store is retained for:
+ *   1. Background jobs that have not yet been migrated to DB-backed storage
+ *      (deal feed listings, sourcing radar, relationship graph).
+ *   2. The legacy server.js entry point used by integration tests (no-DB path).
+ *   3. Ephemeral, non-persistent runtime state (export queue, approval inbox)
+ *      that intentionally resets on process restart.
+ *
+ * Rules:
+ *   - HTTP route handlers in src/controllers/ MUST NOT import this file.
+ *   - Do NOT add new domain entities here — create a Prisma model + repository.
+ *   - The db/repo.js HAS_DB fallback may read this store; those reads are
+ *     for the no-DB dev/test path only and must not run in production.
  */
 
 const store = {

@@ -309,10 +309,7 @@ export const companies = {
         tags:                  data.tags ?? [],
       },
     });
-    const mapped = dbCompanyToStore(row);
-    // Keep in-memory store in sync
-    store.companies.push(mapped);
-    return mapped;
+    return dbCompanyToStore(row);
   },
 
   async update(id, updates, store) {
@@ -331,11 +328,7 @@ export const companies = {
       where: { id },
       data: { ...dbUpdates, updatedAt: new Date() },
     });
-    const mapped = dbCompanyToStore(row);
-    // Sync store
-    const idx = store.companies.findIndex((c) => c.id === id);
-    if (idx !== -1) store.companies[idx] = mapped;
-    return mapped;
+    return dbCompanyToStore(row);
   },
 
   async delete(id, store) {
@@ -344,7 +337,6 @@ export const companies = {
       return;
     }
     await db.company.delete({ where: { id } });
-    store.companies = store.companies.filter((c) => c.id !== id);
   },
 };
 
@@ -406,9 +398,7 @@ export const contacts = {
         tags:              data.tags ?? [],
       },
     });
-    const mapped = dbContactToStore(row);
-    store.contacts.push(mapped);
-    return mapped;
+    return dbContactToStore(row);
   },
 
   async update(id, updates, store) {
@@ -424,10 +414,7 @@ export const contacts = {
       where: { id },
       data: { ...updates, updatedAt: new Date() },
     });
-    const mapped = dbContactToStore(row);
-    const idx = store.contacts.findIndex((c) => c.id === id);
-    if (idx !== -1) store.contacts[idx] = mapped;
-    return mapped;
+    return dbContactToStore(row);
   },
 
   async delete(id, store) {
@@ -436,7 +423,6 @@ export const contacts = {
       return;
     }
     await db.contact.delete({ where: { id } });
-    store.contacts = store.contacts.filter((c) => c.id !== id);
   },
 };
 
@@ -489,9 +475,7 @@ export const deals = {
         probability:      data.probability ?? null,
       },
     });
-    const mapped = dbDealToStore(row);
-    store.deals.push(mapped);
-    return mapped;
+    return dbDealToStore(row);
   },
 
   async update(id, updates, store) {
@@ -507,10 +491,7 @@ export const deals = {
       where: { id },
       data: { ...updates, updatedAt: new Date() },
     });
-    const mapped = dbDealToStore(row);
-    const idx = store.deals.findIndex((d) => d.id === id);
-    if (idx !== -1) store.deals[idx] = mapped;
-    return mapped;
+    return dbDealToStore(row);
   },
 
   async delete(id, store) {
@@ -519,7 +500,6 @@ export const deals = {
       return;
     }
     await db.deal.delete({ where: { id } });
-    store.deals = store.deals.filter((d) => d.id !== id);
   },
 };
 
@@ -568,9 +548,7 @@ export const tasks = {
         tags:        data.tags ?? [],
       },
     });
-    const mapped = dbTaskToStore(row);
-    store.tasks.push(mapped);
-    return mapped;
+    return dbTaskToStore(row);
   },
 
   async update(id, updates, store) {
@@ -587,10 +565,7 @@ export const tasks = {
     if (updates.completedAt) dbUpdates.completedAt = new Date(updates.completedAt);
 
     const row = await db.task.update({ where: { id }, data: dbUpdates });
-    const mapped = dbTaskToStore(row);
-    const idx = store.tasks.findIndex((t) => t.id === id);
-    if (idx !== -1) store.tasks[idx] = mapped;
-    return mapped;
+    return dbTaskToStore(row);
   },
 
   async delete(id, store) {
@@ -599,7 +574,6 @@ export const tasks = {
       return;
     }
     await db.task.delete({ where: { id } });
-    store.tasks = store.tasks.filter((t) => t.id !== id);
   },
 };
 
@@ -644,9 +618,7 @@ export const interactions = {
         isAiGenerated:   data.isAiGenerated ?? false,
       },
     });
-    const mapped = dbInteractionToStore(row);
-    store.interactions.push(mapped);
-    return mapped;
+    return dbInteractionToStore(row);
   },
 };
 

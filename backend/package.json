@@ -5,8 +5,8 @@
   "type": "module",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "node --watch server.js",
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
     "lint": "eslint . --ext .js",
     "lint:strict": "eslint . --ext .js --max-warnings=0",
     "lint:fix": "eslint . --ext .js --fix",
