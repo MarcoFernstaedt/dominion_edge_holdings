@@ -548,11 +548,11 @@ function PipelinePressurePanel() {
   const [data, setData] = useState<PipelinePressureMetrics | null>(null);
   const [scanning, setScanning] = useState(false);
 
-  useEffect(() => { fetch(`${API_BASE}/api/pipeline-pressure`).then((r) => r.json()).then(setData).catch(() => {}); }, []);
+  useEffect(() => { fetch(`${API_BASE}/api/pipeline-pressure`, { credentials: 'include' }).then((r) => r.json()).then(setData).catch(() => {}); }, []);
 
   async function scan() {
     setScanning(true);
-    try { const r = await fetch(`${API_BASE}/api/pipeline-pressure/scan`, { method: 'POST' }); setData(await r.json()); }
+    try { const r = await fetch(`${API_BASE}/api/pipeline-pressure/scan`, { method: 'POST', credentials: 'include' }); setData(await r.json()); }
     finally { setScanning(false); }
   }
 
@@ -581,7 +581,7 @@ function PipelinePressurePanel() {
 function DealVelocityPanel() {
   const [data, setData] = useState<{ deals: DealVelocityEntry[]; slowMovingCount: number } | null>(null);
 
-  useEffect(() => { fetch(`${API_BASE}/api/deal-velocity`).then((r) => r.json()).then(setData).catch(() => {}); }, []);
+  useEffect(() => { fetch(`${API_BASE}/api/deal-velocity`, { credentials: 'include' }).then((r) => r.json()).then(setData).catch(() => {}); }, []);
 
   return (
     <section>
@@ -623,8 +623,8 @@ function ConversationFunnelPanel() {
 
   useEffect(() => {
     Promise.all([
-      fetch(`${API_BASE}/api/conversation-funnel`).then((r) => r.json()),
-      fetch(`${API_BASE}/api/frequency-progress`).then((r) => r.json()),
+      fetch(`${API_BASE}/api/conversation-funnel`, { credentials: 'include' }).then((r) => r.json()),
+      fetch(`${API_BASE}/api/frequency-progress`,  { credentials: 'include' }).then((r) => r.json()),
     ]).then(([f, p]) => { setFunnel(f); setFreq(p); }).catch(() => {});
   }, []);
 

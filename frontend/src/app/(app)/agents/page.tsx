@@ -162,9 +162,10 @@ function AgentPanel({ agent }: { agent: AgentCard }) {
     setResult(null);
     try {
       const res = await fetch(`${settings.apiUrl}${agent.endpoint}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
+        method:      'POST',
+        headers:     { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body:        JSON.stringify(data),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));

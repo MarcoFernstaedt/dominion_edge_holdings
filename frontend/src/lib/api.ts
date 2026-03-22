@@ -43,6 +43,7 @@ async function request<T>(
   const url = `${API_BASE}${path}`;
 
   const res = await fetch(url, {
+    credentials: 'include', // send HttpOnly auth cookie
     ...options,
     headers: {
       'Content-Type': 'application/json',

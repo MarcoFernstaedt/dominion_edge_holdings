@@ -224,7 +224,7 @@ export default function IntegrationsPage() {
 
   const fetchStatuses = useCallback(async () => {
     try {
-      const res  = await fetch(`${settings.apiUrl}/api/integrations`);
+      const res  = await fetch(`${settings.apiUrl}/api/integrations`, { credentials: 'include' });
       const data = await res.json();
       setStatuses(data.status || []);
     } catch {
@@ -237,7 +237,7 @@ export default function IntegrationsPage() {
   useEffect(() => { fetchStatuses(); }, [fetchStatuses]);
 
   const handleTest = async (name: string): Promise<IntegrationTestResult> => {
-    const res  = await fetch(`${settings.apiUrl}/api/integrations/${name}/test`, { method: 'POST' });
+    const res  = await fetch(`${settings.apiUrl}/api/integrations/${name}/test`, { method: 'POST', credentials: 'include' });
     const data = await res.json();
     // Refresh statuses after test
     fetchStatuses();
@@ -246,9 +246,10 @@ export default function IntegrationsPage() {
 
   const handleSave = async (name: string, patch: Record<string, unknown>) => {
     const res = await fetch(`${settings.apiUrl}/api/integrations/${name}`, {
-      method:  'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify(patch),
+      method:      'PATCH',
+      headers:     { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body:        JSON.stringify(patch),
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
@@ -261,7 +262,7 @@ export default function IntegrationsPage() {
     setCheckingAll(true);
     setGlobalMsg(null);
     try {
-      const res  = await fetch(`${settings.apiUrl}/api/integrations/health/check-all`, { method: 'POST' });
+      const res  = await fetch(`${settings.apiUrl}/api/integrations/health/check-all`, { method: 'POST', credentials: 'include' });
       const data = await res.json();
       const connected = data.results.filter((r: IntegrationTestResult) => r.reachable).length;
       setGlobalMsg(`Health check complete: ${connected}/${data.results.length} integrations reachable.`);

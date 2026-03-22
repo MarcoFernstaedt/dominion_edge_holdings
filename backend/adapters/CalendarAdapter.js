@@ -167,13 +167,16 @@ export async function cancelEvent({ eventId, reason } = {}) {
 
 /**
  * Generate a meeting link (Zoom/Meet).
- * Returns null gracefully when integration not configured.
+ * Returns null when no video conferencing integration is configured.
+ * To enable: wire a Zoom or Google Meet OAuth provider and call their
+ * meeting-creation API here, then return the generated join URL.
  */
 export async function generateMeetingLink({ platform = 'zoom' } = {}) {
   const guard = IntegrationRegistry.guard('calendar');
   if (!guard.ok || platform === 'none') return null;
-  // In production, call Zoom/Meet API here
-  return `https://zoom.us/j/${Math.floor(Math.random() * 9e9 + 1e9)}`;
+  // No video conferencing integration configured — return null so
+  // callers can decide whether to show a "no link" state in the UI.
+  return null;
 }
 
 // ─── Busy-slot avoidance (deterministic) ─────────────────────────────────────
