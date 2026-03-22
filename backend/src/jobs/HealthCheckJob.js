@@ -2,9 +2,10 @@
  * HealthCheckJob
  *
  * Runs all integration health checks in the background and caches
- * the results in store._integrationHealth so dashboards can serve
+ * the results in IntegrationHealthService so dashboards can serve
  * them without blocking on live checks. Runs every 10 minutes.
  */
+import logger          from '../lib/logger.js';
 import AuditLogService from '../../services/AuditLogService.js';
 
 const HealthCheckJob = {
@@ -12,27 +13,30 @@ const HealthCheckJob = {
   name:       'Integration Health Check',
   intervalMs: 10 * 60 * 1000, // every 10 minutes
 
-  /** @param {{ store: object }} ctx */
-  async run({ store }) {
+  async run() {
     let results = null;
     try {
       const { checkAll } = await import('../../services/IntegrationHealthService.js');
+      // checkAll() caches its own result in IntegrationHealthService._lastResult
       results = await checkAll();
-      store._integrationHealth = { results, checkedAt: new Date().toISOString() };
+      const degraded = results.filter((r) => r.reachable === false);
+      logger.info(
+        { total: results.length, degraded: degraded.length },
+        '[HealthCheckJob] Integration health check complete'
+      );
+      if (degraded.length > 0) {
+        logger.warn(
+          { degraded: degraded.map((r) => ({ integration: r.integration, reason: r.reason })) },
+          '[HealthCheckJob] Degraded integrations detected'
+        );
+      }
     } catch (err) {
-      // Non-fatal — health check failure should never crash the runner
-      store._integrationHealth = {
-        results:   null,
-        error:     err.message,
-        checkedAt: new Date().toISOString(),
-      };
+      logger.error({ err }, '[HealthCheckJob] Health check run failed');
     }
 
-    AuditLogService.log('health_check_job_ran', 'system', 'HealthCheckJob', {
-      ok: results ? results.every((r) => r.ok) : false,
-    });
-
-    return { ok: results ? results.every((r) => r.ok) : false };
+    const ok = results ? results.every((r) => r.reachable !== false) : false;
+    AuditLogService.log('health_check_job_ran', 'system', 'HealthCheckJob', { ok });
+    return { ok };
   },
 };
 

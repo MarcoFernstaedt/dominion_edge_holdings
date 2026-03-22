@@ -1,6 +1,7 @@
-import repo             from '../../db/repo.js';
-import { nowIso }       from '../lib/helpers.js';
-import BackgroundJobRunner from '../../services/BackgroundJobRunner.js';
+import repo                    from '../../db/repo.js';
+import { nowIso }              from '../lib/helpers.js';
+import BackgroundJobRunner     from '../../services/BackgroundJobRunner.js';
+import IntegrationHealthService from '../../services/IntegrationHealthService.js';
 
 const NODE_ENV = process.env.NODE_ENV || 'development';
 
@@ -16,18 +17,19 @@ export async function readiness(_req, res) {
   try {
     await repo.healthPing();
     checks.db = 'ok';
-  } catch (err) {
+  } catch {
     checks.db  = 'degraded';
     overallOk  = false;
   }
   res.status(overallOk ? 200 : 503).json({ status: overallOk ? 'ok' : 'degraded', ts: nowIso(), checks });
 }
 
-/** Full health payload — db + jobs summary (public-safe, no secrets). */
+/** Full health payload — db + jobs + integration health summary (public-safe, no secrets). */
 export async function healthCheck(_req, res) {
-  const checks    = { db: 'unknown' };
-  let overallOk   = true;
+  const checks  = { db: 'unknown' };
+  let overallOk = true;
 
+  // ── DB ──────────────────────────────────────────────────────────────────
   try {
     await repo.healthPing();
     checks.db = 'ok';
@@ -36,8 +38,23 @@ export async function healthCheck(_req, res) {
     overallOk = false;
   }
 
-  const jobs = BackgroundJobRunner.status();
-  checks.jobs = jobs.length > 0 ? 'ok' : 'idle';
+  // ── Jobs ────────────────────────────────────────────────────────────────
+  const jobStatuses    = BackgroundJobRunner.status();
+  const recentFailures = BackgroundJobRunner.failedRuns().slice(-5);
+  checks.jobs = jobStatuses.length > 0 ? 'ok' : 'idle';
+
+  // ── Integration health (from last HealthCheckJob run — non-blocking) ───
+  const integrationCache = IntegrationHealthService.getLastHealthResult();
+  let integrationSummary = null;
+  if (integrationCache) {
+    const results    = integrationCache.results || [];
+    const connected  = results.filter((r) => r.reachable !== false).length;
+    const degraded   = results.filter((r) => r.reachable === false).length;
+    checks.integrations  = degraded > 0 ? 'degraded' : 'ok';
+    integrationSummary   = { connected, degraded, checkedAt: integrationCache.checkedAt };
+  } else {
+    checks.integrations = 'unknown';
+  }
 
   res.status(overallOk ? 200 : 503).json({
     status: overallOk ? 'ok' : 'degraded',
@@ -45,8 +62,10 @@ export async function healthCheck(_req, res) {
     env:    NODE_ENV,
     checks,
     jobs: {
-      registered: jobs.length,
-      running:    jobs.filter((j) => j.running).length,
+      registered:     jobStatuses.length,
+      running:        jobStatuses.filter((j) => j.running).length,
+      recentFailures: recentFailures.length,
     },
+    integrations: integrationSummary,
   });
 }

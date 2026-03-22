@@ -9,6 +9,15 @@
 import IntegrationRegistry from './IntegrationRegistry.js';
 import { withRetry } from '../utils/retry.js';
 
+// ─── Health result cache ──────────────────────────────────────────────────────
+// Populated by checkAll() so admin endpoints and health controllers can serve
+// the last known state without triggering live network checks.
+let _lastResult = null;
+
+export function getLastHealthResult() {
+  return _lastResult;
+}
+
 // ─── Individual health checks ─────────────────────────────────────────────────
 
 /**
@@ -203,11 +212,14 @@ export async function checkAll() {
     checkStorageConnection(),
   ]);
 
-  return checks.map((c) =>
+  const results = checks.map((c) =>
     c.status === 'fulfilled'
       ? c.value
       : { integration: 'unknown', reachable: false, reason: 'CHECK_FAILED', message: c.reason?.message }
   );
+
+  _lastResult = { results, checkedAt: new Date().toISOString() };
+  return results;
 }
 
 export const IntegrationHealthService = {
@@ -218,5 +230,6 @@ export const IntegrationHealthService = {
   checkGoogleConnection,
   checkStorageConnection,
   checkAll,
+  getLastHealthResult,
 };
 export default IntegrationHealthService;

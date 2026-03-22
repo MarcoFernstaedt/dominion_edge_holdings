@@ -2,10 +2,12 @@
  * admin.controller.js
  *
  * Minimal operational visibility for the single operator.
- * All routes are protected by requireAuth (applied globally to /api/*).
+ * All routes are protected by requireAuth + requireRole('owner', 'admin')
+ * in admin.routes.js.
  */
-import BackgroundJobRunner from '../../services/BackgroundJobRunner.js';
-import IntegrationRegistry  from '../../services/IntegrationRegistry.js';
+import BackgroundJobRunner      from '../../services/BackgroundJobRunner.js';
+import IntegrationRegistry      from '../../services/IntegrationRegistry.js';
+import IntegrationHealthService from '../../services/IntegrationHealthService.js';
 
 /** GET /api/admin/jobs — full job status including recent run history */
 export function listJobs(_req, res) {
@@ -44,16 +46,19 @@ export function listFailedRuns(_req, res) {
   res.json({ failures: BackgroundJobRunner.failedRuns() });
 }
 
-/** GET /api/admin/integrations — integration registry summary */
+/** GET /api/admin/integrations — integration registry summary (sanitized) */
 export function listIntegrations(_req, res) {
-  const summary = IntegrationRegistry.getAll?.() ?? IntegrationRegistry.summary?.() ?? {};
-  res.json({ integrations: summary });
+  res.json({
+    integrations: {
+      config: IntegrationRegistry.getAllConfig(),
+      status: IntegrationRegistry.getAllStatus(),
+    },
+  });
 }
 
 /** GET /api/admin/integrations/health — cached integration health from last HealthCheckJob run */
-export function integrationHealth(req, res) {
-  const store  = req.app.locals.store;
-  const cached = store?._integrationHealth;
+export function integrationHealth(_req, res) {
+  const cached = IntegrationHealthService.getLastHealthResult();
   if (!cached) {
     return res.json({ ok: null, message: 'Health check not yet run', checkedAt: null });
   }

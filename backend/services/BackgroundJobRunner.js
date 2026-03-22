@@ -16,10 +16,17 @@ import NotificationService     from './NotificationService.js';
 import AutomationRuleEngine    from './AutomationRuleEngine.js';
 import TaskService             from './TaskService.js';
 import PipelinePressureService from './PipelinePressureService.js';
+import { withRetry }           from '../utils/retry.js';
 import crypto                  from 'crypto';
 
 const MAX_RUN_HISTORY   = 20;   // per job
 const MAX_FAILED_BUFFER = 200;  // global ring buffer
+
+// Jobs that should NOT be retried (idempotency concerns or very long runtime)
+const NON_RETRYABLE_JOBS = new Set([
+  'generateDailyBriefing',
+  'detectStalledDeals',
+]);
 
 // ─── Job registry ─────────────────────────────────────────────────────────────
 class BackgroundJobRunnerClass {
@@ -65,8 +72,21 @@ class BackgroundJobRunnerClass {
     const start = Date.now();
     const runId = crypto.randomUUID();
     logger.info({ jobId, jobName: job.name, runId }, '[BackgroundJobRunner] Job started');
+    const ctx = { store: this._store, orchestrator: this._orchestrator };
+    const useRetry = !NON_RETRYABLE_JOBS.has(jobId);
     try {
-      await job.fn({ store: this._store, orchestrator: this._orchestrator });
+      if (useRetry) {
+        await withRetry(() => job.fn(ctx), {
+          maxRetries:  2,
+          baseDelayMs: 2000,
+          maxDelayMs:  10000,
+          onRetry: (attempt, err, delay) =>
+            logger.warn({ jobId, jobName: job.name, runId, attempt, delay, err: err.message },
+              '[BackgroundJobRunner] Job retrying'),
+        });
+      } else {
+        await job.fn(ctx);
+      }
       const durationMs = Date.now() - start;
       job.lastRun   = new Date().toISOString();
       job.durationMs = durationMs;
