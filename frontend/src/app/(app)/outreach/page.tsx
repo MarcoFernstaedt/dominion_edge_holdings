@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
 import { Send, FileText, Copy, Check } from 'lucide-react';
 import type { OutreachTemplate } from '@/lib/types';
+import { useScrollTarget } from '@/hooks/useScrollTarget';
 
 function TemplateCard({ template }: { template: OutreachTemplate }) {
   const [expanded, setExpanded] = useState(false);
@@ -97,6 +98,7 @@ function TemplateCard({ template }: { template: OutreachTemplate }) {
 }
 
 export default function OutreachPage() {
+  useScrollTarget();
   const templates = useAppStore((s) => s.outreachTemplates);
 
   const byType: Record<string, OutreachTemplate[]> = templates.reduce((acc, t) => {
@@ -113,7 +115,7 @@ export default function OutreachPage() {
   };
 
   return (
-    <div className="page-container space-y-6">
+    <div id="section-outreach" className="page-container space-y-6">
       <header>
         <h1 className="font-serif text-3xl font-semibold text-[#E8E6E3]">Outreach</h1>
         <p className="text-sm text-[#A7A29A] mt-1">

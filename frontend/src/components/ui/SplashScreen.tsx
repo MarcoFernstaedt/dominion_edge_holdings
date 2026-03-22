@@ -40,13 +40,6 @@ export default function SplashScreen() {
       ).matches;
     }
 
-    // Show once per browser session
-    if (sessionStorage.getItem('deh_splash_shown')) {
-      setPhase('gone');
-      return;
-    }
-    sessionStorage.setItem('deh_splash_shown', '1');
-
     // Reduced-motion path — no animation, short hold, quick exit
     if (reducedMotion.current) {
       setPhase('hold');

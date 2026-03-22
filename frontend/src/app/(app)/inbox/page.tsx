@@ -10,6 +10,7 @@ import { Input, Textarea, Select } from '@/components/ui/Input';
 import { Mail, Plus, Filter, Search, AlertCircle, Clock, CheckCheck } from 'lucide-react';
 import type { EmailThread } from '@/lib/types';
 import { useFormField } from '@/hooks/useFormField';
+import { useScrollTarget } from '@/hooks/useScrollTarget';
 
 const THREAD_TYPES = [
   { value: '', label: 'All Threads' },
@@ -164,6 +165,7 @@ function ThreadRow({ thread }: { thread: EmailThread }) {
 }
 
 export default function InboxPage() {
+  useScrollTarget();
   const emailThreads = useAppStore((s) => s.emailThreads);
   const [filter, setFilter] = useState('');
   const [search, setSearch] = useState('');
@@ -184,7 +186,7 @@ export default function InboxPage() {
   const unreadCount = emailThreads.filter((t) => t.inboxStatus === 'unread' && !t.isSuppressed).length;
 
   return (
-    <div className="max-w-4xl mx-auto px-6 py-6 space-y-5">
+    <div id="section-inbox" className="max-w-4xl mx-auto px-6 py-6 space-y-5">
       <header className="flex items-start justify-between gap-4">
         <div>
           <h1 className="font-serif text-3xl font-semibold text-[#E8E6E3]">Inbox</h1>

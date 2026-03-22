@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { CheckCircle2, Circle, ChevronDown, ChevronUp, Info, FileText, Users, Calendar, Calculator } from 'lucide-react';
 import type { ChecklistItem, ChecklistPhase } from '@/lib/types';
+import { useScrollTarget } from '@/hooks/useScrollTarget';
 
 const COMPLETION_ICONS: Record<string, React.ReactNode> = {
   manual: null,
@@ -205,6 +206,7 @@ function PhaseAccordion({
 }
 
 export default function ChecklistPage() {
+  useScrollTarget();
   const phases = useAppStore((s) => s.checklistPhases);
 
   const allItems = phases.flatMap((p) => p.items);
@@ -215,7 +217,7 @@ export default function ChecklistPage() {
   const currentPhaseName = phases.find((p) => p.items.some((i) => !i.isComplete))?.name ?? 'Complete';
 
   return (
-    <div className="page-container-narrow space-y-6">
+    <div id="section-checklist" className="page-container-narrow space-y-6">
       <header>
         <h1 className="font-serif text-3xl font-semibold text-[#E8E6E3] mb-1">
           Acquisition Checklist
