@@ -3,6 +3,7 @@ import store     from '../store.js';
 import { errorResponse } from '../middleware/errorResponse.js';
 import { uid, nowIso }   from '../lib/helpers.js';
 import { SELLER_SIGNAL_FIELDS } from '../config/constants.js';
+import { enrichCompany as apolloEnrichCompany } from '../../adapters/ApolloAdapter.js';
 
 export async function list(req, res) {
   const { status, search, industry } = req.query;
@@ -49,4 +50,30 @@ export async function remove(req, res) {
   if (!existing) return errorResponse(res, 404, 'NOT_FOUND', 'Company not found');
   await repo.companies.delete(req.params.id, store);
   res.status(204).end();
+}
+
+export async function enrich(req, res) {
+  const company = await repo.companies.get(req.params.id, store);
+  if (!company) return errorResponse(res, 404, 'NOT_FOUND', 'Company not found');
+
+  const result = await apolloEnrichCompany({ domain: company.domain || company.website, name: company.name });
+  if (!result.enriched) {
+    return res.status(503).json({ enriched: false, warning: result.warning });
+  }
+
+  // Merge Apollo data into company (only fill in missing fields)
+  const apolloData = result.data || {};
+  const updates = { updatedAt: nowIso() };
+  if (!company.industry     && apolloData.industry)       updates.industry       = apolloData.industry;
+  if (!company.employeeCount && apolloData.employeeCount) updates.employeeCount  = apolloData.employeeCount;
+  if (!company.annualRevenue && apolloData.annualRevenue) updates.annualRevenue  = apolloData.annualRevenue;
+  if (!company.city         && apolloData.city)           updates.city           = apolloData.city;
+  if (!company.state        && apolloData.state)          updates.state          = apolloData.state;
+  if (!company.description  && apolloData.description)    updates.description    = apolloData.description;
+  if (!company.linkedinUrl  && apolloData.linkedinUrl)    updates.linkedinUrl    = apolloData.linkedinUrl;
+  if (!company.foundedYear  && apolloData.foundedYear)    updates.foundedYear    = apolloData.foundedYear;
+  updates.apolloId = apolloData.apolloId || company.apolloId;
+
+  const updated = await repo.companies.update(req.params.id, updates, store);
+  res.json({ enriched: true, company: updated, apolloData });
 }

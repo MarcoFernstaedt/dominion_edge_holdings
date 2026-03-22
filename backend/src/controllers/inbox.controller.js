@@ -1,14 +1,33 @@
 import Anthropic   from '@anthropic-ai/sdk';
 import store       from '../store.js';
+import IntegrationRegistry from '../../services/IntegrationRegistry.js';
 import { errorResponse } from '../middleware/errorResponse.js';
 import { uid, nowIso, findById, getSafeModel } from '../lib/helpers.js';
 import { DEH_SYSTEM_PROMPT } from '../config/constants.js';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-export function listThreads(req, res) {
+export async function listThreads(req, res) {
   try {
     const { needsReply, status } = req.query;
+
+    // Try Gmail first when Google integration is available
+    const guard = IntegrationRegistry.guard('google');
+    if (guard.ok) {
+      try {
+        const { GoogleWorkspaceProvider } = await import('../../services/providers/GoogleWorkspaceProvider.js');
+        const result = await GoogleWorkspaceProvider.listThreads({ maxResults: 50 });
+        let threads = result.threads || [];
+        if (needsReply === 'true') threads = threads.filter((t) => t.needsReply);
+        if (status && typeof status === 'string') threads = threads.filter((t) => t.status === status);
+        return res.json(threads);
+      } catch (err) {
+        IntegrationRegistry.recordError('google', err.message);
+        // fall through to store
+      }
+    }
+
+    // Fallback: in-memory store
     let results = [...store.emailThreads];
     if (needsReply === 'true') results = results.filter((t) => t.needsReply);
     if (status && typeof status === 'string') results = results.filter((t) => t.status === status);
@@ -19,8 +38,21 @@ export function listThreads(req, res) {
   }
 }
 
-export function getThread(req, res) {
+export async function getThread(req, res) {
   try {
+    const guard = IntegrationRegistry.guard('google');
+    if (guard.ok) {
+      try {
+        const { GoogleWorkspaceProvider } = await import('../../services/providers/GoogleWorkspaceProvider.js');
+        const thread = await GoogleWorkspaceProvider.getThread(req.params.id);
+        if (thread) return res.json(thread);
+      } catch (err) {
+        IntegrationRegistry.recordError('google', err.message);
+        // fall through to store
+      }
+    }
+
+    // Fallback: in-memory store
     const thread = findById(store.emailThreads, req.params.id);
     if (!thread) return errorResponse(res, 404, 'NOT_FOUND', 'Thread not found');
     res.json(thread);
@@ -29,7 +61,7 @@ export function getThread(req, res) {
   }
 }
 
-export function compose(req, res) {
+export async function compose(req, res) {
   try {
     const thread = {
       id: uid(),
@@ -50,6 +82,29 @@ export function compose(req, res) {
       }],
       ...req.validated,
     };
+
+    // Try to send via Gmail when Google integration is available
+    const guard = IntegrationRegistry.guard('google');
+    if (guard.ok) {
+      try {
+        const { GoogleWorkspaceProvider } = await import('../../services/providers/GoogleWorkspaceProvider.js');
+        await GoogleWorkspaceProvider.sendEmail({
+          to:      req.validated.to,
+          subject: req.validated.subject,
+          html:    req.validated.body || '',
+          threadId: req.validated.threadId || undefined,
+        });
+        IntegrationRegistry.recordSuccess('google');
+      } catch (err) {
+        IntegrationRegistry.recordError('google', err.message);
+        thread.status = 'draft';
+        thread._sendError = err.message;
+      }
+    } else {
+      thread.status = 'draft';
+      thread._degradedMessage = guard.degradedMessage;
+    }
+
     store.emailThreads.push(thread);
 
     if (req.validated.companyId) {

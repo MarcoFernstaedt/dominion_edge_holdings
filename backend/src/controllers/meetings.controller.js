@@ -1,10 +1,11 @@
 import Anthropic   from '@anthropic-ai/sdk';
 import { z }       from 'zod';
 import store       from '../store.js';
-import MeetingPreparationService from '../../services/MeetingPreparationService.js';
-import DealProbabilityService    from '../../services/DealProbabilityService.js';
-import AuditLogService           from '../../services/AuditLogService.js';
-import AgentOrchestrator         from '../../services/AgentOrchestrator.js';
+import IntegrationRegistry         from '../../services/IntegrationRegistry.js';
+import MeetingPreparationService   from '../../services/MeetingPreparationService.js';
+import DealProbabilityService      from '../../services/DealProbabilityService.js';
+import AuditLogService             from '../../services/AuditLogService.js';
+import AgentOrchestrator           from '../../services/AgentOrchestrator.js';
 import { validate }        from '../middleware/validate.js';
 import { errorResponse }   from '../middleware/errorResponse.js';
 import { uid, nowIso, findById, getSafeModel } from '../lib/helpers.js';
@@ -12,6 +13,54 @@ import { MeetingSchema }   from '../../schemas/index.js';
 import { DEH_SYSTEM_PROMPT } from '../config/constants.js';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+// ─── Calendar sync helpers ────────────────────────────────────────────────────
+
+async function _syncCalendarCreate(meeting) {
+  const guard = IntegrationRegistry.guard('google');
+  if (!guard.ok) return;
+  if (!meeting.startsAt || !meeting.endsAt) return;
+
+  try {
+    const { GoogleWorkspaceProvider } = await import('../../services/providers/GoogleWorkspaceProvider.js');
+    const result = await GoogleWorkspaceProvider.createCalendarEvent({
+      summary:     meeting.title,
+      description: meeting.meetingNotes || '',
+      startTime:   meeting.startsAt,
+      endTime:     meeting.endsAt,
+      attendees:   meeting.attendeeEmails || [],
+      addMeet:     meeting.addGoogleMeet !== false,
+    });
+    if (result?.id) {
+      const idx = store.meetings.findIndex((m) => m.id === meeting.id);
+      if (idx !== -1) {
+        store.meetings[idx].calendarEventId = result.id;
+        if (result.hangoutLink) store.meetings[idx].meetLink = result.hangoutLink;
+        store.meetings[idx].updatedAt = nowIso();
+      }
+      IntegrationRegistry.recordSuccess('google');
+    }
+  } catch (err) {
+    IntegrationRegistry.recordError('google', err.message);
+    console.warn(`[meetings] Calendar sync failed for ${meeting.id}: ${err.message}`);
+  }
+}
+
+async function _syncCalendarCancel(meeting) {
+  const guard = IntegrationRegistry.guard('google');
+  if (!guard.ok || !meeting.calendarEventId) return;
+
+  try {
+    const { GoogleWorkspaceProvider } = await import('../../services/providers/GoogleWorkspaceProvider.js');
+    await GoogleWorkspaceProvider.cancelCalendarEvent(meeting.calendarEventId);
+    IntegrationRegistry.recordSuccess('google');
+  } catch (err) {
+    IntegrationRegistry.recordError('google', err.message);
+    console.warn(`[meetings] Calendar cancel failed for event ${meeting.calendarEventId}: ${err.message}`);
+  }
+}
+
+// ─── Controllers ──────────────────────────────────────────────────────────────
 
 export function list(req, res) {
   try {
@@ -59,21 +108,25 @@ export function update(req, res) {
   } catch (err) { errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to update meeting'); }
 }
 
-export function confirm(req, res) {
+export async function confirm(req, res) {
   try {
     const idx = store.meetings.findIndex((m) => m.id === req.params.id);
     if (idx === -1) return errorResponse(res, 404, 'NOT_FOUND', 'Meeting not found');
     store.meetings[idx] = { ...store.meetings[idx], status: 'confirmed', updatedAt: nowIso() };
     res.json(store.meetings[idx]);
+    // Fire-and-forget calendar sync after responding
+    _syncCalendarCreate(store.meetings[idx]);
   } catch (err) { errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to confirm meeting'); }
 }
 
-export function schedule(req, res) {
+export async function schedule(req, res) {
   try {
     const idx = store.meetings.findIndex((m) => m.id === req.params.id);
     if (idx === -1) return errorResponse(res, 404, 'NOT_FOUND', 'Meeting not found');
     store.meetings[idx] = { ...store.meetings[idx], status: 'scheduled', updatedAt: nowIso() };
     res.json(store.meetings[idx]);
+    // Fire-and-forget calendar sync after responding
+    _syncCalendarCreate(store.meetings[idx]);
   } catch (err) { errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to schedule meeting'); }
 }
 
@@ -86,12 +139,15 @@ export function complete(req, res) {
   } catch (err) { errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to complete meeting'); }
 }
 
-export function cancel(req, res) {
+export async function cancel(req, res) {
   try {
     const idx = store.meetings.findIndex((m) => m.id === req.params.id);
     if (idx === -1) return errorResponse(res, 404, 'NOT_FOUND', 'Meeting not found');
-    store.meetings[idx] = { ...store.meetings[idx], status: 'cancelled', cancelledAt: nowIso(), updatedAt: nowIso() };
+    const meeting = store.meetings[idx];
+    store.meetings[idx] = { ...meeting, status: 'cancelled', cancelledAt: nowIso(), updatedAt: nowIso() };
     res.json(store.meetings[idx]);
+    // Fire-and-forget calendar cancellation after responding
+    _syncCalendarCancel(meeting);
   } catch (err) { errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to cancel meeting'); }
 }
 

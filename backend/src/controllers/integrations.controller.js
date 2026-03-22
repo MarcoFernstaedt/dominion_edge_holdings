@@ -37,6 +37,7 @@ export function patchIntegration(req, res) {
     if (name === 'apollo')   store.settings.apolloEnabled     = patch.enabled;
     if (name === 'calendar') store.settings.calendarEnabled   = patch.enabled;
     if (name === 'ai')       store.settings.aiDraftingEnabled = patch.enabled;
+    if (name === 'google')   store.settings.googleEnabled     = patch.enabled;
   }
   if (patch.apolloApiKey)     store.settings.apolloApiKey     = patch.apolloApiKey;
   if (patch.calendarProvider) store.settings.calendarProvider = patch.calendarProvider;
@@ -54,6 +55,8 @@ export async function testIntegration(req, res) {
     ai:       IntegrationHealthService.checkAIConnection,
     calendar: IntegrationHealthService.checkCalendarConnection,
     email:    IntegrationHealthService.checkEmailConnection,
+    google:   IntegrationHealthService.checkGoogleConnection,
+    storage:  IntegrationHealthService.checkStorageConnection,
   };
   const checker = checkers[name];
   if (!checker) return errorResponse(res, 404, 'NOT_FOUND', `Unknown integration: ${name}`);
