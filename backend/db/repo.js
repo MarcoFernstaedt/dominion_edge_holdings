@@ -7,9 +7,13 @@
  *
  * When DATABASE_URL is not set, all operations transparently fall back to the
  * in-memory store so the app runs in development without a database.
+ *
+ * Controllers MUST NOT import store directly. This file manages the store
+ * reference internally for the no-DB development fallback.
  */
 
 import db from './client.js';
+import store from '../src/store.js';
 
 const HAS_DB = !!process.env.DATABASE_URL;
 
@@ -236,8 +240,9 @@ function dbInteractionToStore(i) {
 // ─── Companies ────────────────────────────────────────────────────────────────
 
 export const companies = {
-  async list({ search, status, industry, limit = 200, offset = 0 } = {}, store) {
-    if (!HAS_DB) return _filterStore(store.companies, { search, status, industry }, limit, offset);
+  async list({ search, status, industry, limit = 200, offset = 0 } = {}, _s = null) {
+    const s = _s || store;
+    if (!HAS_DB) return _filterStore(s.companies, { search, status, industry }, limit, offset);
 
     const userId = await getSystemUserId();
     const where = { userId };
@@ -261,15 +266,17 @@ export const companies = {
     return rows.map(dbCompanyToStore);
   },
 
-  async get(id, store) {
-    if (!HAS_DB) return store.companies.find((c) => c.id === id) ?? null;
+  async get(id, _s = null) {
+    const s = _s || store;
+    if (!HAS_DB) return s.companies.find((c) => c.id === id) ?? null;
     const row = await db.company.findUnique({ where: { id } });
     return dbCompanyToStore(row);
   },
 
-  async create(data, store) {
+  async create(data, _s = null) {
+    const s = _s || store;
     if (!HAS_DB) {
-      store.companies.push(data);
+      s.companies.push(data);
       return data;
     }
     const userId = await getSystemUserId();
@@ -312,12 +319,13 @@ export const companies = {
     return dbCompanyToStore(row);
   },
 
-  async update(id, updates, store) {
+  async update(id, updates, _s = null) {
+    const s = _s || store;
     if (!HAS_DB) {
-      const idx = store.companies.findIndex((c) => c.id === id);
+      const idx = s.companies.findIndex((c) => c.id === id);
       if (idx !== -1) {
-        store.companies[idx] = { ...store.companies[idx], ...updates, updatedAt: new Date().toISOString() };
-        return store.companies[idx];
+        s.companies[idx] = { ...s.companies[idx], ...updates, updatedAt: new Date().toISOString() };
+        return s.companies[idx];
       }
       return null;
     }
@@ -331,9 +339,10 @@ export const companies = {
     return dbCompanyToStore(row);
   },
 
-  async delete(id, store) {
+  async delete(id, _s = null) {
+    const s = _s || store;
     if (!HAS_DB) {
-      store.companies = store.companies.filter((c) => c.id !== id);
+      s.companies = s.companies.filter((c) => c.id !== id);
       return;
     }
     await db.company.delete({ where: { id } });
@@ -343,8 +352,9 @@ export const companies = {
 // ─── Contacts ─────────────────────────────────────────────────────────────────
 
 export const contacts = {
-  async list({ search, companyId, contactType, limit = 200, offset = 0 } = {}, store) {
-    if (!HAS_DB) return _filterContacts(store.contacts, { search, companyId, contactType }, limit, offset);
+  async list({ search, companyId, contactType, limit = 200, offset = 0 } = {}, _s = null) {
+    const s = _s || store;
+    if (!HAS_DB) return _filterContacts(s.contacts, { search, companyId, contactType }, limit, offset);
 
     const userId = await getSystemUserId();
     const where = { userId };
@@ -363,15 +373,17 @@ export const contacts = {
     return rows.map(dbContactToStore);
   },
 
-  async get(id, store) {
-    if (!HAS_DB) return store.contacts.find((c) => c.id === id) ?? null;
+  async get(id, _s = null) {
+    const s = _s || store;
+    if (!HAS_DB) return s.contacts.find((c) => c.id === id) ?? null;
     const row = await db.contact.findUnique({ where: { id } });
     return dbContactToStore(row);
   },
 
-  async create(data, store) {
+  async create(data, _s = null) {
+    const s = _s || store;
     if (!HAS_DB) {
-      store.contacts.push(data);
+      s.contacts.push(data);
       return data;
     }
     const userId = await getSystemUserId();
@@ -401,12 +413,13 @@ export const contacts = {
     return dbContactToStore(row);
   },
 
-  async update(id, updates, store) {
+  async update(id, updates, _s = null) {
+    const s = _s || store;
     if (!HAS_DB) {
-      const idx = store.contacts.findIndex((c) => c.id === id);
+      const idx = s.contacts.findIndex((c) => c.id === id);
       if (idx !== -1) {
-        store.contacts[idx] = { ...store.contacts[idx], ...updates, updatedAt: new Date().toISOString() };
-        return store.contacts[idx];
+        s.contacts[idx] = { ...s.contacts[idx], ...updates, updatedAt: new Date().toISOString() };
+        return s.contacts[idx];
       }
       return null;
     }
@@ -417,9 +430,10 @@ export const contacts = {
     return dbContactToStore(row);
   },
 
-  async delete(id, store) {
+  async delete(id, _s = null) {
+    const s = _s || store;
     if (!HAS_DB) {
-      store.contacts = store.contacts.filter((c) => c.id !== id);
+      s.contacts = s.contacts.filter((c) => c.id !== id);
       return;
     }
     await db.contact.delete({ where: { id } });
@@ -429,8 +443,9 @@ export const contacts = {
 // ─── Deals ────────────────────────────────────────────────────────────────────
 
 export const deals = {
-  async list({ status, stage, companyId, limit = 200, offset = 0 } = {}, store) {
-    if (!HAS_DB) return _filterDeals(store.deals, { status, stage, companyId }, limit, offset);
+  async list({ status, stage, companyId, limit = 200, offset = 0 } = {}, _s = null) {
+    const s = _s || store;
+    if (!HAS_DB) return _filterDeals(s.deals, { status, stage, companyId }, limit, offset);
 
     const userId = await getSystemUserId();
     const where = { userId };
@@ -442,15 +457,17 @@ export const deals = {
     return rows.map(dbDealToStore);
   },
 
-  async get(id, store) {
-    if (!HAS_DB) return store.deals.find((d) => d.id === id) ?? null;
+  async get(id, _s = null) {
+    const s = _s || store;
+    if (!HAS_DB) return s.deals.find((d) => d.id === id) ?? null;
     const row = await db.deal.findUnique({ where: { id } });
     return dbDealToStore(row);
   },
 
-  async create(data, store) {
+  async create(data, _s = null) {
+    const s = _s || store;
     if (!HAS_DB) {
-      store.deals.push(data);
+      s.deals.push(data);
       return data;
     }
     const userId = await getSystemUserId();
@@ -478,12 +495,13 @@ export const deals = {
     return dbDealToStore(row);
   },
 
-  async update(id, updates, store) {
+  async update(id, updates, _s = null) {
+    const s = _s || store;
     if (!HAS_DB) {
-      const idx = store.deals.findIndex((d) => d.id === id);
+      const idx = s.deals.findIndex((d) => d.id === id);
       if (idx !== -1) {
-        store.deals[idx] = { ...store.deals[idx], ...updates, updatedAt: new Date().toISOString() };
-        return store.deals[idx];
+        s.deals[idx] = { ...s.deals[idx], ...updates, updatedAt: new Date().toISOString() };
+        return s.deals[idx];
       }
       return null;
     }
@@ -494,9 +512,10 @@ export const deals = {
     return dbDealToStore(row);
   },
 
-  async delete(id, store) {
+  async delete(id, _s = null) {
+    const s = _s || store;
     if (!HAS_DB) {
-      store.deals = store.deals.filter((d) => d.id !== id);
+      s.deals = s.deals.filter((d) => d.id !== id);
       return;
     }
     await db.deal.delete({ where: { id } });
@@ -506,8 +525,9 @@ export const deals = {
 // ─── Tasks ────────────────────────────────────────────────────────────────────
 
 export const tasks = {
-  async list({ status, priority, companyId, dealId, limit = 200, offset = 0 } = {}, store) {
-    if (!HAS_DB) return _filterTasks(store.tasks, { status, priority, companyId, dealId }, limit, offset);
+  async list({ status, priority, companyId, dealId, limit = 200, offset = 0 } = {}, _s = null) {
+    const s = _s || store;
+    if (!HAS_DB) return _filterTasks(s.tasks, { status, priority, companyId, dealId }, limit, offset);
 
     const userId = await getSystemUserId();
     const where = { userId };
@@ -520,15 +540,17 @@ export const tasks = {
     return rows.map(dbTaskToStore);
   },
 
-  async get(id, store) {
-    if (!HAS_DB) return store.tasks.find((t) => t.id === id) ?? null;
+  async get(id, _s = null) {
+    const s = _s || store;
+    if (!HAS_DB) return s.tasks.find((t) => t.id === id) ?? null;
     const row = await db.task.findUnique({ where: { id } });
     return dbTaskToStore(row);
   },
 
-  async create(data, store) {
+  async create(data, _s = null) {
+    const s = _s || store;
     if (!HAS_DB) {
-      store.tasks.push(data);
+      s.tasks.push(data);
       return data;
     }
     const userId = await getSystemUserId();
@@ -551,12 +573,13 @@ export const tasks = {
     return dbTaskToStore(row);
   },
 
-  async update(id, updates, store) {
+  async update(id, updates, _s = null) {
+    const s = _s || store;
     if (!HAS_DB) {
-      const idx = store.tasks.findIndex((t) => t.id === id);
+      const idx = s.tasks.findIndex((t) => t.id === id);
       if (idx !== -1) {
-        store.tasks[idx] = { ...store.tasks[idx], ...updates, updatedAt: new Date().toISOString() };
-        return store.tasks[idx];
+        s.tasks[idx] = { ...s.tasks[idx], ...updates, updatedAt: new Date().toISOString() };
+        return s.tasks[idx];
       }
       return null;
     }
@@ -568,9 +591,10 @@ export const tasks = {
     return dbTaskToStore(row);
   },
 
-  async delete(id, store) {
+  async delete(id, _s = null) {
+    const s = _s || store;
     if (!HAS_DB) {
-      store.tasks = store.tasks.filter((t) => t.id !== id);
+      s.tasks = s.tasks.filter((t) => t.id !== id);
       return;
     }
     await db.task.delete({ where: { id } });
@@ -580,8 +604,9 @@ export const tasks = {
 // ─── Interactions ─────────────────────────────────────────────────────────────
 
 export const interactions = {
-  async list({ companyId, contactId, dealId, interactionType, limit = 200, offset = 0 } = {}, store) {
-    if (!HAS_DB) return _filterInteractions(store.interactions, { companyId, contactId, dealId, interactionType }, limit, offset);
+  async list({ companyId, contactId, dealId, interactionType, limit = 200, offset = 0 } = {}, _s = null) {
+    const s = _s || store;
+    if (!HAS_DB) return _filterInteractions(s.interactions, { companyId, contactId, dealId, interactionType }, limit, offset);
 
     const userId = await getSystemUserId();
     const where = { userId };
@@ -594,9 +619,10 @@ export const interactions = {
     return rows.map(dbInteractionToStore);
   },
 
-  async create(data, store) {
+  async create(data, _s = null) {
+    const s = _s || store;
     if (!HAS_DB) {
-      store.interactions.push(data);
+      s.interactions.push(data);
       return data;
     }
     const userId = await getSystemUserId();

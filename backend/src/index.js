@@ -29,6 +29,10 @@ import { app, logger } from './app.js';
 import { startJobs }           from './jobs/index.js';
 import { registerProcessHandlers } from './startup.js';
 import store from './store.js';
+import SourceAdapterRegistryService from '../services/SourceAdapterRegistryService.js';
+import SourcingRadarService         from '../services/SourcingRadarService.js';
+import MeetingPreparationService    from '../services/MeetingPreparationService.js';
+import DealProbabilityService       from '../services/DealProbabilityService.js';
 
 // ── Database warning in non-production ───────────────────────────────────────
 if (!process.env.DATABASE_URL && !env.isProd) {
@@ -48,6 +52,15 @@ server.listen(PORT, () => {
     '[boot] Dominion Edge Holdings API listening',
   );
 });
+
+// ── Service initialization ────────────────────────────────────────────────────
+// Initialize services that manage ephemeral runtime state (sourcing radar,
+// meeting prep packets, deal probability). These services hold a reference to
+// the in-memory store; controllers delegate to them instead of reading store directly.
+SourceAdapterRegistryService.init(store, store.settings);
+SourcingRadarService.init(store);
+MeetingPreparationService.init(store);
+DealProbabilityService.init(store);
 
 // ── Background jobs ───────────────────────────────────────────────────────────
 // Pass store for jobs that still use in-memory state (deal feed, sourcing radar).

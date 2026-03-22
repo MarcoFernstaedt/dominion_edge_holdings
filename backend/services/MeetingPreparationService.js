@@ -416,6 +416,37 @@ Return JSON only.`;
     Object.assign(packet, updates, { updatedAt: new Date().toISOString(), status: 'final' });
     return packet;
   }
+
+  /**
+   * Return a compact summary of upcoming meetings and their prep packet status.
+   * Used by deals.controller prepSummary endpoint.
+   */
+  getPrepSummary() {
+    const now            = new Date();
+    const upcomingWindow = new Date(Date.now() + 7 * 86400000);
+    const meetings       = this._store?.meetings || [];
+    const prepPacketIds  = new Set((this._store?.meetingPrepPackets || []).map((p) => p.meetingId));
+
+    const upcoming = meetings.filter((m) => {
+      if (!['confirmed', 'scheduled', 'proposed'].includes(m.status)) return false;
+      const start = new Date(m.startsAt);
+      return start > now && start <= upcomingWindow;
+    });
+
+    const missingPrep      = upcoming.filter((m) => !prepPacketIds.has(m.id));
+    const highValueTypes   = ['seller_discovery', 'seller_followup', 'diligence_review'];
+    const highValueMissing = missingPrep.filter((m) => highValueTypes.includes(m.meetingType));
+
+    return {
+      upcomingCount:    upcoming.length,
+      missingPrepCount: missingPrep.length,
+      highValueMissing: highValueMissing.length,
+      meetings: upcoming.slice(0, 5).map((m) => ({
+        id: m.id, title: m.title, meetingType: m.meetingType, startsAt: m.startsAt,
+        hasPrepPacket: prepPacketIds.has(m.id),
+      })),
+    };
+  }
 }
 
 export const MeetingPreparationService = new MeetingPreparationServiceClass();

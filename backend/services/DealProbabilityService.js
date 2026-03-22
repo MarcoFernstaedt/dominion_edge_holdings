@@ -17,6 +17,16 @@
  */
 
 class DealProbabilityServiceClass {
+  // ─── Service initialization ──────────────────────────────────────────────────
+
+  /**
+   * Initialize with the runtime store for ephemeral data lookups
+   * (companies, interactions, scenarios). Call once at boot in index.js.
+   */
+  init(store) {
+    this._store = store;
+  }
+
   // ─── Band assignment ─────────────────────────────────────────────────────────
 
   assignProbabilityBand(score) {
@@ -270,19 +280,23 @@ class DealProbabilityServiceClass {
 
   /**
    * Compute and persist probability score directly on a deal record.
+   * @param {object} deal
+   * @param {object} [storeOverride] - optional store override (legacy callers); defaults to this._store
    */
-  refreshDealProbability(deal, store) {
+  refreshDealProbability(deal, storeOverride = null) {
     if (!deal || deal.status === 'closed' || deal.status === 'lost') return deal;
 
+    const s = storeOverride || this._store || {};
+
     const company = deal.companyId
-      ? (store.companies || []).find((c) => c.id === deal.companyId)
+      ? (s.companies || []).find((c) => c.id === deal.companyId)
       : null;
 
-    const interactions = (store.interactions || []).filter(
+    const interactions = (s.interactions || []).filter(
       (i) => i.companyId === deal.companyId || i.dealId === deal.id
     );
 
-    const scenarios = (store.underwritingScenarios || []).filter((s) => s.dealId === deal.id);
+    const scenarios = (s.underwritingScenarios || []).filter((s) => s.dealId === deal.id);
 
     const result = this.calculateProbabilityScore(deal, interactions, scenarios, company);
     if (!result) return deal;
@@ -298,12 +312,13 @@ class DealProbabilityServiceClass {
   }
 
   /**
-   * Refresh probability for all active deals in the store.
+   * Refresh probability for all active deals held in the runtime store.
+   * Used by background jobs and the bulk-refresh endpoint.
    */
-  refreshAllActiveDealProbabilities(store) {
-    const activeDeals = (store.deals || []).filter((d) => d.status === 'active');
+  refreshAllActiveDealProbabilities() {
+    const activeDeals = (this._store?.deals || []).filter((d) => d.status === 'active');
     for (const deal of activeDeals) {
-      this.refreshDealProbability(deal, store);
+      this.refreshDealProbability(deal);
     }
     return activeDeals.length;
   }

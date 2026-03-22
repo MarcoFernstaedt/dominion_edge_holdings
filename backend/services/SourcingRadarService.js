@@ -355,6 +355,22 @@ class SourcingRadarServiceClass {
   getRunHistory(limit = 10) {
     return (this._store?.sourcingRadarRuns || []).slice(0, limit);
   }
+
+  /**
+   * Return a compact summary of current sourcing radar state.
+   * Used by deals.controller sourcingSummary endpoint.
+   */
+  getCandidateSummary(settings = {}) {
+    const todayStart = new Date(Date.now() - 86400000).toISOString();
+    const candidates = this._store?.sourcingRadarCandidates || [];
+    const adapters   = this._store?.sourceAdapters || [];
+    const threshold  = settings.sourcingMinRelevanceThreshold ?? 50;
+    return {
+      newCandidatesToday: candidates.filter((c) => c.createdAt >= todayStart).length,
+      highPriorityCount:  candidates.filter((c) => c.reviewStatus === 'pending_review' && c.relevanceScore >= threshold).length,
+      sourceWarnings:     adapters.filter((a) => a.isEnabled && ['unreachable', 'misconfigured', 'rate_limited'].includes(a.status)).length,
+    };
+  }
 }
 
 export const SourcingRadarService = new SourcingRadarServiceClass();
