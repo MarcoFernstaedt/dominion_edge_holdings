@@ -23,6 +23,7 @@ import {
   Phone,
   Mail,
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import type {
   DealFeedListing,
   DealFeedScoreBreakdownItem,
@@ -173,7 +174,7 @@ function ScoreBreakdownBar({ item }: { item: DealFeedScoreBreakdownItem }) {
   );
 }
 
-function InfoRow({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value: React.ReactNode }) {
+function InfoRow({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: React.ReactNode }) {
   return (
     <div className="flex items-start gap-3">
       <Icon size={14} className="text-[var(--color-text-muted)] mt-0.5 flex-shrink-0" aria-hidden />

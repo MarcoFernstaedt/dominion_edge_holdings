@@ -24,6 +24,7 @@ import {
   ArrowUpRight,
   RefreshCw,
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import type {
   ConversationKPIResult,
   ConversationKPIItem,
@@ -35,7 +36,7 @@ import type {
 
 const ENTITY_CONFIG: Record<ConversationEntityType, {
   label: string;
-  Icon: React.ElementType;
+  Icon: LucideIcon;
   barColor: string;
   badgeOk: string;
   badgeWarn: string;

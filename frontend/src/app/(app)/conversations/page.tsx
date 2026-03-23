@@ -23,6 +23,7 @@ import {
   Trash2,
   BarChart2,
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import type {
   RelationshipConversation,
   ConversationEntityType,
@@ -108,7 +109,7 @@ function ConversationsSkeleton() {
 
 // ─── Display helpers ──────────────────────────────────────────────────────────
 
-const ENTITY_ICON: Record<ConversationEntityType, React.ElementType> = {
+const ENTITY_ICON: Record<ConversationEntityType, LucideIcon> = {
   seller:       Building2,
   board_member: Briefcase,
   investor:     TrendingUp,
@@ -121,7 +122,7 @@ const ENTITY_COLOR: Record<ConversationEntityType, string> = {
 const ENTITY_LABEL: Record<ConversationEntityType, string> = {
   seller: 'Seller', board_member: 'Board Member', investor: 'Investor',
 };
-const CONV_TYPE_ICON: Record<ConversationType, React.ElementType> = {
+const CONV_TYPE_ICON: Record<ConversationType, LucideIcon> = {
   phone:        Phone,
   zoom:         Video,
   meeting:      Users,

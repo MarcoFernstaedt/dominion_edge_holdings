@@ -24,6 +24,7 @@ import {
   CheckCircle2,
   Trash2,
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import type {
   Relationship,
   RelationshipInteraction,
@@ -54,7 +55,7 @@ function fmtDatetime(iso: string): string {
   return new Date(iso).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 }
 
-const ENTITY_ICON: Record<RelationshipEntityType, React.ElementType> = {
+const ENTITY_ICON: Record<RelationshipEntityType, LucideIcon> = {
   seller:       Building2,
   board_member: Briefcase,
   investor:     TrendingUp,
@@ -76,7 +77,7 @@ const INTEREST_COLOR: Record<InterestLevel, string> = {
   high: 'text-emerald-400', ready: 'text-[#C9A227]',
 };
 
-const INTERACTION_ICON: Record<RelationshipInteractionType, React.ElementType> = {
+const INTERACTION_ICON: Record<RelationshipInteractionType, LucideIcon> = {
   call:    Phone,
   email:   Mail,
   meeting: Calendar,

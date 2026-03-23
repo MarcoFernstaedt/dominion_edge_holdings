@@ -22,6 +22,7 @@ import {
   TrendingUp,
   Briefcase,
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import type {
   Relationship,
   RelationshipDashboard,
@@ -53,7 +54,7 @@ const ENTITY_LABEL: Record<RelationshipEntityType, string> = {
   investor:     'Investor',
 };
 
-const ENTITY_ICON: Record<RelationshipEntityType, React.ElementType> = {
+const ENTITY_ICON: Record<RelationshipEntityType, LucideIcon> = {
   seller:       Building2,
   board_member: Briefcase,
   investor:     TrendingUp,
