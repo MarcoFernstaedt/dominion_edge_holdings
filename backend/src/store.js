@@ -46,6 +46,10 @@ const store = {
   // Meeting Prep
   meetingPrepPackets: [],
 
+  // Negotiation Coach (QLA Step 10)
+  negotiationSessions: [],
+  callRecaps:          [],
+
   // Capital Raising
   investors:     [],
   capitalStacks: [],

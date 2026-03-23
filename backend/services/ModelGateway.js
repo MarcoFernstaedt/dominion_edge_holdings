@@ -68,6 +68,11 @@ const TASK_TIERS = {
   target_qualification:         'MID',
   board_analysis:               'MID',
   crm_health:                   'MID',
+  // ── Negotiation Coach (QLA Step 10) ─────────────────────────────────────
+  negotiation_simulation:       'HIGH',  // deal-aware coaching requires strong reasoning
+  call_recap_extraction:        'MID',   // structured extraction from text
+  negotiation_draft:            'HIGH',  // high-stakes external drafts
+
   deal_structure_commentary:    'HIGH',
   capital_stack_commentary:     'HIGH',
   complex_diligence_synthesis:  'HIGH',

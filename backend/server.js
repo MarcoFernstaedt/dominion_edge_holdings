@@ -45,6 +45,7 @@ import SourcingRadarService    from './services/SourcingRadarService.js';
 import CandidateDeduplicationService from './services/CandidateDeduplicationService.js';
 import MeetingPreparationService from './services/MeetingPreparationService.js';
 import DealProbabilityService  from './services/DealProbabilityService.js';
+import NegotiationService, { NEGOTIATION_SCENARIOS, DRAFT_TYPES } from './services/NegotiationService.js';
 
 // ─── Capital Raising Services ──────────────────────────────────────────────────
 import InvestorCRMService    from './services/InvestorCRMService.js';
@@ -272,6 +273,9 @@ const store = {
   sourcingRadarCandidates: [],
   // System: Meeting Prep
   meetingPrepPackets: [],
+  // Negotiation Coach (QLA Step 10)
+  negotiationSessions: [],
+  callRecaps:          [],
   // Capital Raising
   investors:      [],
   capitalStacks:  [],
@@ -4538,6 +4542,91 @@ app.post('/api/exports/:id/cancel', validate(z.object({
     }
     errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to cancel export');
   }
+});
+
+// ─── Negotiation Coach (QLA Step 10) ─────────────────────────────────────────
+
+app.get('/api/negotiation/scenarios', (_req, res) => {
+  res.json({
+    scenarios: Object.entries(NEGOTIATION_SCENARIOS).map(([key, def]) => ({
+      key, label: def.label, description: def.description, counterpartyRole: def.sellerRole,
+    })),
+  });
+});
+
+app.get('/api/negotiation/draft-types', (_req, res) => {
+  res.json({
+    draftTypes: Object.entries(DRAFT_TYPES).map(([key, def]) => ({
+      key, label: def.label, tone: def.tone, audience: def.audience,
+    })),
+  });
+});
+
+app.post('/api/negotiation/simulate', async (req, res) => {
+  try {
+    const { sessionId, dealId, companyId, contactId, scenario, role = 'buyer', userMessage } = req.body;
+    if (!scenario) return res.status(400).json({ error: { code: 'MISSING_FIELD', message: 'scenario is required' } });
+    if (!NEGOTIATION_SCENARIOS[scenario]) return res.status(400).json({ error: { code: 'INVALID_SCENARIO', message: `Unknown scenario: ${scenario}` } });
+    if (!userMessage) return res.status(400).json({ error: { code: 'MISSING_FIELD', message: 'userMessage is required' } });
+    NegotiationService.init(store);
+    const context = NegotiationService.buildSimulationContext({ dealId, companyId, contactId, scenario, role });
+    let session = sessionId ? NegotiationService.getSession(sessionId) : null;
+    if (!session) session = NegotiationService.createSession({ dealId, companyId, contactId, scenario, role, context });
+    const coachOutput = await NegotiationService.runSimulationTurn({ sessionId: session.id, context, userMessage, sessionHistory: session.history });
+    NegotiationService.appendToSession(session.id, userMessage, coachOutput);
+    res.json({ sessionId: session.id, scenario, turn: Math.floor(session.history.length / 2), ...coachOutput });
+  } catch (err) { res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: err.message } }); }
+});
+
+app.get('/api/negotiation/sessions', (req, res) => {
+  NegotiationService.init(store);
+  const { dealId, companyId, limit = 20 } = req.query;
+  let sessions = store.negotiationSessions || [];
+  if (dealId)    sessions = sessions.filter(s => s.dealId === dealId);
+  if (companyId) sessions = sessions.filter(s => s.companyId === companyId);
+  res.json({ sessions: sessions.slice(0, Math.min(Number(limit), 100)) });
+});
+
+app.get('/api/negotiation/sessions/:id', (req, res) => {
+  NegotiationService.init(store);
+  const session = NegotiationService.getSession(req.params.id);
+  if (!session) return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Session not found' } });
+  res.json(session);
+});
+
+app.post('/api/negotiation/recap', async (req, res) => {
+  try {
+    NegotiationService.init(store);
+    const { meetingId, transcript, notes, summary, dealId, companyId, autoCreateTasks = true } = req.body;
+    if (!transcript && !notes && !summary) return res.status(400).json({ error: { code: 'MISSING_INPUT', message: 'At least one of transcript, notes, or summary is required' } });
+    const recap = await NegotiationService.processRecap({ meetingId, transcript, notes, summary, dealId, companyId, autoCreateTasks });
+    res.status(201).json({ recap });
+  } catch (err) { res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: err.message } }); }
+});
+
+app.get('/api/negotiation/recaps', (req, res) => {
+  NegotiationService.init(store);
+  const { dealId, companyId, limit = 20 } = req.query;
+  const recaps = NegotiationService.listRecaps({ dealId, companyId, limit: Number(limit) });
+  res.json({ recaps, total: recaps.length });
+});
+
+app.get('/api/negotiation/recaps/:id', (req, res) => {
+  NegotiationService.init(store);
+  const recap = NegotiationService.getRecap(req.params.id);
+  if (!recap) return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Recap not found' } });
+  res.json(recap);
+});
+
+app.post('/api/negotiation/draft', async (req, res) => {
+  try {
+    NegotiationService.init(store);
+    const { recapId, meetingId, dealId, companyId, draftType, additionalContext } = req.body;
+    if (!draftType) return res.status(400).json({ error: { code: 'MISSING_FIELD', message: 'draftType is required' } });
+    if (!DRAFT_TYPES[draftType]) return res.status(400).json({ error: { code: 'INVALID_DRAFT_TYPE', message: `Unknown draftType: ${draftType}` } });
+    const draft = await NegotiationService.generateDraft({ recapId, meetingId, dealId, companyId, draftType, additionalContext });
+    res.json({ draft });
+  } catch (err) { res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: err.message } }); }
 });
 
 // ─── 404 ──────────────────────────────────────────────────────────────────────
