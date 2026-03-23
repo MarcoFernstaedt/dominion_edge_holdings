@@ -1525,3 +1525,67 @@ export interface ConversationFilters {
   page?: number;
   pageSize?: number;
 }
+
+// ─── Diligence Ingestion ───────────────────────────────────────────────────────
+
+export type DiligenceIngestionStatus = 'pending' | 'processing' | 'done' | 'failed';
+export type DiligenceSeverity = 'fatal' | 'critical' | 'high' | 'medium' | 'low';
+export type DiligenceConfidence = 'high' | 'medium' | 'low';
+export type DiligenceFindingStatus = 'open' | 'in_progress' | 'resolved' | 'waived';
+export type DiligenceReadinessState = 'not_started' | 'early' | 'in_progress' | 'advanced' | 'ready';
+
+export interface DiligenceDocument {
+  id: string;
+  dealId: string;
+  fileId: string;
+  documentType: string;
+  displayName: string;
+  ingestionStatus: DiligenceIngestionStatus;
+  processedAt?: string;
+  processingError?: string;
+  pageCount?: number;
+  wordCount?: number;
+  extractedFields?: Record<string, unknown>;
+  textPreview?: string;
+  findings?: DiligenceFinding[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DiligenceFinding {
+  id: string;
+  dealId: string;
+  documentId?: string;
+  document?: { id: string; displayName: string; documentType: string };
+  category: string;
+  severity: DiligenceSeverity;
+  confidence: DiligenceConfidence;
+  title: string;
+  sourceSnippet?: string;
+  whyItMatters: string;
+  recommendedFollowUp: string;
+  status: DiligenceFindingStatus;
+  aiGenerated: boolean;
+  resolvedAt?: string;
+  resolutionNotes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DiligenceSummary {
+  id?: string;
+  dealId: string;
+  executiveSummary?: string;
+  topRisks?: { risk: string; severity: string }[];
+  missingItems?: { category: string; item: string; priority: string }[];
+  sellerQuestions?: string[];
+  brokerQuestions?: string[];
+  lenderQuestions?: string[];
+  attorneyQuestions?: string[];
+  readinessState: DiligenceReadinessState;
+  readinessScore: number;
+  lastSynthesizedAt?: string;
+  synthesisVersion: number;
+  createdAt?: string;
+  updatedAt?: string;
+}

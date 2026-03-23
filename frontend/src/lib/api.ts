@@ -824,3 +824,86 @@ export const quickActionsApi = {
     '/api/quick-action/approve-and-send', data
   ),
 };
+
+// ─── Diligence Ingestion ──────────────────────────────────────────────────────
+
+import type {
+  DiligenceDocument,
+  DiligenceFinding,
+  DiligenceSummary,
+} from './types';
+
+export const diligenceApi = {
+  // Documents
+  listDocuments: (dealId: string) =>
+    api.get<{ documents: DiligenceDocument[]; total: number }>(
+      `/api/diligence/${dealId}/documents`
+    ),
+
+  linkDocument: (
+    dealId: string,
+    data: { fileId: string; documentType: string; displayName: string }
+  ) =>
+    api.post<{ status: string; doc: DiligenceDocument }>(
+      `/api/diligence/${dealId}/documents`,
+      data
+    ),
+
+  getDocument: (dealId: string, docId: string) =>
+    api.get<{ doc: DiligenceDocument }>(`/api/diligence/${dealId}/documents/${docId}`),
+
+  reprocess: (dealId: string, docId: string) =>
+    api.post<{ status: string; docId: string }>(
+      `/api/diligence/${dealId}/documents/${docId}/reprocess`,
+      {}
+    ),
+
+  // Findings
+  listFindings: (
+    dealId: string,
+    filters?: { status?: string; severity?: string; category?: string }
+  ) => {
+    const params = new URLSearchParams();
+    if (filters?.status)   params.set('status',   filters.status);
+    if (filters?.severity) params.set('severity', filters.severity);
+    if (filters?.category) params.set('category', filters.category);
+    const qs = params.toString();
+    return api.get<{ findings: DiligenceFinding[]; total: number }>(
+      `/api/diligence/${dealId}/findings${qs ? `?${qs}` : ''}`
+    );
+  },
+
+  updateFinding: (
+    dealId: string,
+    findingId: string,
+    data: { status?: string; resolutionNotes?: string }
+  ) =>
+    api.patch<{ finding: DiligenceFinding }>(
+      `/api/diligence/${dealId}/findings/${findingId}`,
+      data
+    ),
+
+  // Summary
+  getSummary: (dealId: string) =>
+    api.get<{ summary: DiligenceSummary }>(`/api/diligence/${dealId}/summary`),
+
+  synthesize: (dealId: string) =>
+    api.post<{ summary: DiligenceSummary }>(
+      `/api/diligence/${dealId}/summary/synthesize`,
+      {}
+    ),
+
+  getQuestions: (dealId: string) =>
+    api.get<{
+      questions: {
+        seller: string[];
+        broker: string[];
+        lender: string[];
+        attorney: string[];
+      };
+    }>(`/api/diligence/${dealId}/questions`),
+
+  // Meta
+  getDocumentTypes: () =>
+    api.get<{ documentTypes: string[] }>('/api/diligence/document-types'),
+};

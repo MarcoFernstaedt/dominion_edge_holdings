@@ -425,6 +425,9 @@ model Deal {
   documents            Document[]
   tasks                Task[]
   diligenceItems       DiligenceItem[]
+  diligenceDocuments   DiligenceDocument[]
+  diligenceFindings    DiligenceFinding[]
+  diligenceSummary     DiligenceSummary?
 
   @@index([userId, stage])
   @@index([userId, createdAt])
@@ -498,6 +501,78 @@ model DiligenceItem {
   @@index([dealId, category])
   @@index([dealId, received])
   @@index([dealId, blocksClose])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DILIGENCE INGESTION — documents, findings, summaries
+// ─────────────────────────────────────────────────────────────────────────────
+
+model DiligenceDocument {
+  id              String    @id @default(cuid())
+  dealId          String
+  deal            Deal      @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  fileId          String    @unique
+  documentType    String    // cim | financial_statements | contract | lease | tax_return | checklist | broker_notes | seller_notes | other
+  displayName     String
+  ingestionStatus String    @default("pending") // pending | processing | done | failed
+  processedAt     DateTime?
+  processingError String?
+  pageCount       Int?
+  wordCount       Int?
+  extractedFields Json?     // structured extracted facts
+  textPreview     String?   // first ~600 chars of content
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  findings DiligenceFinding[]
+
+  @@index([dealId])
+  @@index([dealId, ingestionStatus])
+}
+
+model DiligenceFinding {
+  id                  String             @id @default(cuid())
+  dealId              String
+  deal                Deal               @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  documentId          String?
+  document            DiligenceDocument? @relation(fields: [documentId], references: [id])
+  category            String             // financial | legal | operational | tax | hr | customer | compliance | working_capital
+  severity            String             // fatal | critical | high | medium | low
+  confidence          String             // high | medium | low
+  title               String
+  sourceSnippet       String?
+  whyItMatters        String
+  recommendedFollowUp String
+  status              String             @default("open") // open | in_progress | resolved | waived
+  aiGenerated         Boolean            @default(true)
+  resolvedAt          DateTime?
+  resolvedBy          String?
+  resolutionNotes     String?
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  @@index([dealId, severity])
+  @@index([dealId, status])
+  @@index([documentId])
+}
+
+model DiligenceSummary {
+  id                String    @id @default(cuid())
+  dealId            String    @unique
+  deal              Deal      @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  executiveSummary  String?
+  topRisks          Json?     // [{ risk: string, severity: string }]
+  missingItems      Json?     // [{ category: string, item: string, priority: string }]
+  sellerQuestions   Json?     // string[]
+  brokerQuestions   Json?     // string[]
+  lenderQuestions   Json?     // string[]
+  attorneyQuestions Json?     // string[]
+  readinessState    String    @default("not_started") // not_started | early | in_progress | advanced | ready
+  readinessScore    Int       @default(0)
+  lastSynthesizedAt DateTime?
+  synthesisVersion  Int       @default(0)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

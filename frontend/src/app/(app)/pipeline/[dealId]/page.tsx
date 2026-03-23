@@ -1,7 +1,10 @@
 'use client';
 
 import { useState } from 'react';
+import dynamic from 'next/dynamic';
 import { useAppStore } from '@/lib/store';
+
+const DiligenceTab = dynamic(() => import('./DiligenceTab'), { ssr: false });
 import { formatDate, formatRelativeDate, formatCurrency, STAGE_LABELS, STAGE_ORDER, nowIso, generateId, statusLabel } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
 import { Badge, StatusBadge } from '@/components/ui/Badge';
@@ -21,6 +24,7 @@ export default function DealDetailPage({ params }: { params: { dealId: string } 
   const deal = deals.find((d) => d.id === params.dealId);
   const [logOpen, setLogOpen] = useState(false);
   const [logForm, setLogForm] = useState({ subject: '', notes: '', outcome: '' });
+  const [rightTab, setRightTab] = useState<'activity' | 'diligence'>('activity');
 
   if (!deal) {
     return (
@@ -190,32 +194,61 @@ export default function DealDetailPage({ params }: { params: { dealId: string } 
           <div className="text-xs text-[#A7A29A]">Created {formatDate(deal.createdAt)}</div>
         </div>
 
-        {/* Right: Notes / Timeline */}
+        {/* Right: Activity / Diligence tabs */}
         <div className="lg:col-span-2">
-          <h2 className="text-[10px] tracking-widest uppercase font-medium text-[#A7A29A] mb-3">
-            Activity ({dealInteractions.length})
-          </h2>
-          {dealInteractions.length === 0 ? (
-            <div className="bg-[#141414] border border-[#2A2A2E] rounded-md p-8 text-center">
-              <p className="text-sm text-[#A7A29A]">No notes yet. Log your first deal note.</p>
-            </div>
-          ) : (
-            <ol className="relative border-l border-[#2A2A2E] ml-3">
-              {dealInteractions.map((i) => (
-                <li key={i.id} className="mb-3 ml-4">
-                  <div className="absolute -left-2 w-3 h-3 rounded-full bg-[#141414] border-2 border-[#2A2A2E]" aria-hidden />
-                  <div className="bg-[#141414] border border-[#2A2A2E] rounded p-3">
-                    <div className="flex items-center justify-between mb-1">
-                      <Badge variant="muted" size="sm">{statusLabel(i.interactionType)}</Badge>
-                      <span className="text-xs text-[#A7A29A]">{formatRelativeDate(i.createdAt)}</span>
-                    </div>
-                    {i.subject && <div className="text-sm font-medium text-[#E8E6E3]">{i.subject}</div>}
-                    {i.bodyPreview && <p className="text-xs text-[#A7A29A] mt-0.5">{i.bodyPreview}</p>}
-                    {i.outcome && <div className="text-xs mt-1 text-[#E8E6E3]">Outcome: {i.outcome}</div>}
-                  </div>
-                </li>
-              ))}
-            </ol>
+          {/* Tab strip */}
+          <div className="flex gap-1 border-b border-[#2A2A2E] mb-4">
+            <button
+              onClick={() => setRightTab('activity')}
+              className={`px-4 py-2 text-xs font-medium transition-colors ${
+                rightTab === 'activity'
+                  ? 'border-b-2 border-[#C9A227] text-[#C9A227] -mb-px'
+                  : 'text-[#A7A29A] hover:text-[#E8E6E3]'
+              }`}
+            >
+              Activity ({dealInteractions.length})
+            </button>
+            <button
+              onClick={() => setRightTab('diligence')}
+              className={`px-4 py-2 text-xs font-medium transition-colors ${
+                rightTab === 'diligence'
+                  ? 'border-b-2 border-[#C9A227] text-[#C9A227] -mb-px'
+                  : 'text-[#A7A29A] hover:text-[#E8E6E3]'
+              }`}
+            >
+              Diligence
+            </button>
+          </div>
+
+          {rightTab === 'activity' && (
+            <>
+              {dealInteractions.length === 0 ? (
+                <div className="bg-[#141414] border border-[#2A2A2E] rounded-md p-8 text-center">
+                  <p className="text-sm text-[#A7A29A]">No notes yet. Log your first deal note.</p>
+                </div>
+              ) : (
+                <ol className="relative border-l border-[#2A2A2E] ml-3">
+                  {dealInteractions.map((i) => (
+                    <li key={i.id} className="mb-3 ml-4">
+                      <div className="absolute -left-2 w-3 h-3 rounded-full bg-[#141414] border-2 border-[#2A2A2E]" aria-hidden />
+                      <div className="bg-[#141414] border border-[#2A2A2E] rounded p-3">
+                        <div className="flex items-center justify-between mb-1">
+                          <Badge variant="muted" size="sm">{statusLabel(i.interactionType)}</Badge>
+                          <span className="text-xs text-[#A7A29A]">{formatRelativeDate(i.createdAt)}</span>
+                        </div>
+                        {i.subject && <div className="text-sm font-medium text-[#E8E6E3]">{i.subject}</div>}
+                        {i.bodyPreview && <p className="text-xs text-[#A7A29A] mt-0.5">{i.bodyPreview}</p>}
+                        {i.outcome && <div className="text-xs mt-1 text-[#E8E6E3]">Outcome: {i.outcome}</div>}
+                      </div>
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </>
+          )}
+
+          {rightTab === 'diligence' && (
+            <DiligenceTab dealId={deal.id} />
           )}
         </div>
       </div>

@@ -131,6 +131,23 @@ export async function getPresignedDownloadUrl({ key, expiresInSeconds = 3600, do
 }
 
 /**
+ * Read an object directly from S3 and return its content as a Buffer.
+ * Used server-side for document ingestion (not for presigned URL flows).
+ */
+export async function getObjectBuffer(key) {
+  const [s3, { GetObjectCommand }] = await Promise.all([
+    getS3Client(),
+    import('@aws-sdk/client-s3').then((m) => ({ GetObjectCommand: m.GetObjectCommand })),
+  ]);
+  const response = await s3.send(new GetObjectCommand({ Bucket: env.S3_BUCKET, Key: key }));
+  const chunks = [];
+  for await (const chunk of response.Body) {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+  }
+  return Buffer.concat(chunks);
+}
+
+/**
  * Delete an object from S3.
  */
 export async function deleteObject(key) {
@@ -168,6 +185,7 @@ export const S3StorageProvider = {
   buildKey,
   getPresignedUploadUrl,
   getPresignedDownloadUrl,
+  getObjectBuffer,
   deleteObject,
   healthCheck,
 };

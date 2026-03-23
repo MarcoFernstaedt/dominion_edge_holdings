@@ -50,6 +50,7 @@ import conversationsRouter from './routes/conversations.routes.js';
 import notificationsRouter from './routes/notifications.routes.js';
 import filesRouter         from './routes/files.routes.js';
 import adminRouter         from './routes/admin.routes.js';
+import diligenceRouter     from './routes/diligence.routes.js';
 
 // ─── Structured logging ───────────────────────────────────────────────────────
 const logger = pino({
@@ -182,6 +183,7 @@ app.use(conversationsRouter);
 app.use(notificationsRouter);
 app.use(filesRouter);
 app.use(adminRouter);
+app.use('/api/diligence', diligenceRouter);
 
 // ─── 404 ──────────────────────────────────────────────────────────────────────
 app.use((req, res) => {

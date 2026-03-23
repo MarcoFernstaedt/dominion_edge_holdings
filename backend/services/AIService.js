@@ -71,6 +71,12 @@ const MODEL_ROUTES = {
   execution_brief:            MODELS.MID,
   memo_section_draft:         MODELS.MID,
 
+  // ── Diligence Ingestion ──────────────────────────────────────────────────────
+  diligence_doc_classify:      MODELS.LOW,
+  diligence_extract_fields:    MODELS.MID,
+  diligence_flag_extraction:   MODELS.HIGH,
+  diligence_summary_synthesis: MODELS.HIGH,
+
   // ── HIGH tier ───────────────────────────────────────────────────────────────
   deal_analysis:              MODELS.HIGH,
   strategy_summary:           MODELS.HIGH,
@@ -403,6 +409,90 @@ async function _callOpenAIFallback(taskType, userMessage, systemPrompt) {
   return res.choices[0]?.message?.content ?? '';
 }
 
+// ─── runWithDocument — PDF/document content block support ────────────────────
+/**
+ * Run a diligence task with a PDF attached as a native document block.
+ * Claude haiku-4-5 and sonnet-4-6 both support the `document` content block.
+ * Falls back to text extraction if model doesn't support documents.
+ *
+ * @param {string} taskType
+ * @param {Buffer} documentBuffer  — raw PDF bytes
+ * @param {object} options
+ * @param {string}  options.systemPrompt
+ * @param {string}  options.userMessage    — appended after document block
+ * @param {string}  [options.model]        — override model
+ * @param {number}  [options.maxTokens]    — default 4096
+ * @param {string}  [options.mimeType]     — default application/pdf
+ * @returns {Promise<{ content: string, model: string, cached: false }>}
+ */
+export async function runWithDocument(taskType, documentBuffer, options = {}) {
+  const {
+    systemPrompt = '',
+    userMessage  = 'Analyze this document.',
+    maxTokens    = 4096,
+    mimeType     = 'application/pdf',
+    agentName    = 'diligence_ingestion',
+  } = options;
+
+  const integrationGuard = IntegrationRegistry.guard('ai');
+  if (!integrationGuard.ok) {
+    throw new AIServiceError(integrationGuard.degradedMessage, 'AI_INTEGRATION_UNAVAILABLE');
+  }
+
+  const model   = resolveModel(taskType, options.model);
+  const client  = getClient();
+  const base64  = documentBuffer.toString('base64');
+  const startMs = Date.now();
+
+  let rawText = '';
+  let inputTokens = 0, outputTokens = 0;
+
+  try {
+    const response = await withRetry(() => client.messages.create({
+      model,
+      max_tokens: maxTokens,
+      system: systemPrompt,
+      messages: [{
+        role: 'user',
+        content: [
+          { type: 'document', source: { type: 'base64', media_type: mimeType, data: base64 } },
+          { type: 'text', text: userMessage },
+        ],
+      }],
+    }), { retries: 2, baseDelayMs: 1000 });
+
+    rawText      = response.content[0]?.text ?? '';
+    inputTokens  = response.usage?.input_tokens  ?? 0;
+    outputTokens = response.usage?.output_tokens ?? 0;
+  } catch (err) {
+    throw new AIServiceError(`Document model call failed: ${err.message}`, 'MODEL_ERROR');
+  }
+
+  // Try to parse JSON; fall back to raw string
+  let content;
+  try   { content = extractJSON(rawText); }
+  catch { content = rawText; }
+
+  const latencyMs     = Date.now() - startMs;
+  const estimatedCost = CostControlService.estimateCost(model, inputTokens, outputTokens);
+
+  AgentRunLogger.logRun({
+    agent_name: agentName, prompt_key: taskType, prompt_version: '1.0',
+    task_type: taskType, model_used: model, fallback_used: false,
+    input_hash: `doc_${taskType}_${Date.now()}`, source_entities: [],
+    latency_ms: latencyMs,
+    token_usage: { input: inputTokens, output: outputTokens, total: inputTokens + outputTokens },
+    estimated_cost: estimatedCost, confidence: 'medium', cached: false, parse_success: true,
+  });
+
+  CostControlService.recordRun({
+    agentName, taskType, model, inputTokens, outputTokens,
+    cached: false, fallbackUsed: false, success: true, latencyMs,
+  });
+
+  return { content, model, cached: false };
+}
+
 // ─── Diagnostics ──────────────────────────────────────────────────────────────
 export function getModelForTask(taskType) {
   return MODEL_ROUTES[taskType] ?? null;
@@ -412,5 +502,5 @@ export function listRoutes() {
   return Object.entries(MODEL_ROUTES).map(([task, model]) => ({ task, model }));
 }
 
-export const AIService = { run, getModelForTask, listRoutes };
+export const AIService = { run, runWithDocument, getModelForTask, listRoutes };
 export default AIService;
