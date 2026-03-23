@@ -1114,3 +1114,59 @@ model AuditLog {
   @@index([entityType, entityId])
   @@index([action, createdAt])
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TARGET MONITORING — Continuous intelligence for acquisition targets
+// ─────────────────────────────────────────────────────────────────────────────
+
+model MonitoredEntity {
+  id              String    @id @default(cuid())
+  userId          String
+  entityType      String    // company | deal | contact
+  entityId        String    // FK to Company.id / Deal.id / Contact.id (soft ref)
+  displayName     String
+  website         String?
+  linkedinUrl     String?
+  googlePlaceId   String?
+  enabled         Boolean   @default(true)
+  checkIntervalMs Int       @default(43200000) // 12h default
+  lastCheckedAt   DateTime?
+  nextCheckAt     DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  events MonitorEvent[]
+
+  @@unique([userId, entityType, entityId])
+  @@index([userId, enabled])
+  @@index([enabled, nextCheckAt])
+}
+
+model MonitorEvent {
+  id                 String    @id @default(cuid())
+  monitoredEntityId  String
+  monitoredEntity    MonitoredEntity @relation(fields: [monitoredEntityId], references: [id], onDelete: Cascade)
+  userId             String
+  entityType         String    // company | deal | contact
+  entityId           String
+  signalType         String    // website_change | review_drop | ownership_change | job_posting | legal_mention | domain_issue | local_presence
+  severity           String    @default("watch")  // info | watch | important | critical
+  title              String
+  summary            String
+  sourceSnippet      String?   // verbatim excerpt ≤500 chars
+  sourceUrl          String?
+  aiExplanation      String?   // why it matters
+  aiNextAction       String?   // suggested follow-up
+  dedupeFingerprint  String    // hash of (entityId + signalType + key content)
+  reviewState        String    @default("unread") // unread | read | dismissed | converted_task
+  taskId             String?   // set when converted to task
+  detectedAt         DateTime  @default(now())
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  @@unique([dedupeFingerprint])
+  @@index([monitoredEntityId, detectedAt])
+  @@index([userId, reviewState])
+  @@index([userId, severity, reviewState])
+  @@index([entityType, entityId])
+}

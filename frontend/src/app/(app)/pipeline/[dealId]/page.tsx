@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic';
 import { useAppStore } from '@/lib/store';
 
 const DiligenceTab = dynamic(() => import('./DiligenceTab'), { ssr: false });
+const MonitorAlertPanel = dynamic(() => import('@/components/monitoring/MonitorAlertPanel'), { ssr: false });
 import { formatDate, formatRelativeDate, formatCurrency, STAGE_LABELS, STAGE_ORDER, nowIso, generateId, statusLabel } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
 import { Badge, StatusBadge } from '@/components/ui/Badge';
@@ -24,7 +25,7 @@ export default function DealDetailPage({ params }: { params: { dealId: string } 
   const deal = deals.find((d) => d.id === params.dealId);
   const [logOpen, setLogOpen] = useState(false);
   const [logForm, setLogForm] = useState({ subject: '', notes: '', outcome: '' });
-  const [rightTab, setRightTab] = useState<'activity' | 'diligence'>('activity');
+  const [rightTab, setRightTab] = useState<'activity' | 'diligence' | 'monitoring'>('activity');
 
   if (!deal) {
     return (
@@ -218,6 +219,16 @@ export default function DealDetailPage({ params }: { params: { dealId: string } 
             >
               Diligence
             </button>
+            <button
+              onClick={() => setRightTab('monitoring')}
+              className={`px-4 py-2 text-xs font-medium transition-colors ${
+                rightTab === 'monitoring'
+                  ? 'border-b-2 border-[#C9A227] text-[#C9A227] -mb-px'
+                  : 'text-[#A7A29A] hover:text-[#E8E6E3]'
+              }`}
+            >
+              Monitoring
+            </button>
           </div>
 
           {rightTab === 'activity' && (
@@ -249,6 +260,15 @@ export default function DealDetailPage({ params }: { params: { dealId: string } 
 
           {rightTab === 'diligence' && (
             <DiligenceTab dealId={deal.id} />
+          )}
+
+          {rightTab === 'monitoring' && (
+            <MonitorAlertPanel
+              entityType="deal"
+              entityId={deal.id}
+              displayName={deal.companyName ?? deal.name}
+              website={(deal as unknown as { website?: string }).website}
+            />
           )}
         </div>
       </div>

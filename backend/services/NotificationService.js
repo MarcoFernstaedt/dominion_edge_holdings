@@ -65,6 +65,9 @@ export const NOTIFICATION_TYPES = {
   NEXT_ACTION_CHANGED:     'next_action_changed',
   RECOVERY_NEEDED:         'recovery_needed',
 
+  // Target monitoring
+  TARGET_MONITOR_ALERT:    'target_monitor_alert',
+
   // Legacy compat
   CRM_STALE_CONTACT:       'crm_stale_contact',
   OUTREACH_REPLY:          'outreach_reply',
@@ -113,6 +116,7 @@ const DEDUPE_WINDOW_MS = {
   [NOTIFICATION_TYPES.INVESTOR_FOLLOWUP_DUE]:    86_400_000,
   [NOTIFICATION_TYPES.ARTIFACT_STALE]:           43_200_000, // 12h
   [NOTIFICATION_TYPES.INTEGRATION_DEGRADED]:     1_800_000,  // 30m
+  [NOTIFICATION_TYPES.TARGET_MONITOR_ALERT]:     21_600_000, // 6h per entity+type
   default:                                       3_600_000,
 };
 

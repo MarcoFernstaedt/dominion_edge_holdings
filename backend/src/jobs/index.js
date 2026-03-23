@@ -9,6 +9,7 @@ import logger               from '../lib/logger.js';
 import BackgroundJobRunner  from '../../services/BackgroundJobRunner.js';
 import DealFeedIngestionJob   from '../../jobs/DealFeedIngestionJob.js';
 import RelationshipFollowUpJob from '../../jobs/RelationshipFollowUpJob.js';
+import TargetMonitoringJob    from '../../jobs/TargetMonitoringJob.js';
 import SourcingRadarJob       from './SourcingRadarJob.js';
 import HealthCheckJob         from './HealthCheckJob.js';
 import PrepPacketJob          from './PrepPacketJob.js';
@@ -34,6 +35,7 @@ export function startJobs(store, orchestrator = null) {
   const domainJobs = [
     DealFeedIngestionJob,
     RelationshipFollowUpJob,
+    TargetMonitoringJob,
     SourcingRadarJob,
     HealthCheckJob,
     PrepPacketJob,

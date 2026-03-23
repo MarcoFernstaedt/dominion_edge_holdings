@@ -1589,3 +1589,58 @@ export interface DiligenceSummary {
   createdAt?: string;
   updatedAt?: string;
 }
+
+// ─── Target Monitoring ────────────────────────────────────────────────────────
+
+export type MonitorSignalType =
+  | 'website_change'
+  | 'review_drop'
+  | 'ownership_change'
+  | 'job_posting'
+  | 'legal_mention'
+  | 'domain_issue'
+  | 'local_presence';
+
+export type MonitorSeverity = 'info' | 'watch' | 'important' | 'critical';
+export type MonitorReviewState = 'unread' | 'read' | 'dismissed' | 'converted_task';
+
+export interface MonitoredEntity {
+  id: string;
+  userId: string;
+  entityType: 'company' | 'deal' | 'contact';
+  entityId: string;
+  displayName: string;
+  website?: string;
+  linkedinUrl?: string;
+  googlePlaceId?: string;
+  enabled: boolean;
+  checkIntervalMs: number;
+  lastCheckedAt?: string;
+  nextCheckAt?: string;
+  createdAt: string;
+  updatedAt: string;
+  _count?: { events: number };
+}
+
+export interface MonitorEvent {
+  id: string;
+  monitoredEntityId: string;
+  userId: string;
+  entityType: 'company' | 'deal' | 'contact';
+  entityId: string;
+  signalType: MonitorSignalType;
+  severity: MonitorSeverity;
+  title: string;
+  summary: string;
+  sourceSnippet?: string;
+  sourceUrl?: string;
+  aiExplanation?: string;
+  aiNextAction?: string;
+  dedupeFingerprint: string;
+  reviewState: MonitorReviewState;
+  taskId?: string;
+  detectedAt: string;
+  createdAt: string;
+  updatedAt: string;
+  monitoredEntity?: { displayName: string; entityType: string; website?: string };
+}

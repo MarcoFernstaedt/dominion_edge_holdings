@@ -77,6 +77,10 @@ const MODEL_ROUTES = {
   diligence_flag_extraction:   MODELS.HIGH,
   diligence_summary_synthesis: MODELS.HIGH,
 
+  // ── Target Monitoring ────────────────────────────────────────────────────────
+  monitor_event_explain:       MODELS.LOW,   // explain why a signal matters
+  monitor_next_action:         MODELS.MID,   // suggest follow-up for a signal
+
   // ── HIGH tier ───────────────────────────────────────────────────────────────
   deal_analysis:              MODELS.HIGH,
   strategy_summary:           MODELS.HIGH,

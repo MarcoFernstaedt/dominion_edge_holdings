@@ -907,3 +907,65 @@ export const diligenceApi = {
   getDocumentTypes: () =>
     api.get<{ documentTypes: string[] }>('/api/diligence/document-types'),
 };
+
+// ─── Monitoring ───────────────────────────────────────────────────────────────
+import type { MonitoredEntity, MonitorEvent } from './types';
+
+export const monitoringApi = {
+  // Entities
+  listEntities: () =>
+    api.get<{ entities: MonitoredEntity[]; total: number }>('/api/monitoring/entities'),
+
+  registerEntity: (data: {
+    entityType: string;
+    entityId: string;
+    displayName: string;
+    website?: string;
+    linkedinUrl?: string;
+    checkIntervalMs?: number;
+  }) => api.post<{ entity: MonitoredEntity }>('/api/monitoring/entities', data),
+
+  disableEntity: (monitoredEntityId: string) =>
+    api.delete(`/api/monitoring/entities/${monitoredEntityId}`),
+
+  triggerCheck: (monitoredEntityId: string) =>
+    api.post<{ status: string }>(`/api/monitoring/entities/${monitoredEntityId}/check`, {}),
+
+  // Alerts
+  listAlerts: (params?: {
+    reviewState?: string;
+    severity?: string;
+    entityType?: string;
+    entityId?: string;
+    limit?: number;
+    offset?: number;
+  }) => {
+    const qs = new URLSearchParams(params as Record<string, string>).toString();
+    return api.get<{ events: MonitorEvent[]; total: number }>(
+      `/api/monitoring/alerts${qs ? `?${qs}` : ''}`
+    );
+  },
+
+  unreadCount: () =>
+    api.get<{ count: number }>('/api/monitoring/alerts/unread-count'),
+
+  dismissAll: () =>
+    api.post<{ dismissed: number }>('/api/monitoring/alerts/dismiss-all', {}),
+
+  markRead: (eventId: string) =>
+    api.patch<{ event: MonitorEvent }>(`/api/monitoring/alerts/${eventId}`, { reviewState: 'read' }),
+
+  dismiss: (eventId: string) =>
+    api.patch<{ event: MonitorEvent }>(`/api/monitoring/alerts/${eventId}`, { reviewState: 'dismissed' }),
+
+  convertToTask: (eventId: string, data?: { taskTitle?: string; taskNote?: string }) =>
+    api.patch<{ event: MonitorEvent; task: unknown }>(
+      `/api/monitoring/alerts/${eventId}`,
+      { action: 'convert_task', ...data }
+    ),
+
+  alertsByEntity: (entityType: string, entityId: string) =>
+    api.get<{ events: MonitorEvent[]; total: number; unread: number }>(
+      `/api/monitoring/alerts/by-entity/${entityType}/${entityId}`
+    ),
+};
