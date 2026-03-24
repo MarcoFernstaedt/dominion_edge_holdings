@@ -33,6 +33,7 @@ export default function SettingsPage() {
   const [targetsLoading, setTargetsLoading] = useState(true);
   const [targetsSaving, setTargetsSaving] = useState(false);
   const [targetsSaved, setTargetsSaved] = useState(false);
+  const [targetsError, setTargetsError] = useState<string | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -61,6 +62,8 @@ export default function SettingsPage() {
 
   async function saveExecutionTargets() {
     setTargetsSaving(true);
+    setTargetsError(null);
+    setTargetsSaved(false);
     try {
       await Promise.all(
         EXECUTION_TARGET_FIELDS.map((field) =>
@@ -69,8 +72,8 @@ export default function SettingsPage() {
       );
       setTargetsSaved(true);
       setTimeout(() => setTargetsSaved(false), 3000);
-    } catch {
-      // silent for now; page stays editable
+    } catch (err) {
+      setTargetsError(err instanceof Error ? err.message : 'Failed to save execution targets');
     } finally {
       setTargetsSaving(false);
     }
@@ -343,9 +346,12 @@ export default function SettingsPage() {
         </div>
         <div className="bg-[#141414] border border-[#2A2A2E] rounded-md p-5 space-y-4">
           <div className="flex items-start justify-between gap-4">
-            <p className="text-sm text-[#A7A29A] max-w-2xl">
-              These targets drive the execution dashboards and give the Command Center a real operating standard instead of a static aspiration.
-            </p>
+            <div className="space-y-1">
+              <p className="text-sm text-[#A7A29A] max-w-2xl">
+                These targets drive the execution dashboards and give the Command Center a real operating standard instead of a static aspiration.
+              </p>
+              {targetsError && <p className="text-xs text-[#C35B5B]">{targetsError}</p>}
+            </div>
             {targetsSaved && <span className="text-xs text-emerald-400">Saved ✓</span>}
           </div>
 
@@ -367,11 +373,14 @@ export default function SettingsPage() {
                 ))}
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <Button onClick={saveExecutionTargets} disabled={targetsSaving}>
                   {targetsSaving ? 'Saving…' : 'Save Execution Targets'}
                 </Button>
                 <span className="text-xs text-[#A7A29A]">Writes through to the backend execution tracker.</span>
+                {!targetsSaving && !targetsSaved && !targetsError && (
+                  <span className="text-xs text-[#737373]">No silent saves. You will see success or failure here.</span>
+                )}
               </div>
             </>
           )}
