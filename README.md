@@ -215,7 +215,9 @@ POST   /api/quick-action/approve-and-send
 ### Prerequisites
 
 - Node.js 20+
-- Anthropic API key
+- npm
+- PostgreSQL if you want auth and Prisma-backed routes working locally
+- Anthropic API key only if you want built-in AI features enabled
 
 ### Install all dependencies
 
@@ -229,21 +231,31 @@ npm run install:all
 cp backend/.env.example backend/.env
 ```
 
-Edit `backend/.env`:
+Recommended minimum `backend/.env` for local development:
 
 ```env
-ANTHROPIC_API_KEY=sk-ant-...
+DATABASE_URL="postgresql://user:password@localhost:5432/deh_aos?schema=public"
 PORT=3001
 NODE_ENV=development
-ALLOWED_ORIGINS=http://localhost:3000
+ALLOWED_ORIGINS="http://localhost:3000"
+AUTH_ENABLED="false"
+AUTH_JWT_SECRET="replace-with-a-long-random-string"
+SYSTEM_USER_ID=""
+ANTHROPIC_API_KEY=""
+```
 
-# Optional — for email features
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USER=you@gmail.com
-SMTP_PASS=app-password
-FROM_EMAIL=you@gmail.com
-FROM_NAME=Dominion Edge Holdings
+Notes:
+- `DATABASE_URL` is required for Prisma-backed auth and repository flows.
+- `AUTH_ENABLED=false` is the easiest local dev mode while bootstrapping.
+- `ANTHROPIC_API_KEY` is optional unless you want AI-generated drafts, briefings, or agent features.
+- Additional integrations (Apollo, Google Workspace, SMTP, S3) are optional and can stay blank during phase-one setup.
+
+If you want full backend readiness after configuring PostgreSQL:
+
+```bash
+cd backend
+npm run db:generate
+npx prisma migrate deploy
 ```
 
 ### Frontend environment
@@ -252,19 +264,34 @@ FROM_NAME=Dominion Edge Holdings
 cp frontend/.env.local.example frontend/.env.local
 ```
 
-Edit `frontend/.env.local`:
+Minimum `frontend/.env.local`:
 
 ```env
 NEXT_PUBLIC_API_URL=http://localhost:3001
+NEXT_PUBLIC_APP_NAME="Dominion Edge Holdings"
 ```
 
 ### Run (development)
 
 ```bash
-npm run dev           # starts frontend (port 3000) + backend (port 3001) concurrently
+npm run dev           # starts frontend (port 3000) + backend (port 3001)
 npm run dev:frontend  # frontend only
 npm run dev:backend   # backend only
 ```
+
+### Phase-one recommendation
+
+For first-acquisition execution, treat the app as a focused cockpit. Start with:
+- Command Center
+- Playbook
+- Execution
+- Checklist
+- Board
+- Sourcing Radar
+- Pipeline
+- Underwriting
+
+Leave secondary modules for later once the core operating rhythm is stable.
 
 ---
 

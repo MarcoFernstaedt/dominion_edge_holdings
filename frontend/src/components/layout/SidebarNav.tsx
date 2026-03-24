@@ -54,7 +54,7 @@ interface NavGroup {
 
 const NAV_GROUPS: NavGroup[] = [
   {
-    label: 'Operations',
+    label: 'Phase 1 · Operations',
     items: [
       { id: 'command-center', label: 'Command Center', href: '/command-center', icon: LayoutDashboard, exactMatch: true },
       { id: 'playbook',       label: 'Playbook',       href: '/playbook',       icon: BookOpen,        matchPrefix: true },
@@ -63,7 +63,7 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    label: 'Deal Flow',
+    label: 'Phase 1 · Deal Flow',
     items: [
       { id: 'pipeline',       label: 'Pipeline',       href: '/pipeline',       icon: KanbanSquare,   exactMatch: true },
       { id: 'sourcing-radar', label: 'Sourcing Radar', href: '/pipeline/sourcing-radar', icon: Radar, matchPrefix: true },
@@ -72,43 +72,28 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    label: 'Relationships',
+    label: 'Phase 1 · Board & Relationships',
     items: [
-      { id: 'crm',            label: 'CRM',            href: '/crm/companies',  icon: Users,          matchPrefix: true },
       { id: 'board',          label: 'Board',          href: '/board',          icon: Briefcase,      matchPrefix: true },
+      { id: 'crm',            label: 'CRM',            href: '/crm/companies',  icon: Users,          matchPrefix: true },
       { id: 'relationships',  label: 'Relationships',  href: '/relationships',  icon: UserCheck,      matchPrefix: true },
       { id: 'conversations',  label: 'Conversations',  href: '/conversations',  icon: MessageCircle,  matchPrefix: true },
     ],
   },
   {
-    label: 'Capital',
+    label: 'Secondary',
     items: [
-      { id: 'capital-raising', label: 'Capital Raising', href: '/capital-raising', icon: TrendingUp, matchPrefix: true },
-    ],
-  },
-  {
-    label: 'Communication',
-    items: [
-      { id: 'outreach',  label: 'Outreach', href: '/outreach',  icon: Send,        matchPrefix: true },
-      { id: 'meetings',  label: 'Meetings', href: '/meetings',  icon: CalendarDays, matchPrefix: true },
-      { id: 'inbox',     label: 'Inbox',    href: '/inbox',     icon: Mail,        matchPrefix: true },
-    ],
-  },
-  {
-    label: 'Intelligence',
-    items: [
-      { id: 'network',          label: 'Network Intel',   href: '/network',          icon: Network,   matchPrefix: true },
-      { id: 'agents',           label: 'AI Agents',       href: '/agents',           icon: Bot,       matchPrefix: true },
-      { id: 'artifacts',        label: 'Artifacts',       href: '/artifacts',        icon: Layers,    matchPrefix: true },
-      { id: 'documents',        label: 'Documents',       href: '/documents',        icon: FileText,  matchPrefix: true },
-      { id: 'post-acquisition', label: 'Post-Acquisition',href: '/post-acquisition', icon: Building2, matchPrefix: true },
-      { id: 'reports',          label: 'Reports',         href: '/reports',          icon: BarChart3, matchPrefix: true },
-    ],
-  },
-  {
-    label: 'System',
-    items: [
-      { id: 'settings', label: 'Settings', href: '/settings', icon: Settings, matchPrefix: true },
+      { id: 'capital-raising', label: 'Capital Raising', href: '/capital-raising', icon: TrendingUp,   matchPrefix: true },
+      { id: 'outreach',        label: 'Outreach',        href: '/outreach',        icon: Send,         matchPrefix: true },
+      { id: 'meetings',        label: 'Meetings',        href: '/meetings',        icon: CalendarDays, matchPrefix: true },
+      { id: 'inbox',           label: 'Inbox',           href: '/inbox',           icon: Mail,         matchPrefix: true },
+      { id: 'network',         label: 'Network Intel',   href: '/network',         icon: Network,      matchPrefix: true },
+      { id: 'agents',          label: 'AI Agents',       href: '/agents',          icon: Bot,          matchPrefix: true },
+      { id: 'artifacts',       label: 'Artifacts',       href: '/artifacts',       icon: Layers,       matchPrefix: true },
+      { id: 'documents',       label: 'Documents',       href: '/documents',       icon: FileText,     matchPrefix: true },
+      { id: 'post-acquisition',label: 'Post-Acquisition',href: '/post-acquisition',icon: Building2,    matchPrefix: true },
+      { id: 'reports',         label: 'Reports',         href: '/reports',         icon: BarChart3,    matchPrefix: true },
+      { id: 'settings',        label: 'Settings',        href: '/settings',        icon: Settings,     matchPrefix: true },
     ],
   },
 ];
