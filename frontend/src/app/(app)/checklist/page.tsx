@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
+import Link from 'next/link';
 import { useAppStore } from '@/lib/store';
 import { checklistApi } from '@/lib/api';
 import { cn, formatDate } from '@/lib/utils';
@@ -384,7 +385,10 @@ function ChecklistItemRow({ item, phaseId, onToggle }: { item: ChecklistItem; ph
   const grade         = item.submission?.grade;
 
   return (
-    <li className={cn('border-b border-[#2A2A2E] last:border-0', item.isComplete && !isSubmittable && 'opacity-60')}>
+    <li
+      id={`checklist-item-${item.id}`}
+      className={cn('border-b border-[#2A2A2E] last:border-0 scroll-mt-24', item.isComplete && !isSubmittable && 'opacity-60')}
+    >
       <div className="flex items-start gap-3 px-4 py-3">
         {/* Checkbox */}
         <button
@@ -547,6 +551,45 @@ export default function ChecklistPage() {
           Complete guided operating system — {phases.length} phases · {totalItems} steps
         </p>
       </header>
+
+      <div className="bg-[#141414] border border-[#2A2A2E] rounded-md p-5 space-y-4">
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div>
+            <div className="text-[10px] tracking-widest uppercase text-[#C9A227] mb-1">Operator Integration</div>
+            <p className="text-sm text-[#E8E6E3]">
+              The checklist is the standards rail. Use Playbook for daily task pressure and Command Center for routing.
+            </p>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <Link href="/playbook/today" className="px-3 py-1.5 rounded-lg border border-[#2A2A2E] text-sm text-[#E8E6E3] hover:border-[#C9A227] transition-colors">
+              Today&apos;s Actions
+            </Link>
+            <Link href="/command-center" className="px-3 py-1.5 rounded-lg border border-[#2A2A2E] text-sm text-[#E8E6E3] hover:border-[#C9A227] transition-colors">
+              Command Center
+            </Link>
+          </div>
+        </div>
+
+        {(() => {
+          const nextItem = allItems.find((item) => !item.isComplete);
+          if (!nextItem) return null;
+          return (
+            <div className="bg-[#0D0D0D] border border-[#2A2A2E] rounded-md px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
+              <div>
+                <div className="text-[9px] tracking-widest uppercase text-[#A7A29A] mb-1">Next checklist standard</div>
+                <div className="text-sm font-medium text-[#E8E6E3]">{nextItem.title}</div>
+                <div className="text-xs text-[#A7A29A] mt-1">{nextItem.phase} · {TYPE_META[nextItem.completionType]?.label ?? 'Checklist item'}</div>
+              </div>
+              <a
+                href={`#checklist-item-${nextItem.id}`}
+                className="px-3 py-1.5 rounded-lg bg-[#C9A227] text-[#080808] text-sm font-semibold hover:bg-[#DDB830] transition-colors"
+              >
+                Open next item
+              </a>
+            </div>
+          );
+        })()}
+      </div>
 
       {/* Overall progress */}
       <div className="bg-[#141414] border border-[#2A2A2E] rounded-md p-5">

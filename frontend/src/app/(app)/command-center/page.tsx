@@ -49,7 +49,10 @@ function getActionDestination(action: NextBestAction): { route: string; scrollId
         ? { route: `/pipeline/${action.linkedEntityId}`, scrollId: 'section-deal-detail' }
         : { route: '/pipeline', scrollId: 'section-pipeline-board' };
     case 'checklist':
-      return { route: '/checklist', scrollId: 'section-checklist' };
+      return {
+        route: '/checklist',
+        scrollId: action.linkedEntityId ? `checklist-item-${action.linkedEntityId}` : 'section-checklist',
+      };
     case 'outreach':
       return { route: '/outreach', scrollId: 'section-outreach' };
     case 'meeting':
