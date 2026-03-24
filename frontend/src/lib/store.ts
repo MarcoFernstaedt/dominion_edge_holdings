@@ -66,6 +66,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   qlaSellerOutreachWeeklyTarget: 25,
   qlaTargetCountGoal: 100,
   qlaEveningModeStartTime: '16:00',
+  qlaAffirmationFocus: 'auto',
 };
 
 export const useAppStore = create<AppState>()(

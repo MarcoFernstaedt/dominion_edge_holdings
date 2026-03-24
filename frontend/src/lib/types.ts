@@ -603,6 +603,9 @@ export interface Affirmation {
   theme: string;
   isActive: boolean;
   order: number;
+  timeOfDay?: 'morning' | 'evening' | 'any';
+  qlaFocus?: 'identity' | 'board' | 'sourcing' | 'finance' | 'execution' | 'resilience' | 'vision';
+  intensity?: 1 | 2 | 3;
 }
 
 // ─── Next Best Action ─────────────────────────────────────────────────────────
@@ -1295,6 +1298,7 @@ export interface AppSettings {
   qlaSellerOutreachWeeklyTarget?: number;
   qlaTargetCountGoal?: number;
   qlaEveningModeStartTime?: string;
+  qlaAffirmationFocus?: 'identity' | 'board' | 'sourcing' | 'finance' | 'execution' | 'resilience' | 'vision' | 'auto';
   // Sourcing Radar
   sourcingRadarEnabled?: boolean;
   sourcingTargetIndustries?: string[];

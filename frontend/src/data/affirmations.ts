@@ -7,6 +7,9 @@ export const AFFIRMATIONS: Affirmation[] = [
     theme: 'mindset',
     isActive: true,
     order: 1,
+    timeOfDay: 'morning',
+    qlaFocus: 'identity',
+    intensity: 2,
   },
   {
     id: 'a2',
@@ -21,6 +24,9 @@ export const AFFIRMATIONS: Affirmation[] = [
     theme: 'board',
     isActive: true,
     order: 3,
+    timeOfDay: 'morning',
+    qlaFocus: 'board',
+    intensity: 3,
   },
   {
     id: 'a4',
@@ -84,6 +90,9 @@ export const AFFIRMATIONS: Affirmation[] = [
     theme: 'outreach',
     isActive: true,
     order: 12,
+    timeOfDay: 'evening',
+    qlaFocus: 'sourcing',
+    intensity: 2,
   },
   {
     id: 'a13',
@@ -119,6 +128,9 @@ export const AFFIRMATIONS: Affirmation[] = [
     theme: 'execution',
     isActive: true,
     order: 17,
+    timeOfDay: 'evening',
+    qlaFocus: 'execution',
+    intensity: 3,
   },
   {
     id: 'a18',
@@ -175,5 +187,8 @@ export const AFFIRMATIONS: Affirmation[] = [
     theme: 'identity',
     isActive: true,
     order: 25,
+    timeOfDay: 'morning',
+    qlaFocus: 'identity',
+    intensity: 3,
   },
 ];

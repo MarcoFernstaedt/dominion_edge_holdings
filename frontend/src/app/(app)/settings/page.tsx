@@ -231,7 +231,7 @@ export default function SettingsPage() {
             onChange={(e) => u({ qlaSprintTemplate: e.target.value.split('|').map((x) => x.trim()).filter(Boolean) })}
             hint="Separate sprint steps with |"
           />
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-4 gap-4">
             <Input
               label="Board Outreach / Week"
               type="number"
@@ -249,6 +249,21 @@ export default function SettingsPage() {
               type="number"
               value={String(s.qlaTargetCountGoal || 100)}
               onChange={(e) => u({ qlaTargetCountGoal: Number(e.target.value) || 0 })}
+            />
+            <Select
+              label="Affirmation Focus"
+              value={s.qlaAffirmationFocus || 'auto'}
+              onChange={(e) => u({ qlaAffirmationFocus: e.target.value as typeof s.qlaAffirmationFocus })}
+              options={[
+                { value: 'auto', label: 'Auto' },
+                { value: 'identity', label: 'Identity' },
+                { value: 'board', label: 'Board' },
+                { value: 'sourcing', label: 'Sourcing' },
+                { value: 'finance', label: 'Finance' },
+                { value: 'execution', label: 'Execution' },
+                { value: 'resilience', label: 'Resilience' },
+                { value: 'vision', label: 'Vision' },
+              ]}
             />
           </div>
         </div>

@@ -383,8 +383,21 @@ function AffirmationStrip() {
   const [adding, setAdding] = useState(false);
 
   const active = affirmations.filter((a) => a.isActive !== false);
-  const aff = active.length > 0 ? active[idx % active.length] : null;
   const total = active.length;
+
+  const isEvening = (() => {
+    if (typeof window === 'undefined') return false;
+    const hour = new Date().getHours();
+    return hour >= 16;
+  })();
+
+  const filtered = active.filter((a) => {
+    const timeMatch = !a.timeOfDay || a.timeOfDay === 'any' || (isEvening ? a.timeOfDay === 'evening' : a.timeOfDay === 'morning');
+    return timeMatch;
+  });
+
+  const pool = filtered.length > 0 ? filtered : active;
+  const aff = pool.length > 0 ? pool[idx % pool.length] : null;
 
   function startEdit(a: typeof affirmations[0]) {
     setEditingId(a.id);
@@ -524,7 +537,7 @@ function AffirmationStrip() {
   return (
     <div className="bg-[#111111] border border-[#262626] rounded-[10px] px-5 py-4 flex items-center gap-4" style={{ borderLeftWidth: 2, borderLeftColor: '#C9A22760' }}>
       <div className="flex-1 min-w-0">
-        <div className="text-[10px] tracking-[0.12em] uppercase text-[#C9A227] mb-1.5">{aff!.theme}</div>
+        <div className="text-[10px] tracking-[0.12em] uppercase text-[#C9A227] mb-1.5">{aff!.theme}{aff!.qlaFocus ? ` · ${aff!.qlaFocus}` : ''}</div>
         <blockquote className="font-serif text-base italic text-[#A3A3A3] leading-relaxed">&ldquo;{aff!.text}&rdquo;</blockquote>
       </div>
       <div className="flex gap-1 flex-shrink-0">
