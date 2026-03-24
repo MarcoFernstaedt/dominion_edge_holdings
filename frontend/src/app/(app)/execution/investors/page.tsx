@@ -40,6 +40,32 @@ export default function InvestorsPipelinePage() {
         </Link>
       </div>
 
+      {!loading && (
+        <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-5 space-y-4">
+          <div className="flex items-start justify-between gap-4 flex-wrap">
+            <div>
+              <div className="text-xs uppercase tracking-[0.16em] text-[var(--color-accent)] mb-1">Capital Readiness</div>
+              <p className="text-sm text-[var(--color-text-primary)]">
+                {(investors?.investorsIdentified ?? 0) < minTarget
+                  ? `Investor pipeline is short by ${Math.max(0, minTarget - (investors?.investorsIdentified ?? 0))}.`
+                  : 'Investor identification target is on track.'}
+              </p>
+              <p className="text-xs text-[var(--color-text-muted)] mt-1">
+                Capital should be warmed before the deal, not after the LOI pressure starts.
+              </p>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <Link href="/capital-raising/investors" className="inline-flex items-center px-3 py-2 rounded-lg border border-[var(--color-border)] text-sm text-[var(--color-text-primary)] hover:border-[var(--color-accent)] transition-colors">
+                Investor CRM
+              </Link>
+              <Link href="/execution/weekly" className="inline-flex items-center px-3 py-2 rounded-lg border border-[var(--color-border)] text-sm text-[var(--color-text-primary)] hover:border-[var(--color-accent)] transition-colors">
+                Weekly
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
+
       {loading ? (
         <p className="text-sm text-[var(--color-text-muted)]">Loading…</p>
       ) : (

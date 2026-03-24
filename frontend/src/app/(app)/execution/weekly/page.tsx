@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
+import Link from 'next/link';
 import { executionApi } from '@/lib/api';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -62,6 +63,36 @@ export default function WeeklyPage() {
     finally { setSaving(false); }
   }
 
+  const operatorTargets = useMemo(() => {
+    return [
+      {
+        label: 'Owners contacted',
+        actual: stat?.ownersContacted ?? 0,
+        target: targets?.weekly_owner_contacts ?? 100,
+        href: '#weekly-override-form',
+        prompt: 'Board, sourcing, and pipeline all die if weekly touch volume slips.',
+      },
+      {
+        label: 'Investor calls',
+        actual: stat?.investorConversations ?? 0,
+        target: targets?.weekly_investor_calls ?? 3,
+        href: '/execution/investors',
+        prompt: 'Warm capital before you need it.',
+      },
+      {
+        label: 'LOIs sent',
+        actual: stat?.loisSent ?? 0,
+        target: Math.max(1, Math.ceil((targets?.monthly_lois ?? 3) / 4)),
+        href: '/execution/monthly',
+        prompt: 'Weekly urgency should ladder into monthly LOI pressure.',
+      },
+    ];
+  }, [stat, targets]);
+
+  const biggestGap = [...operatorTargets]
+    .map((item) => ({ ...item, gap: Math.max(0, item.target - item.actual) }))
+    .sort((a, b) => b.gap - a.gap)[0];
+
   return (
     <div className="p-6 space-y-6">
       <div>
@@ -70,6 +101,55 @@ export default function WeeklyPage() {
           {stat?.weekStartDate ? weekLabel(stat.weekStartDate) : 'This week'}
         </p>
       </div>
+
+      {!loading && (
+        <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-5 space-y-4">
+          <div className="flex items-start justify-between gap-4 flex-wrap">
+            <div>
+              <div className="text-xs uppercase tracking-[0.16em] text-[var(--color-accent)] mb-1">Weekly Pressure</div>
+              <p className="text-sm text-[var(--color-text-primary)]">
+                {biggestGap && biggestGap.gap > 0
+                  ? `Biggest weekly gap: ${biggestGap.label} (${biggestGap.actual}/${biggestGap.target})`
+                  : 'Weekly targets are on track. Keep forcing visible movement.'}
+              </p>
+              <p className="text-xs text-[var(--color-text-muted)] mt-1">{biggestGap?.prompt || 'Do not let weekly activity become elegant drift.'}</p>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <Link href="/execution/daily" className="inline-flex items-center px-3 py-2 rounded-lg border border-[var(--color-border)] text-sm text-[var(--color-text-primary)] hover:border-[var(--color-accent)] transition-colors">
+                Daily
+              </Link>
+              <Link href="/execution/investors" className="inline-flex items-center px-3 py-2 rounded-lg border border-[var(--color-border)] text-sm text-[var(--color-text-primary)] hover:border-[var(--color-accent)] transition-colors">
+                Investors
+              </Link>
+              <Link href="/command-center" className="inline-flex items-center px-3 py-2 rounded-lg border border-[var(--color-border)] text-sm text-[var(--color-text-primary)] hover:border-[var(--color-accent)] transition-colors">
+                Command Center
+              </Link>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {operatorTargets.map((item) => {
+              const gap = Math.max(0, item.target - item.actual);
+              const progress = item.target > 0 ? Math.min(100, Math.round((item.actual / item.target) * 100)) : 0;
+              const isInternalAnchor = item.href.startsWith('#');
+              const content = (
+                <div className="bg-[var(--color-bg)] border border-[var(--color-border)] rounded-lg p-4 h-full hover:border-[var(--color-accent)] transition-colors">
+                  <div className="text-xs uppercase tracking-wide text-[var(--color-text-muted)]">{item.label}</div>
+                  <div className="flex items-baseline justify-between gap-2 mt-2">
+                    <div className="text-lg font-semibold text-[var(--color-text-primary)]">{item.actual}/{item.target}</div>
+                    <div className="text-xs text-[var(--color-text-muted)]">gap {gap}</div>
+                  </div>
+                  <div className="mt-3 h-1 rounded-full bg-[var(--color-border)] overflow-hidden">
+                    <div className="h-full rounded-full bg-[var(--color-accent)]" style={{ width: `${progress}%` }} />
+                  </div>
+                  <div className="text-xs text-[var(--color-text-muted)] mt-3">{item.prompt}</div>
+                </div>
+              );
+              return isInternalAnchor ? <a key={item.label} href={item.href}>{content}</a> : <Link key={item.label} href={item.href}>{content}</Link>;
+            })}
+          </div>
+        </div>
+      )}
 
       {loading ? (
         <p className="text-sm text-[var(--color-text-muted)]">Loading…</p>
@@ -108,7 +188,7 @@ export default function WeeklyPage() {
           </div>
 
           {/* Form */}
-          <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-5 space-y-4">
+          <div id="weekly-override-form" className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-5 space-y-4 scroll-mt-6">
             <div className="flex items-center justify-between">
               <h2 className="font-medium text-[var(--color-text-primary)]">Override Weekly Stats</h2>
               {saved && <span className="text-xs text-emerald-400">Saved ✓</span>}
