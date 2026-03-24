@@ -266,6 +266,7 @@ function TaskPanel() {
     .sort((a, b) => { const o = { critical: 0, high: 1, medium: 2, low: 3 }; return (o[a.priority] ?? 2) - (o[b.priority] ?? 2); })
     .slice(0, 8);
 
+  const overdueCount = tasks.filter((t) => t.status !== 'done' && t.status !== 'archived' && t.dueDate && new Date(t.dueDate) < new Date()).length;
   const todayDone = tasks.filter((t) => t.status === 'done' && t.completedAt && new Date(t.completedAt).toDateString() === new Date().toDateString()).length;
 
   function handleComplete(id: string) {
@@ -285,9 +286,12 @@ function TaskPanel() {
     <section aria-labelledby="tasks-heading">
       <div className="flex items-center justify-between mb-3">
         <SectionHeader title={`Tasks · ${todayDone} done today`} />
-        <Button variant="ghost" size="sm" onClick={() => setShowForm(!showForm)}>
-          <Plus size={13} aria-hidden /> Add
-        </Button>
+        <div className="flex items-center gap-2">
+          {overdueCount > 0 && <span className="text-[10px] font-semibold tracking-[0.12em] uppercase text-[#D64545]">{overdueCount} overdue</span>}
+          <Button variant="ghost" size="sm" onClick={() => setShowForm(!showForm)}>
+            <Plus size={13} aria-hidden /> Add
+          </Button>
+        </div>
       </div>
 
       {showForm && (
@@ -306,6 +310,13 @@ function TaskPanel() {
         </div>
       )}
 
+      {overdueCount > 0 && (
+        <div className="bg-[#D6454510] border border-[#D6454530] rounded-[8px] px-3 py-2.5 mb-3">
+          <div className="text-[10px] tracking-[0.12em] uppercase text-[#D64545] mb-1">Task Consequence</div>
+          <div className="text-xs text-[#A7A29A]">Overdue tasks mean execution debt. Clear drag before adding new complexity.</div>
+        </div>
+      )}
+
       {active.length === 0
         ? <InlineEmpty message="No open tasks. Add one above." />
         : (
@@ -313,7 +324,10 @@ function TaskPanel() {
             {active.map((task) => {
               const overdue = task.dueDate && new Date(task.dueDate) < new Date();
               return (
-                <li key={task.id} className="flex items-center gap-3 bg-[#111111] border border-[#262626] rounded-[8px] px-3 py-2.5 hover:border-[#333333] transition-colors">
+                <li key={task.id} className={cn(
+                  'flex items-center gap-3 bg-[#111111] border rounded-[8px] px-3 py-2.5 transition-colors',
+                  overdue ? 'border-[#D6454530] hover:border-[#D64545]' : 'border-[#262626] hover:border-[#333333]'
+                )}>
                   <button onClick={() => handleComplete(task.id)} className="flex-shrink-0 text-[#737373] hover:text-[#4CAF50] transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#C9A227] rounded" aria-label={`Complete "${task.title}"`}>
                     <Circle size={14} aria-hidden />
                   </button>
