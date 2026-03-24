@@ -279,6 +279,47 @@ export default function PipelinePage() {
         </div>
       </header>
 
+      {deals.length > 0 && (
+        <section className="bg-[#141414] border border-[#2A2A2E] rounded-md p-4 space-y-3">
+          <div className="flex items-start justify-between gap-3 flex-wrap">
+            <div>
+              <div className="text-[10px] tracking-[0.14em] uppercase text-[#C9A227] mb-1">Operator Queue</div>
+              <p className="text-sm text-[#E8E6E3]">Drive stalled deals forward before adding complexity.</p>
+            </div>
+            <Link href="/execution/daily" className="text-xs text-[#C9A227] hover:underline">Log daily execution →</Link>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {deals
+              .filter((deal) => deal.status === 'active')
+              .sort((a, b) => daysSince(b.updatedAt) - daysSince(a.updatedAt))
+              .slice(0, 3)
+              .map((deal) => {
+                const staleDays = daysSince(deal.updatedAt);
+                return (
+                  <Link
+                    key={deal.id}
+                    href={`/pipeline/${deal.id}#section-deal-detail`}
+                    className="bg-[#0D0D0D] border border-[#2A2A2E] rounded-md p-4 hover:border-[#C9A227] transition-colors"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <div className="text-sm font-medium text-[#E8E6E3]">{deal.companyName}</div>
+                        <div className="text-xs text-[#A7A29A] mt-0.5">{STAGE_LABELS[deal.stage]}</div>
+                      </div>
+                      <Badge variant={staleDays > 14 ? 'danger' : staleDays > 7 ? 'warning' : 'muted'} size="sm">
+                        {staleDays}d idle
+                      </Badge>
+                    </div>
+                    <div className="text-xs text-[#A7A29A] mt-3">
+                      {staleDays > 14 ? 'Urgent re-engagement required.' : staleDays > 7 ? 'Touch this deal this week.' : 'Momentum intact — keep pressure on.'}
+                    </div>
+                  </Link>
+                );
+              })}
+          </div>
+        </section>
+      )}
+
       {deals.length === 0 ? (
         <div className="bg-[#141414] border border-[#2A2A2E] rounded-md p-12 text-center">
           <p className="text-sm text-[#A7A29A] mb-3">No deals yet. Create your first acquisition target.</p>
