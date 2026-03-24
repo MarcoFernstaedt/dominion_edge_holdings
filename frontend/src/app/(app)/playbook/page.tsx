@@ -376,6 +376,19 @@ export default function PlaybookPage() {
   return (
     <div className="p-6 space-y-8">
       {/* Header */}
+      <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-4 space-y-3 mb-4">
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div>
+            <div className="text-[10px] uppercase tracking-[0.16em] text-[#C9A227] font-semibold mb-1">Playbook Pressure</div>
+            <p className="text-sm text-[var(--color-text-primary)]">This should drive the day, not sit beside it.</p>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <Link href="/playbook/today" className="px-3 py-1.5 rounded-lg border border-[var(--color-border)] text-sm text-[var(--color-text-primary)] hover:border-[#C9A227] transition-colors">Today&apos;s Actions</Link>
+            <Link href="/execution" className="px-3 py-1.5 rounded-lg border border-[var(--color-border)] text-sm text-[var(--color-text-primary)] hover:border-[#C9A227] transition-colors">Execution</Link>
+          </div>
+        </div>
+      </div>
+
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold text-[var(--color-text-primary)] flex items-center gap-2">

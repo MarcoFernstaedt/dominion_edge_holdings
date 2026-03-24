@@ -76,6 +76,38 @@ export default function ReportsPage() {
         </p>
       </header>
 
+      {(overdueTasks > 0 || stalledDeals > 0 || openTasks > 0) && (
+        <section className="bg-[#141414] border border-[#2A2A2E] rounded-md p-4 space-y-3" aria-labelledby="pressure-heading">
+          <div className="flex items-start justify-between gap-4 flex-wrap">
+            <div>
+              <h2 id="pressure-heading" className="text-[10px] tracking-[0.14em] uppercase text-[#C9A227] mb-1">Execution Pressure Report</h2>
+              <p className="text-sm text-[#E8E6E3]">The system is carrying visible drag that should be cleared before adding more complexity.</p>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <a href="/command-center" className="px-3 py-1.5 rounded-lg border border-[#2A2A2E] text-sm text-[#E8E6E3] hover:border-[#C9A227] transition-colors">Command Center</a>
+              <a href="/execution/daily#daily-log-form" className="px-3 py-1.5 rounded-lg border border-[#2A2A2E] text-sm text-[#E8E6E3] hover:border-[#C9A227] transition-colors">Daily Execution</a>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="bg-[#0D0D0D] border border-[#2A2A2E] rounded-md p-3">
+              <div className="text-[9px] tracking-widest uppercase text-[#A7A29A] mb-1">Overdue Tasks</div>
+              <div className="text-lg font-semibold text-[#E8E6E3]">{overdueTasks}</div>
+              <div className="text-xs text-[#A7A29A] mt-1">Drag compounds when overdue work stays open.</div>
+            </div>
+            <div className="bg-[#0D0D0D] border border-[#2A2A2E] rounded-md p-3">
+              <div className="text-[9px] tracking-widest uppercase text-[#A7A29A] mb-1">Stalled Deals</div>
+              <div className="text-lg font-semibold text-[#E8E6E3]">{stalledDeals}</div>
+              <div className="text-xs text-[#A7A29A] mt-1">Idle deals are pipeline decay in slow motion.</div>
+            </div>
+            <div className="bg-[#0D0D0D] border border-[#2A2A2E] rounded-md p-3">
+              <div className="text-[9px] tracking-widest uppercase text-[#A7A29A] mb-1">Open Tasks</div>
+              <div className="text-lg font-semibold text-[#E8E6E3]">{openTasks}</div>
+              <div className="text-xs text-[#A7A29A] mt-1">Too many open loops create elegant drift.</div>
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* Summary metrics */}
       <section aria-labelledby="summary-heading">
         <h2 id="summary-heading" className="text-[10px] tracking-widest uppercase font-medium text-[#A7A29A] mb-3">Executive Summary</h2>
