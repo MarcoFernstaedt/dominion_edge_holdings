@@ -273,6 +273,16 @@ function TaskPanel() {
     updateTask(id, { status: 'done', completedAt: nowIso() });
   }
 
+  function handleDefer(task: Task) {
+    const next = task.dueDate ? new Date(task.dueDate) : new Date();
+    next.setDate(next.getDate() + 1);
+    updateTask(task.id, { dueDate: next.toISOString(), updatedAt: nowIso() });
+  }
+
+  function handleEscalate(task: Task) {
+    updateTask(task.id, { priority: task.priority === 'critical' ? 'critical' : 'critical', updatedAt: nowIso() });
+  }
+
   function handleAdd() {
     if (!form.title.trim()) return;
     addTask({ id: generateId(), title: form.title, status: 'todo', priority: form.priority as Task['priority'], dueDate: form.dueDate || undefined, createdAt: nowIso(), updatedAt: nowIso() });
@@ -335,7 +345,11 @@ function TaskPanel() {
                     <div className="text-sm text-[#E5E5E5] truncate">{task.title}</div>
                     {task.dueDate && <div className={cn('text-[11px] mt-0.5', overdue ? 'text-[#D64545]' : 'text-[#737373]')}>{overdue ? 'Overdue · ' : ''}{formatDate(task.dueDate)}</div>}
                   </div>
-                  <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: dot[task.priority] }} />
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                    <button onClick={() => handleDefer(task)} className="text-[10px] text-[#A7A29A] hover:text-[#E5E5E5] transition-colors">Defer</button>
+                    <button onClick={() => handleEscalate(task)} className="text-[10px] text-[#D9A441] hover:text-[#F0C86A] transition-colors">Escalate</button>
+                    <div className="w-1.5 h-1.5 rounded-full" style={{ background: dot[task.priority] }} />
+                  </div>
                 </li>
               );
             })}

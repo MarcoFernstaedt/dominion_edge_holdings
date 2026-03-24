@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
+import Link from 'next/link';
 import { executionApi } from '@/lib/api';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -60,6 +61,18 @@ export default function MonthlyPage() {
     finally { setSaving(false); }
   }
 
+  const biggestGap = useMemo(() => {
+    if (!stat || !targets) return null;
+    const metrics = [
+      { label: 'LOIs sent', actual: stat.loisSent, target: targets.monthly_lois ?? 3, href: '/execution/weekly', prompt: 'Monthly LOI pressure is the clearest score of whether the machine is serious.' },
+      { label: 'Deals closed', actual: stat.dealsClosed, target: 1, href: '/execution/pipeline', prompt: 'No closed deal means the machine is still proving itself.' },
+      { label: 'Owner conversations', actual: stat.ownerConversations, target: Math.max(10, (targets.monthly_lois ?? 3) * 10), href: '/execution/daily', prompt: 'Monthly outcomes die when conversation volume slips.' },
+    ];
+    return metrics
+      .map((item) => ({ ...item, gap: Math.max(0, item.target - item.actual) }))
+      .sort((a, b) => b.gap - a.gap)[0];
+  }, [stat, targets]);
+
   return (
     <div className="p-6 space-y-6">
       <div>
@@ -68,6 +81,22 @@ export default function MonthlyPage() {
           {stat?.month ? monthLabel(stat.month) : 'This month'}
         </p>
       </div>
+
+      {!loading && biggestGap && (
+        <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-5 space-y-4">
+          <div className="flex items-start justify-between gap-4 flex-wrap">
+            <div>
+              <div className="text-xs uppercase tracking-[0.16em] text-[var(--color-accent)] mb-1">Monthly Pressure</div>
+              <p className="text-sm text-[var(--color-text-primary)]">Biggest monthly gap: {biggestGap.label} ({biggestGap.actual}/{biggestGap.target})</p>
+              <p className="text-xs text-[var(--color-text-muted)] mt-1">{biggestGap.prompt}</p>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <Link href={biggestGap.href} className="px-3 py-1.5 rounded-lg border border-[var(--color-border)] text-sm text-[var(--color-text-primary)] hover:border-[#C9A227] transition-colors">Open Fix</Link>
+              <Link href="/command-center" className="px-3 py-1.5 rounded-lg border border-[var(--color-border)] text-sm text-[var(--color-text-primary)] hover:border-[#C9A227] transition-colors">Command Center</Link>
+            </div>
+          </div>
+        </div>
+      )}
 
       {loading ? (
         <p className="text-sm text-[var(--color-text-muted)]">Loading…</p>
