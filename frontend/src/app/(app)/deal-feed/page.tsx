@@ -477,29 +477,29 @@ export default function DealFeedPage() {
     finally { setLoading(false); }
   }, []);
 
-  useEffect(() => { loadListings(filters); }, []);
+  useEffect(() => {
+    loadListings(filters);
+  }, [filters, loadListings]);
+
+  useEffect(() => () => {
+    if (searchTimeout.current) clearTimeout(searchTimeout.current);
+  }, []);
 
   // Debounced search
   const handleSearch = (val: string) => {
     setSearch(val);
     if (searchTimeout.current) clearTimeout(searchTimeout.current);
     searchTimeout.current = setTimeout(() => {
-      const next = { ...filters, search: val || undefined, page: 1 };
-      setFilters(next);
-      loadListings(next);
+      setFilters((current) => ({ ...current, search: val || undefined, page: 1 }));
     }, 400);
   };
 
   const applyFilters = (patch: Partial<DealFeedFilters>) => {
-    const next = { ...filters, ...patch, page: 1 };
-    setFilters(next);
-    loadListings(next);
+    setFilters((current) => ({ ...current, ...patch, page: 1 }));
   };
 
   const setPage = (p: number) => {
-    const next = { ...filters, page: p };
-    setFilters(next);
-    loadListings(next);
+    setFilters((current) => ({ ...current, page: p }));
   };
 
   const handleSave = async (id: string) => {

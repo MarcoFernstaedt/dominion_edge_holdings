@@ -462,25 +462,28 @@ export default function ConversationsPage() {
     finally { setLoading(false); }
   }, []);
 
-  useEffect(() => { load(filters); }, []);
+  useEffect(() => {
+    load(filters);
+  }, [filters, load]);
+
+  useEffect(() => () => {
+    if (searchTimeout.current) clearTimeout(searchTimeout.current);
+  }, []);
 
   const handleSearch = (val: string) => {
     setSearch(val);
     if (searchTimeout.current) clearTimeout(searchTimeout.current);
     searchTimeout.current = setTimeout(() => {
-      const next = { ...filters, search: val || undefined, page: 1 };
-      setFilters(next); load(next);
+      setFilters((current) => ({ ...current, search: val || undefined, page: 1 }));
     }, 400);
   };
 
   const applyFilters = (patch: Partial<ConversationFilters>) => {
-    const next = { ...filters, ...patch, page: 1 };
-    setFilters(next); load(next);
+    setFilters((current) => ({ ...current, ...patch, page: 1 }));
   };
 
   const setPage = (p: number) => {
-    const next = { ...filters, page: p };
-    setFilters(next); load(next);
+    setFilters((current) => ({ ...current, page: p }));
   };
 
   const handleDelete = async (id: string) => {
