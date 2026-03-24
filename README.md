@@ -225,6 +225,13 @@ POST   /api/quick-action/approve-and-send
 npm run install:all
 ```
 
+If npm stops on a React peer dependency conflict in the frontend (currently caused by the `@react-three/drei` stack), install the frontend with legacy peer resolution:
+
+```bash
+cd frontend
+npm install --legacy-peer-deps
+```
+
 ### Backend environment
 
 ```bash

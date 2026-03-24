@@ -13,7 +13,7 @@
     "lint:all": "npm --prefix frontend run lint && npm --prefix backend run lint",
     "type-check": "npm --prefix frontend run type-check",
     "format": "npm --prefix frontend run format && npm --prefix backend run format",
-    "install:all": "cd frontend && npm install && cd ../backend && npm install"
+    "install:all": "cd frontend && npm install --legacy-peer-deps && cd ../backend && npm install"
   },
   "devDependencies": {
     "concurrently": "^9.0.0",
