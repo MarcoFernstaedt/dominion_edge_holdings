@@ -735,6 +735,10 @@ function SentinelOperatorPanel() {
   const boardCandidates = useAppStore((s) => s.boardCandidates);
   const deals = useAppStore((s) => s.deals);
   const settings = useAppStore((s) => s.settings);
+  const dailyBriefings = useAppStore((s) => s.dailyBriefings);
+  const accountabilityLog = useAppStore((s) => s.accountabilityLog);
+  const addDailyBriefing = useAppStore((s) => s.addDailyBriefing);
+  const addAccountabilityRecord = useAppStore((s) => s.addAccountabilityRecord);
 
   const today = new Date().toDateString();
   const weekAgo = new Date();
@@ -784,6 +788,33 @@ function SentinelOperatorPanel() {
     { label: 'Targets tracked', current: targetCount, target: settings.qlaTargetCountGoal || 100 },
     { label: 'Tasks due today', current: dueToday, target: 0 },
   ];
+
+  const latestBriefing = dailyBriefings[0] || null;
+  const latestAccountability = accountabilityLog[0] || null;
+
+  function saveBriefing() {
+    addDailyBriefing({
+      id: `brief-${Date.now()}`,
+      createdAt: new Date().toISOString(),
+      mode: isEveningMode ? 'evening' : 'morning',
+      summary: `${isEveningMode ? 'Evening' : 'Morning'} brief for ${industry}. Goal: ${goal}`,
+      topActions: topActions.map((x) => x.label),
+      sprintSteps,
+    });
+  }
+
+  function logAccountability() {
+    addAccountabilityRecord({
+      id: `acct-${Date.now()}`,
+      createdAt: new Date().toISOString(),
+      wakeComplete: true,
+      trainingComplete: !isEveningMode,
+      affirmationsComplete: true,
+      readingComplete: !isEveningMode,
+      outreachComplete: isEveningMode,
+      notes: isEveningMode ? 'Evening execution block logged from Command Center.' : 'Morning foundation logged from Command Center.',
+    });
+  }
 
   return (
     <section className="bg-[#111111] border border-[#262626] rounded-[10px] p-5 space-y-5">
@@ -863,6 +894,40 @@ function SentinelOperatorPanel() {
               </div>
             );
           })}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="bg-[#0F0F10] border border-[#262626] rounded-[10px] p-4 space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <div className="text-[11px] font-semibold tracking-[0.12em] uppercase text-[#C9A227]">Briefing History</div>
+            <Button variant="ghost" size="sm" onClick={saveBriefing}>Save Brief</Button>
+          </div>
+          {latestBriefing ? (
+            <div className="space-y-2">
+              <div className="text-xs text-[#737373]">Last saved: {formatRelativeDate(latestBriefing.createdAt)} · {latestBriefing.mode}</div>
+              <div className="text-sm text-[#A3A3A3]">{latestBriefing.summary}</div>
+            </div>
+          ) : (
+            <InlineEmpty message="No briefing saved yet." />
+          )}
+        </div>
+
+        <div className="bg-[#0F0F10] border border-[#262626] rounded-[10px] p-4 space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <div className="text-[11px] font-semibold tracking-[0.12em] uppercase text-[#C9A227]">Accountability</div>
+            <Button variant="ghost" size="sm" onClick={logAccountability}>Log Check-In</Button>
+          </div>
+          {latestAccountability ? (
+            <div className="space-y-2 text-sm text-[#A3A3A3]">
+              <div className="text-xs text-[#737373]">Last logged: {formatRelativeDate(latestAccountability.createdAt)}</div>
+              <div>Wake: {latestAccountability.wakeComplete ? 'done' : 'missed'} · Training: {latestAccountability.trainingComplete ? 'done' : 'missed'}</div>
+              <div>Affirmations: {latestAccountability.affirmationsComplete ? 'done' : 'missed'} · Reading: {latestAccountability.readingComplete ? 'done' : 'missed'}</div>
+              <div>Outreach: {latestAccountability.outreachComplete ? 'done' : 'missed'}</div>
+            </div>
+          ) : (
+            <InlineEmpty message="No accountability check-in logged yet." />
+          )}
         </div>
       </div>
     </section>

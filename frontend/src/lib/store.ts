@@ -32,6 +32,8 @@ import type {
   FirmMessaging,
   PitchDeck,
   ID,
+  DailyBriefingRecord,
+  AccountabilityRecord,
 } from './types';
 import { CHECKLIST_PHASES } from '@/data/checklistData';
 import { DEFAULT_BOARD_SEATS } from '@/data/boardSeats';
@@ -304,6 +306,14 @@ export const useAppStore = create<AppState>()(
       updateSettings: (updates: Partial<AppSettings>) =>
         set((s) => ({ settings: { ...s.settings, ...updates } })),
 
+      // ── Sentinel operator records ──────────────────────────────────────────
+      dailyBriefings: [] as DailyBriefingRecord[],
+      addDailyBriefing: (record: DailyBriefingRecord) =>
+        set((s) => ({ dailyBriefings: [record, ...s.dailyBriefings].slice(0, 30) })),
+      accountabilityLog: [] as AccountabilityRecord[],
+      addAccountabilityRecord: (record: AccountabilityRecord) =>
+        set((s) => ({ accountabilityLog: [record, ...s.accountabilityLog].slice(0, 30) })),
+
       // ── Capital Raising ────────────────────────────────────────────────────
       investors: [] as Investor[],
       addInvestor: (i: Investor) => set((s) => ({ investors: [i, ...s.investors] })),
@@ -373,6 +383,8 @@ export const useAppStore = create<AppState>()(
       // localStorage is intentionally excluded from all business entity data.
       partialize: (state) => ({
         settings: state.settings,
+        dailyBriefings: state.dailyBriefings,
+        accountabilityLog: state.accountabilityLog,
         // User preferences — affirmations are personalizable, persist all edits
         affirmations: state.affirmations,
         currentAffirmationIndex: state.currentAffirmationIndex,

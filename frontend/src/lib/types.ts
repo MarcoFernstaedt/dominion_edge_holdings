@@ -753,6 +753,26 @@ export interface ProbabilityFactors {
 
 // ─── App Store State ──────────────────────────────────────────────────────────
 
+export interface DailyBriefingRecord {
+  id: ID;
+  createdAt: string;
+  mode: 'morning' | 'evening';
+  summary: string;
+  topActions: string[];
+  sprintSteps: string[];
+}
+
+export interface AccountabilityRecord {
+  id: ID;
+  createdAt: string;
+  wakeComplete: boolean;
+  trainingComplete: boolean;
+  affirmationsComplete: boolean;
+  readingComplete: boolean;
+  outreachComplete: boolean;
+  notes?: string;
+}
+
 export interface AppState {
   // Companies
   companies: Company[];
@@ -855,6 +875,12 @@ export interface AppState {
   // Settings
   settings: AppSettings;
   updateSettings: (updates: Partial<AppSettings>) => void;
+
+  // Sentinel operator records
+  dailyBriefings: DailyBriefingRecord[];
+  addDailyBriefing: (record: DailyBriefingRecord) => void;
+  accountabilityLog: AccountabilityRecord[];
+  addAccountabilityRecord: (record: AccountabilityRecord) => void;
 
   // Affirmations
   affirmations: Affirmation[];
