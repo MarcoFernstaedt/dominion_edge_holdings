@@ -26,7 +26,7 @@ import { ConversationKPIWidget } from '@/components/modules/ConversationKPIWidge
 import type {
   Task, NextBestAction, PipelinePressureMetrics, AcquisitionScoreboard,
   DealVelocityEntry, ConversationFunnel, FrequencyProgress,
-  Deal, EmailThread, BoardCandidate, ChecklistPhase,
+  Deal, EmailThread, BoardCandidate, ChecklistPhase, Company,
 } from '@/lib/types';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
@@ -706,7 +706,8 @@ function SellerSignalsPanel() {
         : (
           <ul className="space-y-1.5">
             {high.map((c) => {
-              const sigs = Object.keys(SIGNAL_LABELS).filter((f) => (c as any)[f]);
+              const signalCompany = c as Company & Record<string, unknown>;
+              const sigs = Object.keys(SIGNAL_LABELS).filter((f) => Boolean(signalCompany[f]));
               return (
                 <li key={c.id} className="bg-[#111111] border border-[#D6454520] rounded-[8px] px-3 py-2.5">
                   <div className="flex items-center justify-between gap-2">

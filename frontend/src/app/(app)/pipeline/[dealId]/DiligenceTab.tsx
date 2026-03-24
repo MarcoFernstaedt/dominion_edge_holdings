@@ -512,7 +512,7 @@ function FindingCard({
         <div className="space-y-2 pt-1">
           {finding.sourceSnippet && (
             <blockquote className="text-xs italic border-l-2 border-current/40 pl-2 opacity-75">
-              "{finding.sourceSnippet}"
+              &ldquo;{finding.sourceSnippet}&rdquo;
             </blockquote>
           )}
           <p className="text-xs leading-relaxed">
