@@ -614,7 +614,7 @@ export default function MeetingsPage() {
   });
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+    <div id="section-meetings" className="max-w-4xl mx-auto px-4 sm:px-6 py-6 space-y-6 scroll-mt-6">
       <header className="flex items-start justify-between gap-4">
         <div>
           <h1 className="font-serif text-2xl sm:text-3xl font-semibold text-[#E8E6E3]">Meetings</h1>

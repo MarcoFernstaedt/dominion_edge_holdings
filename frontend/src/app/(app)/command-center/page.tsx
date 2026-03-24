@@ -121,22 +121,26 @@ function generateNextBestActions(
 
 // ─── Zone 1: Hero — single best next action ───────────────────────────────────
 
+function navigateToAction(router: ReturnType<typeof useRouter>, action: NextBestAction) {
+  const { route, scrollId } = getActionDestination(action);
+  const isCurrentPage = typeof window !== 'undefined' && window.location.pathname === route;
+
+  if (isCurrentPage) {
+    smoothScrollTo(scrollId);
+    return;
+  }
+
+  navigateWithScroll(scrollId);
+  router.push(route);
+}
+
 function HeroAction({ action }: { action: NextBestAction }) {
   const router = useRouter();
   const urgencyColor = { critical: '#D64545', high: '#E6A23C', medium: '#4D7EA8', low: '#737373' };
   const color = urgencyColor[action.urgency] ?? '#737373';
-  const { route, scrollId } = getActionDestination(action);
 
   function handleStartNow() {
-    const isCurrentPage = typeof window !== 'undefined' && window.location.pathname === route;
-    if (isCurrentPage) {
-      // Already on this page — smooth scroll directly to the section
-      smoothScrollTo(scrollId);
-    } else {
-      // Navigating away — store scroll target, then push
-      navigateWithScroll(scrollId);
-      router.push(route);
-    }
+    navigateToAction(router, action);
   }
 
   return (
@@ -211,6 +215,7 @@ function PriorityBand() {
 // ─── Zone 3: Next actions queue ───────────────────────────────────────────────
 
 function NextActionsQueue({ actions }: { actions: NextBestAction[] }) {
+  const router = useRouter();
   const rest = actions.slice(1); // hero handles [0]
   if (rest.length === 0) return null;
 
@@ -233,9 +238,14 @@ function NextActionsQueue({ actions }: { actions: NextBestAction[] }) {
                 <Badge variant={urgencyMap[action.urgency]} size="sm">{action.urgency}</Badge>
               </div>
               <p className="text-xs text-[#737373] mt-0.5">{action.whyItMatters}</p>
-              <div className="flex items-center gap-3 mt-1.5 text-xs text-[#737373]">
-                <span className="flex items-center gap-1"><Clock size={10} aria-hidden />~{action.estimatedTimeMinutes}min</span>
-                <span className="flex items-center gap-1"><Zap size={10} aria-hidden />{action.recommendedBy}</span>
+              <div className="flex items-center justify-between gap-3 mt-1.5">
+                <div className="flex items-center gap-3 text-xs text-[#737373]">
+                  <span className="flex items-center gap-1"><Clock size={10} aria-hidden />~{action.estimatedTimeMinutes}min</span>
+                  <span className="flex items-center gap-1"><Zap size={10} aria-hidden />{action.recommendedBy}</span>
+                </div>
+                <Button variant="ghost" size="sm" onClick={() => navigateToAction(router, action)}>
+                  Open <ArrowRight size={12} aria-hidden />
+                </Button>
               </div>
             </div>
           </li>
@@ -376,6 +386,7 @@ function AffirmationStrip() {
   const addAffirmation    = useAppStore((s) => s.addAffirmation);
   const updateAffirmation = useAppStore((s) => s.updateAffirmation);
   const deleteAffirmation = useAppStore((s) => s.deleteAffirmation);
+  const updateSettings    = useAppStore((s) => s.updateSettings);
 
   const [managing, setManaging] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -400,6 +411,14 @@ function AffirmationStrip() {
 
   const pool = filtered.length > 0 ? filtered : active;
   const aff = pool.length > 0 ? pool[idx % pool.length] : null;
+  const focusOptions = [
+    { key: 'auto', label: 'Auto' },
+    { key: 'execution', label: 'Execution' },
+    { key: 'board', label: 'Board' },
+    { key: 'sourcing', label: 'Sourcing' },
+    { key: 'resilience', label: 'Resilience' },
+    { key: 'vision', label: 'Vision' },
+  ] as const;
 
   function startEdit(a: typeof affirmations[0]) {
     setEditingId(a.id);
@@ -537,12 +556,33 @@ function AffirmationStrip() {
 
   // ── Display strip ──
   return (
-    <div className="bg-[#111111] border border-[#262626] rounded-[10px] px-5 py-4 flex items-center gap-4" style={{ borderLeftWidth: 2, borderLeftColor: '#C9A22760' }}>
-      <div className="flex-1 min-w-0">
-        <div className="text-[10px] tracking-[0.12em] uppercase text-[#C9A227] mb-1.5">{aff!.theme}{aff!.qlaFocus ? ` · ${aff!.qlaFocus}` : ''}</div>
-        <blockquote className="font-serif text-base italic text-[#A3A3A3] leading-relaxed">&ldquo;{aff!.text}&rdquo;</blockquote>
+    <div className="bg-[#111111] border border-[#262626] rounded-[10px] px-5 py-4 space-y-3" style={{ borderLeftWidth: 2, borderLeftColor: '#C9A22760' }}>
+      <div className="flex items-center gap-2 flex-wrap">
+        {focusOptions.map((option) => {
+          const activeFocus = (settings.qlaAffirmationFocus || 'auto') === option.key;
+          return (
+            <button
+              key={option.key}
+              onClick={() => updateSettings({ qlaAffirmationFocus: option.key })}
+              className={cn(
+                'text-[10px] uppercase tracking-[0.12em] px-2.5 py-1 rounded border transition-colors',
+                activeFocus
+                  ? 'bg-[#C9A22718] border-[#C9A22755] text-[#C9A227]'
+                  : 'bg-[#0F0F10] border-[#262626] text-[#737373] hover:text-[#E5E5E5]'
+              )}
+            >
+              {option.label}
+            </button>
+          );
+        })}
+        <Link href="/settings" className="text-[10px] uppercase tracking-[0.12em] text-[#737373] hover:text-[#C9A227] transition-colors">Tune in settings →</Link>
       </div>
-      <div className="flex gap-1 flex-shrink-0">
+      <div className="flex items-center gap-4">
+        <div className="flex-1 min-w-0">
+          <div className="text-[10px] tracking-[0.12em] uppercase text-[#C9A227] mb-1.5">{aff!.theme}{aff!.qlaFocus ? ` · ${aff!.qlaFocus}` : ''}{typeof aff!.intensity === 'number' ? ` · intensity ${aff!.intensity}/3` : ''}</div>
+          <blockquote className="font-serif text-base italic text-[#A3A3A3] leading-relaxed">&ldquo;{aff!.text}&rdquo;</blockquote>
+        </div>
+        <div className="flex gap-1 flex-shrink-0">
         <button onClick={() => setIdx((idx - 1 + total) % total)} className="w-6 h-6 flex items-center justify-center text-[#737373] hover:text-[#E5E5E5] rounded transition-colors" aria-label="Previous affirmation">
           <ChevronLeft size={12} aria-hidden />
         </button>
@@ -865,6 +905,23 @@ function SentinelOperatorPanel() {
             <span key={item} className="text-[11px] px-2.5 py-1 rounded bg-[#0F0F10] border border-[#262626] text-[#A3A3A3]">
               {item}
             </span>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <div className="text-[11px] font-semibold tracking-[0.12em] uppercase text-[#C9A227] mb-2">Operator Jump Links</div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+          {[
+            { href: '/execution/daily', label: 'Daily Execution', detail: 'Log tonight\'s volume' },
+            { href: '/execution/pipeline', label: 'Pipeline Funnel', detail: 'Check 500 → 1 progress' },
+            { href: '/execution/board', label: 'Board Strength', detail: 'Recruit operators and advisors' },
+            { href: '/settings', label: 'Operator Settings', detail: 'Adjust sprint + targets' },
+          ].map((item) => (
+            <Link key={item.href} href={item.href} className="bg-[#0F0F10] border border-[#262626] rounded-[8px] px-4 py-3 hover:border-[#C9A22750] transition-colors">
+              <div className="text-sm font-medium text-[#E5E5E5]">{item.label}</div>
+              <div className="text-xs text-[#737373] mt-0.5">{item.detail}</div>
+            </Link>
           ))}
         </div>
       </div>

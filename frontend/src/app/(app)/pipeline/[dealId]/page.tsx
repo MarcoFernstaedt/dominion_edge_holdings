@@ -69,7 +69,7 @@ export default function DealDetailPage({ params }: { params: { dealId: string } 
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-6 py-6 space-y-6">
+    <div id="section-deal-detail" className="max-w-4xl mx-auto px-6 py-6 space-y-6 scroll-mt-6">
       <Link href="/pipeline" className="inline-flex items-center gap-1.5 text-sm text-[#A7A29A] hover:text-[#E8E6E3] transition-colors">
         <ArrowLeft size={14} aria-hidden />
         Pipeline

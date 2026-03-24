@@ -412,7 +412,7 @@ export default function BoardPage() {
       </div>
 
       {/* All candidates */}
-      <section aria-labelledby="candidates-heading">
+      <section id="section-board-candidates" aria-labelledby="candidates-heading" className="scroll-mt-6">
         <div className="flex items-center justify-between mb-3">
           <h2 id="candidates-heading" className="text-[10px] tracking-widest uppercase font-medium text-[#A7A29A]">
             All Candidates ({boardCandidates.length})
