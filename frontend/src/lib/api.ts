@@ -4,6 +4,7 @@
  */
 
 import type {
+  ChecklistGrade,
   ConversationFunnel,
   DealVelocityEntry,
   FrequencyProgress,
@@ -107,6 +108,11 @@ export const dashboardApi = {
   getMetrics: () => api.get<DashboardMetrics>('/api/dashboard/metrics'),
   getNextActions: () => api.get<unknown[]>('/api/dashboard/next-actions'),
   getBriefing: () => api.get<{ briefing: string | null }>('/api/dashboard/briefing'),
+};
+
+export const checklistApi = {
+  gradeSubmission: (payload: { itemTitle: string; completionType: string; submission: string }) =>
+    api.post<{ grade: ChecklistGrade }>('/api/checklist/grade', payload),
 };
 
 // ─── Companies ────────────────────────────────────────────────────────────────

@@ -2,6 +2,7 @@
 
 import { useState, useRef } from 'react';
 import { useAppStore } from '@/lib/store';
+import { checklistApi } from '@/lib/api';
 import { cn, formatDate } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -12,8 +13,6 @@ import {
 } from 'lucide-react';
 import type { ChecklistItem, ChecklistPhase, ChecklistGrade } from '@/lib/types';
 import { useScrollTarget } from '@/hooks/useScrollTarget';
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
 // ─── Completion-type metadata ─────────────────────────────────────────────────
 
@@ -258,17 +257,11 @@ function SubmissionPanel({ item, phaseId, onClose }: { item: ChecklistItem; phas
     setGrading(true);
     setError(null);
     try {
-      const res = await fetch(`${API_BASE}/api/checklist/grade`, {
-        method:      'POST',
-        headers:     { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body:        JSON.stringify({ itemTitle: item.title, completionType: item.completionType, submission: body }),
+      const { grade } = await checklistApi.gradeSubmission({
+        itemTitle: item.title,
+        completionType: item.completionType,
+        submission: body,
       });
-      if (!res.ok) {
-        const e = await res.json().catch(() => ({}));
-        throw new Error(e?.error?.message ?? `Grade request failed (${res.status})`);
-      }
-      const { grade } = await res.json();
       submitItem(phaseId, item.id, { text: body, fileName: fileName || undefined, submittedAt: new Date().toISOString(), grade });
       setShowForm(false);
     } catch (err: unknown) {
