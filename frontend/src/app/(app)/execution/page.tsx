@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { executionApi } from '@/lib/api';
+import { useAppStore } from '@/lib/store';
 import { AlertBanner, ExecutionProgressBar, ExecutionMetricCard } from '@/components/execution/ExecutionComponents';
-import { Activity, CalendarDays, TrendingUp, Users, Layers, Target, Zap } from 'lucide-react';
+import { Activity, CalendarDays, TrendingUp, Users, Layers, Target, Zap, Settings2 } from 'lucide-react';
 import type { ExecutionSummary } from '@/lib/types';
 
 const NAV_TILES = [
@@ -20,6 +21,7 @@ const NAV_TILES = [
 export default function ExecutionPage() {
   const [summary, setSummary] = useState<ExecutionSummary | null>(null);
   const [loading, setLoading] = useState(true);
+  const settings = useAppStore((s) => s.settings);
 
   const load = useCallback(async () => {
     try {
@@ -37,6 +39,20 @@ export default function ExecutionPage() {
   const mo = summary?.month;
   const pl = summary?.pipeline;
 
+  const operatorGaps = useMemo(() => {
+    if (!summary?.targets) return [] as Array<{ label: string; actual: number; target: number; href: string }>;
+    return [
+      { label: 'Daily owner calls', actual: td?.ownersCalled ?? 0, target: t?.daily_owner_calls ?? 0, href: '/execution/daily' },
+      { label: 'Weekly owner contacts', actual: wk?.ownersContacted ?? 0, target: t?.weekly_owner_contacts ?? 0, href: '/execution/weekly' },
+      { label: 'Weekly investor calls', actual: wk?.investorConversations ?? 0, target: t?.weekly_investor_calls ?? 0, href: '/execution/investors' },
+      { label: 'Monthly LOIs', actual: mo?.loisSent ?? 0, target: t?.monthly_lois ?? 0, href: '/execution/monthly' },
+      { label: 'Pipeline companies', actual: pl?.totalCompanies ?? 0, target: t?.pipeline_companies ?? 0, href: '/execution/pipeline' },
+    ]
+      .map((item) => ({ ...item, gap: Math.max(0, item.target - item.actual) }))
+      .sort((a, b) => b.gap - a.gap)
+      .slice(0, 3);
+  }, [summary, td, wk, mo, pl, t]);
+
   return (
     <div className="p-6 space-y-8">
       <div>
@@ -44,6 +60,39 @@ export default function ExecutionPage() {
         <p className="text-sm text-[var(--color-text-muted)] mt-1">
           Measure daily execution against QLA acquisition targets
         </p>
+      </div>
+
+      <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-5">
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div>
+            <div className="text-xs uppercase tracking-[0.16em] text-[var(--color-accent)] mb-1">Operator Alignment</div>
+            <p className="text-sm text-[var(--color-text-primary)]">
+              Focus: {settings.qlaPrimaryIndustry || 'QLA acquisition'} · Goal: {settings.qlaPrimaryGoal || 'Close the first acquisition.'}
+            </p>
+            <p className="text-xs text-[var(--color-text-muted)] mt-1">
+              Wake {settings.operatorWakeTime || '05:00'} · Evening mode {settings.qlaEveningModeStartTime || '16:00'} · QLA block {settings.qlaWorkStartTime || '17:00'}
+            </p>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <Link href="/command-center" className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-[var(--color-border)] text-sm text-[var(--color-text-primary)] hover:border-[var(--color-accent)] transition-colors">
+              <Zap className="w-4 h-4 text-[var(--color-accent)]" /> Command Center
+            </Link>
+            <Link href="/settings" className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-[var(--color-border)] text-sm text-[var(--color-text-primary)] hover:border-[var(--color-accent)] transition-colors">
+              <Settings2 className="w-4 h-4 text-[var(--color-accent)]" /> Tune Targets
+            </Link>
+          </div>
+        </div>
+        {!loading && operatorGaps.length > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-4">
+            {operatorGaps.map((item) => (
+              <Link key={item.label} href={item.href} className="bg-[var(--color-bg)] border border-[var(--color-border)] rounded-lg p-4 hover:border-[var(--color-accent)] transition-colors">
+                <div className="text-xs uppercase tracking-wide text-[var(--color-text-muted)]">Biggest gap</div>
+                <div className="text-sm font-medium text-[var(--color-text-primary)] mt-1">{item.label}</div>
+                <div className="text-xs text-[var(--color-text-muted)] mt-1">{item.actual} / {item.target} · gap {Math.max(0, item.target - item.actual)}</div>
+              </Link>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Alerts */}

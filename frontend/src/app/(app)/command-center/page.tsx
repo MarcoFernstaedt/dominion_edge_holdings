@@ -558,40 +558,45 @@ function AffirmationStrip() {
   return (
     <div className="bg-[#111111] border border-[#262626] rounded-[10px] px-5 py-4 space-y-3" style={{ borderLeftWidth: 2, borderLeftColor: '#C9A22760' }}>
       <div className="flex items-center gap-2 flex-wrap">
-        {focusOptions.map((option) => {
-          const activeFocus = (settings.qlaAffirmationFocus || 'auto') === option.key;
-          return (
-            <button
-              key={option.key}
-              onClick={() => updateSettings({ qlaAffirmationFocus: option.key })}
-              className={cn(
-                'text-[10px] uppercase tracking-[0.12em] px-2.5 py-1 rounded border transition-colors',
-                activeFocus
-                  ? 'bg-[#C9A22718] border-[#C9A22755] text-[#C9A227]'
-                  : 'bg-[#0F0F10] border-[#262626] text-[#737373] hover:text-[#E5E5E5]'
-              )}
-            >
-              {option.label}
-            </button>
-          );
-        })}
-        <Link href="/settings" className="text-[10px] uppercase tracking-[0.12em] text-[#737373] hover:text-[#C9A227] transition-colors">Tune in settings →</Link>
+        {focusOptions.map((option) => (
+          <button
+            key={option.key}
+            onClick={() => updateSettings({ qlaAffirmationFocus: option.key })}
+            className={cn(
+              'text-[10px] uppercase tracking-[0.12em] px-2.5 py-1 rounded border transition-colors',
+              (settings.qlaAffirmationFocus || 'auto') === option.key
+                ? 'bg-[#C9A22718] border-[#C9A22755] text-[#C9A227]'
+                : 'bg-[#0F0F10] border-[#262626] text-[#737373] hover:text-[#E5E5E5]'
+            )}
+          >
+            {option.label}
+          </button>
+        ))}
+        <Link href="/settings" className="text-[10px] uppercase tracking-[0.12em] text-[#737373] hover:text-[#C9A227] transition-colors">
+          Tune in settings →
+        </Link>
       </div>
+
       <div className="flex items-center gap-4">
         <div className="flex-1 min-w-0">
-          <div className="text-[10px] tracking-[0.12em] uppercase text-[#C9A227] mb-1.5">{aff!.theme}{aff!.qlaFocus ? ` · ${aff!.qlaFocus}` : ''}{typeof aff!.intensity === 'number' ? ` · intensity ${aff!.intensity}/3` : ''}</div>
+          <div className="text-[10px] tracking-[0.12em] uppercase text-[#C9A227] mb-1.5">
+            {aff!.theme}
+            {aff!.qlaFocus ? ` · ${aff!.qlaFocus}` : ''}
+            {typeof aff!.intensity === 'number' ? ` · intensity ${aff!.intensity}/3` : ''}
+          </div>
           <blockquote className="font-serif text-base italic text-[#A3A3A3] leading-relaxed">&ldquo;{aff!.text}&rdquo;</blockquote>
         </div>
         <div className="flex gap-1 flex-shrink-0">
-        <button onClick={() => setIdx((idx - 1 + total) % total)} className="w-6 h-6 flex items-center justify-center text-[#737373] hover:text-[#E5E5E5] rounded transition-colors" aria-label="Previous affirmation">
-          <ChevronLeft size={12} aria-hidden />
-        </button>
-        <button onClick={() => setIdx((idx + 1) % total)} className="w-6 h-6 flex items-center justify-center text-[#737373] hover:text-[#E5E5E5] rounded transition-colors" aria-label="Next affirmation">
-          <ChevronRight size={12} aria-hidden />
-        </button>
-        <button onClick={() => setManaging(true)} className="w-6 h-6 flex items-center justify-center text-[#737373] hover:text-[#C9A227] rounded transition-colors" aria-label="Manage affirmations">
-          <Settings2 size={11} aria-hidden />
-        </button>
+          <button onClick={() => setIdx((idx - 1 + total) % total)} className="w-6 h-6 flex items-center justify-center text-[#737373] hover:text-[#E5E5E5] rounded transition-colors" aria-label="Previous affirmation">
+            <ChevronLeft size={12} aria-hidden />
+          </button>
+          <button onClick={() => setIdx((idx + 1) % total)} className="w-6 h-6 flex items-center justify-center text-[#737373] hover:text-[#E5E5E5] rounded transition-colors" aria-label="Next affirmation">
+            <ChevronRight size={12} aria-hidden />
+          </button>
+          <button onClick={() => setManaging(true)} className="w-6 h-6 flex items-center justify-center text-[#737373] hover:text-[#C9A227] rounded transition-colors" aria-label="Manage affirmations">
+            <Settings2 size={11} aria-hidden />
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -1,10 +1,27 @@
 'use client';
 
 import Link from 'next/link';
+import { useEffect, useMemo, useState } from 'react';
 import { useAppStore } from '@/lib/store';
 import { Button } from '@/components/ui/Button';
 import { Input, Select } from '@/components/ui/Input';
-import { Settings, Eye, Zap, Mail, Brain, Plug, ChevronRight } from 'lucide-react';
+import { executionApi } from '@/lib/api';
+import { Settings, Eye, Zap, Mail, Brain, Plug, ChevronRight, Target } from 'lucide-react';
+
+const EXECUTION_TARGET_FIELDS = [
+  { key: 'daily_owner_calls', label: 'Daily Owner Calls', hint: 'Base outbound call floor for each execution day.' },
+  { key: 'weekly_owner_contacts', label: 'Weekly Owner Contacts', hint: 'Total owners touched across calls, email, and LinkedIn.' },
+  { key: 'weekly_investor_calls', label: 'Weekly Investor Calls', hint: 'Capital conversations to keep financing warm.' },
+  { key: 'monthly_lois', label: 'Monthly LOIs', hint: 'Monthly offer volume target.' },
+  { key: 'pipeline_companies', label: 'Pipeline Companies', hint: 'Top-of-funnel company universe.' },
+  { key: 'pipeline_owners_contacted', label: 'Pipeline Owners Contacted', hint: 'Owners reached inside the 500-company funnel.' },
+  { key: 'pipeline_conversations', label: 'Pipeline Conversations', hint: 'Live owner conversations target.' },
+  { key: 'pipeline_opportunities', label: 'Pipeline Opportunities', hint: 'Serious qualified opportunities target.' },
+  { key: 'pipeline_lois', label: 'Pipeline LOIs', hint: 'Expected LOIs in the active funnel.' },
+  { key: 'pipeline_closed', label: 'Pipeline Closed Deals', hint: 'Closed transactions target.' },
+  { key: 'board_target_min', label: 'Board Target Min', hint: 'Minimum board members required before closing.' },
+  { key: 'board_target_max', label: 'Board Target Max', hint: 'Upper end of desired board strength.' },
+] as const;
 
 export default function SettingsPage() {
   const settings = useAppStore((s) => s.settings);
@@ -12,6 +29,52 @@ export default function SettingsPage() {
 
   const s = settings;
   const u = (updates: Partial<typeof settings>) => updateSettings(updates);
+  const [executionTargets, setExecutionTargets] = useState<Record<string, number>>({});
+  const [targetsLoading, setTargetsLoading] = useState(true);
+  const [targetsSaving, setTargetsSaving] = useState(false);
+  const [targetsSaved, setTargetsSaved] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    async function loadTargets() {
+      setTargetsLoading(true);
+      try {
+        const res = await executionApi.getTargets();
+        const nextTargets = (res as { targets?: Record<string, number> }).targets || {};
+        if (mounted) setExecutionTargets(nextTargets);
+      } catch {
+        if (mounted) setExecutionTargets({});
+      } finally {
+        if (mounted) setTargetsLoading(false);
+      }
+    }
+    loadTargets();
+    return () => { mounted = false; };
+  }, []);
+
+  const targetRows = useMemo(() => {
+    return EXECUTION_TARGET_FIELDS.map((field) => ({
+      ...field,
+      value: executionTargets[field.key] ?? 0,
+    }));
+  }, [executionTargets]);
+
+  async function saveExecutionTargets() {
+    setTargetsSaving(true);
+    try {
+      await Promise.all(
+        EXECUTION_TARGET_FIELDS.map((field) =>
+          executionApi.updateTarget(field.key, Number(executionTargets[field.key] ?? 0), 'ongoing')
+        )
+      );
+      setTargetsSaved(true);
+      setTimeout(() => setTargetsSaved(false), 3000);
+    } catch {
+      // silent for now; page stays editable
+    } finally {
+      setTargetsSaving(false);
+    }
+  }
 
   return (
     <div className="page-container-narrow space-y-8">
@@ -269,6 +332,49 @@ export default function SettingsPage() {
               ]}
             />
           </div>
+        </div>
+      </section>
+
+      {/* QLA execution targets */}
+      <section aria-labelledby="execution-target-settings">
+        <div className="flex items-center gap-2 mb-4">
+          <Target size={16} className="text-[#C9A227]" aria-hidden />
+          <h2 id="execution-target-settings" className="text-sm font-semibold text-[#E8E6E3]">QLA Execution Targets</h2>
+        </div>
+        <div className="bg-[#141414] border border-[#2A2A2E] rounded-md p-5 space-y-4">
+          <div className="flex items-start justify-between gap-4">
+            <p className="text-sm text-[#A7A29A] max-w-2xl">
+              These targets drive the execution dashboards and give the Command Center a real operating standard instead of a static aspiration.
+            </p>
+            {targetsSaved && <span className="text-xs text-emerald-400">Saved ✓</span>}
+          </div>
+
+          {targetsLoading ? (
+            <p className="text-sm text-[#A7A29A]">Loading execution targets…</p>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {targetRows.map((field) => (
+                  <Input
+                    key={field.key}
+                    label={field.label}
+                    type="number"
+                    min="0"
+                    value={String(field.value)}
+                    onChange={(e) => setExecutionTargets((prev) => ({ ...prev, [field.key]: Number(e.target.value) || 0 }))}
+                    hint={field.hint}
+                  />
+                ))}
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Button onClick={saveExecutionTargets} disabled={targetsSaving}>
+                  {targetsSaving ? 'Saving…' : 'Save Execution Targets'}
+                </Button>
+                <span className="text-xs text-[#A7A29A]">Writes through to the backend execution tracker.</span>
+              </div>
+            </>
+          )}
         </div>
       </section>
 
