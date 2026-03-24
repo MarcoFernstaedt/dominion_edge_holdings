@@ -3,6 +3,13 @@
  * All requests go through this module — never fetch() directly in components.
  */
 
+import type {
+  ConversationFunnel,
+  DealVelocityEntry,
+  FrequencyProgress,
+  PipelinePressureMetrics,
+} from './types';
+
 const API_BASE =
   typeof window !== 'undefined'
     ? (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001')
@@ -242,6 +249,16 @@ export const sourcingRadarApi = {
   acceptCandidate: (id: string) => api.post<{ company: unknown; candidate: unknown }>(`/api/sourcing-radar/candidates/${id}/accept`, {}),
   importCSV: (rows: Record<string, string>[]) => api.post<{ inserted: number; duplicates: number; total: number }>('/api/sourcing-radar/import-csv', { rows }),
   getSourcingSummary: () => api.get<unknown>('/api/dashboard/sourcing-summary'),
+};
+
+// ─── Performance Systems ─────────────────────────────────────────────────────
+
+export const performanceSystemsApi = {
+  getPipelinePressure: () => api.get<PipelinePressureMetrics>('/api/pipeline-pressure'),
+  scanPipelinePressure: () => api.post<PipelinePressureMetrics & { tasksCreated?: number; tasks?: unknown[] }>('/api/pipeline-pressure/scan', {}),
+  getDealVelocity: () => api.get<{ deals: DealVelocityEntry[]; slowMovingCount: number }>('/api/deal-velocity'),
+  getConversationFunnel: () => api.get<ConversationFunnel>('/api/conversation-funnel'),
+  getFrequencyProgress: () => api.get<FrequencyProgress>('/api/frequency-progress'),
 };
 
 // ─── Meeting Prep ─────────────────────────────────────────────────────────────
