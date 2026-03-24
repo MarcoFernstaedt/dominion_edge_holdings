@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { executionApi } from '@/lib/api';
 import { ExecutionProgressBar, ExecutionMetricCard } from '@/components/execution/ExecutionComponents';
 import type { BoardRecruitmentStat, QlaTargets } from '@/lib/types';
@@ -29,6 +29,19 @@ export default function BoardPage() {
   const secured   = board?.boardMembersSecured ?? 0;
   const pct       = Math.round((secured / targetMin) * 100);
 
+  const biggestGap = useMemo(() => {
+    if (!board) return null;
+    const metrics = [
+      { label: 'Candidates identified', actual: board.candidatesIdentified, target: 20, href: '/board#section-board-candidates', prompt: 'Board-first discipline starts with candidate volume.' },
+      { label: 'Candidates contacted', actual: board.candidatesContacted, target: 15, href: '/board#section-board-candidates', prompt: 'Uncontacted candidates are fake progress.' },
+      { label: 'Calls scheduled', actual: board.callsScheduled, target: 10, href: '/meetings#section-meetings', prompt: 'Real board momentum lives in live conversations.' },
+      { label: 'Members secured', actual: secured, target: targetMin, href: '/board', prompt: 'No full board, no real leverage.' },
+    ];
+    return metrics
+      .map((item) => ({ ...item, gap: Math.max(0, item.target - item.actual) }))
+      .sort((a, b) => b.gap - a.gap)[0];
+  }, [board, secured, targetMin]);
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-start justify-between">
@@ -42,6 +55,22 @@ export default function BoardPage() {
           Open Board Builder →
         </Link>
       </div>
+
+      {!loading && biggestGap && (
+        <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-5 space-y-4">
+          <div className="flex items-start justify-between gap-4 flex-wrap">
+            <div>
+              <div className="text-xs uppercase tracking-[0.16em] text-[var(--color-accent)] mb-1">Board Pressure</div>
+              <p className="text-sm text-[var(--color-text-primary)]">Biggest gap: {biggestGap.label} ({biggestGap.actual}/{biggestGap.target})</p>
+              <p className="text-xs text-[var(--color-text-muted)] mt-1">{biggestGap.prompt}</p>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <Link href={biggestGap.href} className="px-3 py-1.5 rounded-lg border border-[var(--color-border)] text-sm text-[var(--color-text-primary)] hover:border-[#C9A227] transition-colors">Open Fix</Link>
+              <Link href="/command-center" className="px-3 py-1.5 rounded-lg border border-[var(--color-border)] text-sm text-[var(--color-text-primary)] hover:border-[#C9A227] transition-colors">Command Center</Link>
+            </div>
+          </div>
+        </div>
+      )}
 
       {loading ? (
         <p className="text-sm text-[var(--color-text-muted)]">Loading…</p>

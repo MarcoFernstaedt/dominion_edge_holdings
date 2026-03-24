@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
+import Link from 'next/link';
 import { executionApi } from '@/lib/api';
 import { PipelineFunnel, ExecutionMetricCard } from '@/components/execution/ExecutionComponents';
 import type { AcquisitionPipelineStat, QlaTargets } from '@/lib/types';
@@ -37,6 +38,19 @@ export default function PipelinePage() {
     { label: 'Deals closed',           actual: pipeline.dealsClosed,          target: targets.pipeline_closed              },
   ] : [];
 
+  const biggestGap = useMemo(() => {
+    if (!pipeline || !targets) return null;
+    const metrics = [
+      { label: 'Companies identified', actual: pipeline.totalCompanies, target: targets.pipeline_companies, href: '/pipeline/sourcing-radar', prompt: 'Top-of-funnel volume fixes downstream weakness.' },
+      { label: 'Owners contacted', actual: pipeline.ownersContacted, target: targets.pipeline_owners_contacted, href: '/execution/daily', prompt: 'Contact volume is the pipeline engine.' },
+      { label: 'Conversations had', actual: pipeline.ownerConversations, target: targets.pipeline_conversations, href: '/pipeline', prompt: 'Conversations convert outreach into real opportunity.' },
+      { label: 'LOIs sent', actual: pipeline.loisSent, target: targets.pipeline_lois, href: '/execution/monthly', prompt: 'Without LOIs, the funnel is decorative.' },
+    ];
+    return metrics
+      .map((item) => ({ ...item, gap: Math.max(0, item.target - item.actual) }))
+      .sort((a, b) => b.gap - a.gap)[0];
+  }, [pipeline, targets]);
+
   return (
     <div className="p-6 space-y-6">
       <div>
@@ -45,6 +59,22 @@ export default function PipelinePage() {
           QLA acquisition funnel — 500 companies → 1 closed deal
         </p>
       </div>
+
+      {!loading && biggestGap && (
+        <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-5 space-y-4">
+          <div className="flex items-start justify-between gap-4 flex-wrap">
+            <div>
+              <div className="text-xs uppercase tracking-[0.16em] text-[var(--color-accent)] mb-1">Pipeline Pressure</div>
+              <p className="text-sm text-[var(--color-text-primary)]">Biggest gap: {biggestGap.label} ({biggestGap.actual}/{biggestGap.target})</p>
+              <p className="text-xs text-[var(--color-text-muted)] mt-1">{biggestGap.prompt}</p>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <Link href={biggestGap.href} className="px-3 py-1.5 rounded-lg border border-[var(--color-border)] text-sm text-[var(--color-text-primary)] hover:border-[#C9A227] transition-colors">Open Fix</Link>
+              <Link href="/command-center" className="px-3 py-1.5 rounded-lg border border-[var(--color-border)] text-sm text-[var(--color-text-primary)] hover:border-[#C9A227] transition-colors">Command Center</Link>
+            </div>
+          </div>
+        </div>
+      )}
 
       {loading ? (
         <p className="text-sm text-[var(--color-text-muted)]">Loading…</p>
