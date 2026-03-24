@@ -272,6 +272,7 @@ export default function PlaybookTodayPage() {
   const doneCount = allActions.filter((a) => a.taskId && done.has(a.taskId)).length;
   const totalCount = allActions.length;
   const pct = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0;
+  const topAction = highPriority[0] || playbookActions[0] || alertActions[0] || momentumActions[0] || null;
 
   const dateStr = plan?.date ?? plan?.generatedAt;
   const date = dateStr
@@ -308,6 +309,23 @@ export default function PlaybookTodayPage() {
         </div>
       </div>
 
+      {!loading && topAction && (
+        <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-4 space-y-3">
+          <div className="flex items-start justify-between gap-4 flex-wrap">
+            <div>
+              <div className="text-[10px] uppercase tracking-[0.16em] text-[#C9A227] font-semibold mb-1">Operator Day Rail</div>
+              <div className="text-sm font-medium text-[var(--color-text-primary)]">Dominant action: {topAction.title}</div>
+              <div className="text-xs text-[var(--color-text-muted)] mt-1">{topAction.description}</div>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <Link href="/execution/daily" className="px-3 py-1.5 rounded-lg border border-[var(--color-border)] text-sm text-[var(--color-text-primary)] hover:border-[#C9A227] transition-colors">Daily</Link>
+              <Link href="/pipeline" className="px-3 py-1.5 rounded-lg border border-[var(--color-border)] text-sm text-[var(--color-text-primary)] hover:border-[#C9A227] transition-colors">Pipeline</Link>
+              <Link href="/board#section-board-candidates" className="px-3 py-1.5 rounded-lg border border-[var(--color-border)] text-sm text-[var(--color-text-primary)] hover:border-[#C9A227] transition-colors">Board</Link>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Progress bar */}
       {!loading && totalCount > 0 && (
         <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-4">
@@ -332,10 +350,15 @@ export default function PlaybookTodayPage() {
               style={{ width: `${pct}%` }}
             />
           </div>
-          {pct === 100 && (
+          {pct === 100 ? (
             <p className="text-xs text-emerald-400 mt-2 flex items-center gap-1.5">
               <CheckCircle2 size={12} aria-hidden />
               All tasks complete — great work!
+            </p>
+          ) : (
+            <p className="text-xs text-[var(--color-text-muted)] mt-2 flex items-center gap-1.5">
+              <Clock size={12} aria-hidden />
+              Completion pressure stays on until today&apos;s actions are cleared.
             </p>
           )}
         </div>
