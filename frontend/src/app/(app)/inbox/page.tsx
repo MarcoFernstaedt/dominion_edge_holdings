@@ -207,6 +207,26 @@ export default function InboxPage() {
         Configure SMTP and IMAP in <a href="/settings" className="underline hover:text-[#6B9EC0]">Settings</a> to sync your real inbox. Threads created here are logged locally.
       </div>
 
+      {(needsReplyCount > 0 || unreadCount > 0) && (
+        <div className="bg-[#141414] border border-[#2A2A2E] rounded-md p-4 space-y-3">
+          <div className="flex items-start justify-between gap-4 flex-wrap">
+            <div>
+              <div className="text-[10px] tracking-[0.14em] uppercase text-[#C9A227] mb-1">Inbox Pressure</div>
+              <p className="text-sm text-[#E8E6E3]">
+                {needsReplyCount > 0
+                  ? `${needsReplyCount} thread${needsReplyCount !== 1 ? 's' : ''} need reply.`
+                  : `${unreadCount} unread thread${unreadCount !== 1 ? 's' : ''} need triage.`}
+              </p>
+              <p className="text-xs text-[#A7A29A] mt-1">Unanswered threads kill momentum and trust.</p>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <a href="/command-center#section-tasks" className="px-3 py-1.5 rounded-lg border border-[#2A2A2E] text-sm text-[#E8E6E3] hover:border-[#C9A227] transition-colors">Command Center</a>
+              <a href="/outreach#section-seller_outreach" className="px-3 py-1.5 rounded-lg border border-[#2A2A2E] text-sm text-[#E8E6E3] hover:border-[#C9A227] transition-colors">Outreach</a>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center gap-3">
         <div className="relative flex-1">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#A7A29A]" aria-hidden />

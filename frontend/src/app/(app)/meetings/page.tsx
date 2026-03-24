@@ -629,6 +629,26 @@ export default function MeetingsPage() {
         </Button>
       </header>
 
+      {upcoming.length > 0 && (
+        <div className="bg-[#141414] border border-[#2A2A2E] rounded-md p-4 space-y-3">
+          <div className="flex items-start justify-between gap-4 flex-wrap">
+            <div>
+              <div className="text-[10px] tracking-[0.14em] uppercase text-[#C9A227] mb-1">Meeting Pressure</div>
+              <p className="text-sm text-[#E8E6E3]">
+                {todayMeetings.length > 0
+                  ? `${todayMeetings.length} meeting${todayMeetings.length !== 1 ? 's' : ''} land today. Prep must be complete.`
+                  : `${upcoming.length} upcoming meeting${upcoming.length !== 1 ? 's' : ''} require prep and follow-up discipline.`}
+              </p>
+              <p className="text-xs text-[#A7A29A] mt-1">Every meeting should create prep, clarity, and a next step.</p>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <a href="/execution/daily#daily-log-form" className="px-3 py-1.5 rounded-lg border border-[#2A2A2E] text-sm text-[#E8E6E3] hover:border-[#C9A227] transition-colors">Daily Execution</a>
+              <a href="/board#section-board-candidates" className="px-3 py-1.5 rounded-lg border border-[#2A2A2E] text-sm text-[#E8E6E3] hover:border-[#C9A227] transition-colors">Board</a>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Summary cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
