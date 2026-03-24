@@ -748,6 +748,7 @@ function SentinelOperatorPanel() {
 
   const wakeTime = settings.operatorWakeTime || '05:00';
   const qlaStart = settings.qlaWorkStartTime || '17:00';
+  const eveningModeStart = settings.qlaEveningModeStartTime || '16:00';
   const industry = settings.qlaPrimaryIndustry || 'Pest control';
   const goal = settings.qlaPrimaryGoal || 'First acquisition in ~12 months. Three acquisitions in 2 years.';
   const morningStack = settings.qlaMorningStack?.length
@@ -761,6 +762,14 @@ function SentinelOperatorPanel() {
         '45 min — send board or seller outreach and log it',
         '30 min — advance one task, follow-up, or underwriting item',
       ];
+
+  const now = new Date();
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+  const parseTimeToMinutes = (value: string) => {
+    const [h, m] = value.split(':').map((n) => Number(n) || 0);
+    return h * 60 + m;
+  };
+  const isEveningMode = currentMinutes >= parseTimeToMinutes(eveningModeStart);
 
   const topActions = [
     { label: 'Build board strength', detail: boardReadyCount > 0 ? `${boardReadyCount} warm board candidates in motion` : 'No warm board candidates yet — start outreach' },
@@ -780,10 +789,15 @@ function SentinelOperatorPanel() {
       <div className="flex items-start justify-between gap-4">
         <div>
           <div className="text-[10px] tracking-[0.12em] uppercase text-[#C9A227] mb-1.5">Sentinel Operator Layer</div>
-          <h2 className="font-serif text-[22px] font-semibold text-[#E5E5E5] leading-snug">Daily QLA Command Brief</h2>
-          <p className="text-sm text-[#737373] mt-1">Wake {wakeTime} · QLA block starts {qlaStart} · Focus: {industry}</p>
+          <h2 className="font-serif text-[22px] font-semibold text-[#E5E5E5] leading-snug">
+            {isEveningMode ? 'Evening QLA Execution Brief' : 'Morning QLA Command Brief'}
+          </h2>
+          <p className="text-sm text-[#737373] mt-1">Wake {wakeTime} · QLA block starts {qlaStart} · Evening mode from {eveningModeStart} · Focus: {industry}</p>
         </div>
-        <Badge variant="warning" size="sm">Phase 1</Badge>
+        <div className="flex gap-2">
+          <Badge variant="warning" size="sm">Phase 1</Badge>
+          <Badge variant={isEveningMode ? 'warning' : 'info'} size="sm">{isEveningMode ? 'Evening Mode' : 'Morning Mode'}</Badge>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -798,7 +812,7 @@ function SentinelOperatorPanel() {
       </div>
 
       <div>
-        <div className="text-[11px] font-semibold tracking-[0.12em] uppercase text-[#C9A227] mb-2">Morning Stack</div>
+        <div className="text-[11px] font-semibold tracking-[0.12em] uppercase text-[#C9A227] mb-2">{isEveningMode ? 'Morning Foundation' : 'Morning Stack'}</div>
         <div className="flex flex-wrap gap-2">
           {morningStack.map((item) => (
             <span key={item} className="text-[11px] px-2.5 py-1 rounded bg-[#0F0F10] border border-[#262626] text-[#A3A3A3]">
@@ -821,7 +835,7 @@ function SentinelOperatorPanel() {
       </div>
 
       <div>
-        <div className="text-[11px] font-semibold tracking-[0.12em] uppercase text-[#C9A227] mb-2">Exact 2-Hour Sprint</div>
+        <div className="text-[11px] font-semibold tracking-[0.12em] uppercase text-[#C9A227] mb-2">{isEveningMode ? 'Tonight\'s 2-Hour Sprint' : 'Exact 2-Hour Sprint'}</div>
         <ol className="space-y-2 list-decimal list-inside text-sm text-[#A3A3A3]">
           {sprintSteps.map((step) => (
             <li key={step} className="bg-[#0F0F10] border border-[#262626] rounded-[8px] px-4 py-3 list-none">
@@ -832,7 +846,7 @@ function SentinelOperatorPanel() {
       </div>
 
       <div>
-        <div className="text-[11px] font-semibold tracking-[0.12em] uppercase text-[#C9A227] mb-2">Scorecard</div>
+        <div className="text-[11px] font-semibold tracking-[0.12em] uppercase text-[#C9A227] mb-2">{isEveningMode ? 'Execution Scorecard' : 'Preparation Scorecard'}</div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           {scorecard.map((item) => {
             const pct = Math.min(100, item.target > 0 ? Math.round((item.current / item.target) * 100) : 0);

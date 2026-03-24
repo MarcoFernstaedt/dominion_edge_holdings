@@ -1268,6 +1268,7 @@ export interface AppSettings {
   qlaBoardOutreachWeeklyTarget?: number;
   qlaSellerOutreachWeeklyTarget?: number;
   qlaTargetCountGoal?: number;
+  qlaEveningModeStartTime?: string;
   // Sourcing Radar
   sourcingRadarEnabled?: boolean;
   sourcingTargetIndustries?: string[];

@@ -187,12 +187,18 @@ export default function SettingsPage() {
           <h2 id="operator-settings" className="text-sm font-semibold text-[#E8E6E3]">Sentinel Operator</h2>
         </div>
         <div className="bg-[#141414] border border-[#2A2A2E] rounded-md p-5 space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             <Input
               label="Wake Time"
               value={s.operatorWakeTime || ''}
               onChange={(e) => u({ operatorWakeTime: e.target.value })}
               placeholder="05:00"
+            />
+            <Input
+              label="Evening Mode Start"
+              value={s.qlaEveningModeStartTime || ''}
+              onChange={(e) => u({ qlaEveningModeStartTime: e.target.value })}
+              placeholder="16:00"
             />
             <Input
               label="QLA Work Start"
