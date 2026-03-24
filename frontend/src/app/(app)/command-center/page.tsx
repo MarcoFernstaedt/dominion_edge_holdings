@@ -901,6 +901,13 @@ function DriftRadarPanel({
     critical: { border: '#D6454560', text: '#D64545', badge: 'Drift active' },
   } as const;
 
+  const recoveryActions = [
+    boardOutreachCount === 0 ? { label: 'Restore board-first discipline', href: '/board#section-board-candidates' } : null,
+    sellerOutreachCount === 0 ? { label: 'Push sourcing activity now', href: '/execution/daily#daily-log-form' } : null,
+    !hasBriefingToday || !hasAccountabilityToday ? { label: 'Log operator routine', href: '/command-center' } : null,
+    overdueTasks > 0 ? { label: 'Clear overdue task drag', href: '/command-center#section-tasks' } : null,
+  ].filter(Boolean) as { label: string; href: string }[];
+
   return (
     <div className="bg-[#0F0F10] border rounded-[10px] p-4 space-y-3" style={{ borderColor: toneStyles[tone].border }}>
       <div className="flex items-start justify-between gap-3">
@@ -922,6 +929,20 @@ function DriftRadarPanel({
           </li>
         ))}
       </ul>
+
+      {tone !== 'healthy' && (
+        <div className="bg-[#0D0D0D] border border-[#D6454530] rounded-[8px] px-3 py-3 space-y-2">
+          <div className="text-[10px] tracking-[0.12em] uppercase text-[#D64545]">Recovery Actions Required</div>
+          <div className="text-xs text-[#A7A29A]">You are not in a clean operating state. Recover before chasing more complexity.</div>
+          <div className="flex flex-wrap gap-2">
+            {recoveryActions.map((action) => (
+              <Link key={action.label} href={action.href} className="px-2.5 py-1.5 rounded-lg border border-[#D6454530] text-xs text-[#E5E5E5] hover:border-[#D64545] transition-colors">
+                {action.label}
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1076,6 +1097,13 @@ function SentinelOperatorPanel() {
           ))}
         </div>
       </div>
+
+      {boardOutreachCount === 0 && (
+        <div className="bg-[#D6454510] border border-[#D6454530] rounded-[10px] px-4 py-3">
+          <div className="text-[10px] tracking-[0.12em] uppercase text-[#D64545] mb-1">Board-first failure</div>
+          <div className="text-xs text-[#A7A29A]">No board outreach is logged this week. Board-first discipline is broken until that changes.</div>
+        </div>
+      )}
 
       <div>
         <div className="text-[11px] font-semibold tracking-[0.12em] uppercase text-[#C9A227] mb-2">Top 3 Actions</div>
