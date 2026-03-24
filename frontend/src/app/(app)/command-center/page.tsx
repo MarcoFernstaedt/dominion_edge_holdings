@@ -727,6 +727,106 @@ function SellerSignalsPanel() {
   );
 }
 
+function SentinelOperatorPanel() {
+  const companies = useAppStore((s) => s.companies);
+  const interactions = useAppStore((s) => s.interactions);
+  const tasks = useAppStore((s) => s.tasks);
+  const boardCandidates = useAppStore((s) => s.boardCandidates);
+  const deals = useAppStore((s) => s.deals);
+
+  const today = new Date().toDateString();
+  const weekAgo = new Date();
+  weekAgo.setDate(weekAgo.getDate() - 7);
+
+  const activeDeals = deals.filter((d) => d.status === 'active').length;
+  const targetCount = companies.length;
+  const boardReadyCount = boardCandidates.filter((c) => ['engaged', 'responsive', 'confirmed'].includes(c.status)).length;
+  const boardOutreachCount = boardCandidates.filter((c) => c.updatedAt && new Date(c.updatedAt) > weekAgo).length;
+  const sellerOutreachCount = interactions.filter((i) => i.direction === 'outbound' && new Date(i.createdAt) > weekAgo).length;
+  const dueToday = tasks.filter((t) => t.status !== 'done' && t.status !== 'archived' && t.dueDate && new Date(t.dueDate).toDateString() === today).length;
+
+  const topActions = [
+    { label: 'Build board strength', detail: boardReadyCount > 0 ? `${boardReadyCount} warm board candidates in motion` : 'No warm board candidates yet — start outreach' },
+    { label: 'Increase sourcing volume', detail: targetCount > 0 ? `${targetCount} total targets tracked` : 'No targets loaded — sourcing must start' },
+    { label: 'Advance live opportunities', detail: activeDeals > 0 ? `${activeDeals} active deal${activeDeals !== 1 ? 's' : ''} need momentum` : 'No active deals yet — fill the pipeline' },
+  ];
+
+  const sprintSteps = [
+    '15 min — review Command Center and confirm today\'s single win',
+    '30 min — add or qualify 10 pest control targets',
+    '45 min — send board or seller outreach and log it',
+    '30 min — advance one task, follow-up, or underwriting item',
+  ];
+
+  const scorecard = [
+    { label: 'Board outreach / week', current: boardOutreachCount, target: 10 },
+    { label: 'Seller outreach / week', current: sellerOutreachCount, target: 25 },
+    { label: 'Targets tracked', current: targetCount, target: 100 },
+    { label: 'Tasks due today', current: dueToday, target: 0 },
+  ];
+
+  return (
+    <section className="bg-[#111111] border border-[#262626] rounded-[10px] p-5 space-y-5">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <div className="text-[10px] tracking-[0.12em] uppercase text-[#C9A227] mb-1.5">Sentinel Operator Layer</div>
+          <h2 className="font-serif text-[22px] font-semibold text-[#E5E5E5] leading-snug">Daily QLA Command Brief</h2>
+          <p className="text-sm text-[#737373] mt-1">Phase-one operating rhythm for first acquisition execution.</p>
+        </div>
+        <Badge variant="warning" size="sm">Phase 1</Badge>
+      </div>
+
+      <div className="bg-[#0F0F10] border border-[#262626] rounded-[10px] px-4 py-3">
+        <div className="text-[10px] tracking-[0.12em] uppercase text-[#C9A22799] mb-1.5">Affirmation</div>
+        <p className="font-serif italic text-[#A3A3A3] leading-relaxed">I move first, build credibility fast, and create acquisition momentum every day.</p>
+      </div>
+
+      <div>
+        <div className="text-[11px] font-semibold tracking-[0.12em] uppercase text-[#C9A227] mb-2">Top 3 Actions</div>
+        <ul className="space-y-2">
+          {topActions.map((item) => (
+            <li key={item.label} className="bg-[#0F0F10] border border-[#262626] rounded-[8px] px-4 py-3">
+              <div className="text-sm font-medium text-[#E5E5E5]">{item.label}</div>
+              <div className="text-xs text-[#737373] mt-0.5">{item.detail}</div>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <div>
+        <div className="text-[11px] font-semibold tracking-[0.12em] uppercase text-[#C9A227] mb-2">Exact 2-Hour Sprint</div>
+        <ol className="space-y-2 list-decimal list-inside text-sm text-[#A3A3A3]">
+          {sprintSteps.map((step) => (
+            <li key={step} className="bg-[#0F0F10] border border-[#262626] rounded-[8px] px-4 py-3 list-none">
+              {step}
+            </li>
+          ))}
+        </ol>
+      </div>
+
+      <div>
+        <div className="text-[11px] font-semibold tracking-[0.12em] uppercase text-[#C9A227] mb-2">Scorecard</div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          {scorecard.map((item) => {
+            const pct = Math.min(100, item.target > 0 ? Math.round((item.current / item.target) * 100) : 0);
+            return (
+              <div key={item.label} className="bg-[#0F0F10] border border-[#262626] rounded-[8px] px-4 py-3">
+                <div className="flex items-center justify-between gap-2 mb-1.5">
+                  <span className="text-xs text-[#737373]">{item.label}</span>
+                  <span className="text-xs font-medium text-[#E5E5E5]">{item.current}/{item.target}</span>
+                </div>
+                <div className="h-1 rounded-full bg-[#262626] overflow-hidden">
+                  <div className="h-full rounded-full" style={{ width: `${pct}%`, background: pct >= 100 ? '#4CAF50' : '#C9A227' }} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 // ─── Page root ────────────────────────────────────────────────────────────────
 
 export default function CommandCenterPage() {
@@ -756,6 +856,9 @@ export default function CommandCenterPage() {
 
       {/* ── Zone 1: Hero action ─────────────────────────────────────────── */}
       {hero && <HeroAction action={hero} />}
+
+      {/* ── Sentinel operator layer ─────────────────────────────────────── */}
+      <SentinelOperatorPanel />
 
       {/* ── Zone 2: Priority band ───────────────────────────────────────── */}
       <PriorityBand />
