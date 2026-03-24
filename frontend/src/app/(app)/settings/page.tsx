@@ -231,6 +231,9 @@ export default function SettingsPage() {
             onChange={(e) => u({ qlaSprintTemplate: e.target.value.split('|').map((x) => x.trim()).filter(Boolean) })}
             hint="Separate sprint steps with |"
           />
+          <div className="bg-[#111111] border border-[#2A2A2E] rounded-md px-3 py-3 text-xs text-[#A7A29A] leading-relaxed">
+            Affirmation builder status: morning/evening targeting is active, focus targeting is active, and affirmations remain editable from the Command Center manager. Next content pass can focus on writing your final custom QLA affirmation sets.
+          </div>
           <div className="grid grid-cols-4 gap-4">
             <Input
               label="Board Outreach / Week"

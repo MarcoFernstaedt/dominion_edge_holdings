@@ -369,9 +369,10 @@ const THEME_OPTIONS = [
 ];
 
 function AffirmationStrip() {
-  const affirmations     = useAppStore((s) => s.affirmations);
-  const idx              = useAppStore((s) => s.currentAffirmationIndex);
-  const setIdx           = useAppStore((s) => s.setAffirmationIndex);
+  const affirmations      = useAppStore((s) => s.affirmations);
+  const settings          = useAppStore((s) => s.settings);
+  const idx               = useAppStore((s) => s.currentAffirmationIndex);
+  const setIdx            = useAppStore((s) => s.setAffirmationIndex);
   const addAffirmation    = useAppStore((s) => s.addAffirmation);
   const updateAffirmation = useAppStore((s) => s.updateAffirmation);
   const deleteAffirmation = useAppStore((s) => s.deleteAffirmation);
@@ -393,7 +394,8 @@ function AffirmationStrip() {
 
   const filtered = active.filter((a) => {
     const timeMatch = !a.timeOfDay || a.timeOfDay === 'any' || (isEvening ? a.timeOfDay === 'evening' : a.timeOfDay === 'morning');
-    return timeMatch;
+    const focusMatch = !a.qlaFocus || settings.qlaAffirmationFocus === 'auto' || a.qlaFocus === settings.qlaAffirmationFocus;
+    return timeMatch && focusMatch;
   });
 
   const pool = filtered.length > 0 ? filtered : active;
