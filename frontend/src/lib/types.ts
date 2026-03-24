@@ -1259,6 +1259,15 @@ export interface AppSettings {
   smtpUser: string;
   fromName: string;
   fromEmail: string;
+  operatorWakeTime?: string;
+  qlaWorkStartTime?: string;
+  qlaPrimaryIndustry?: string;
+  qlaPrimaryGoal?: string;
+  qlaMorningStack?: string[];
+  qlaSprintTemplate?: string[];
+  qlaBoardOutreachWeeklyTarget?: number;
+  qlaSellerOutreachWeeklyTarget?: number;
+  qlaTargetCountGoal?: number;
   // Sourcing Radar
   sourcingRadarEnabled?: boolean;
   sourcingTargetIndustries?: string[];

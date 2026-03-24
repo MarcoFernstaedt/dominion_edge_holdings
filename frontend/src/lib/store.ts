@@ -54,6 +54,15 @@ const DEFAULT_SETTINGS: AppSettings = {
   smtpUser: '',
   fromName: 'Marco Fernstaedt',
   fromEmail: '',
+  operatorWakeTime: '05:00',
+  qlaWorkStartTime: '17:00',
+  qlaPrimaryIndustry: 'Pest control',
+  qlaPrimaryGoal: 'First acquisition in ~12 months. Three acquisitions in 2 years.',
+  qlaMorningStack: ['Wake', 'Train', 'Affirmations', 'Read/Study', 'Plan outreach', 'Prepare evening execution block'],
+  qlaSprintTemplate: ['15 min — review Command Center and confirm the single win', '30 min — add or qualify 10 pest control targets', '45 min — send board or seller outreach and log it', '30 min — advance one task, follow-up, or underwriting item'],
+  qlaBoardOutreachWeeklyTarget: 10,
+  qlaSellerOutreachWeeklyTarget: 25,
+  qlaTargetCountGoal: 100,
 };
 
 export const useAppStore = create<AppState>()(

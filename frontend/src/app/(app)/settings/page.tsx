@@ -180,6 +180,74 @@ export default function SettingsPage() {
         </div>
       </section>
 
+      {/* Sentinel operator settings */}
+      <section aria-labelledby="operator-settings">
+        <div className="flex items-center gap-2 mb-4">
+          <Brain size={16} className="text-[#C9A227]" aria-hidden />
+          <h2 id="operator-settings" className="text-sm font-semibold text-[#E8E6E3]">Sentinel Operator</h2>
+        </div>
+        <div className="bg-[#141414] border border-[#2A2A2E] rounded-md p-5 space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <Input
+              label="Wake Time"
+              value={s.operatorWakeTime || ''}
+              onChange={(e) => u({ operatorWakeTime: e.target.value })}
+              placeholder="05:00"
+            />
+            <Input
+              label="QLA Work Start"
+              value={s.qlaWorkStartTime || ''}
+              onChange={(e) => u({ qlaWorkStartTime: e.target.value })}
+              placeholder="17:00"
+            />
+          </div>
+          <Input
+            label="Primary Industry"
+            value={s.qlaPrimaryIndustry || ''}
+            onChange={(e) => u({ qlaPrimaryIndustry: e.target.value })}
+            placeholder="Pest control"
+          />
+          <Input
+            label="Primary Goal"
+            value={s.qlaPrimaryGoal || ''}
+            onChange={(e) => u({ qlaPrimaryGoal: e.target.value })}
+            placeholder="First acquisition in ~12 months. Three acquisitions in 2 years."
+          />
+          <Input
+            label="Morning Stack"
+            value={(s.qlaMorningStack || []).join(', ')}
+            onChange={(e) => u({ qlaMorningStack: e.target.value.split(',').map((x) => x.trim()).filter(Boolean) })}
+            hint="Comma-separated. Example: Wake, Train, Affirmations, Read/Study"
+          />
+          <Input
+            label="2-Hour Sprint Template"
+            value={(s.qlaSprintTemplate || []).join(' | ')}
+            onChange={(e) => u({ qlaSprintTemplate: e.target.value.split('|').map((x) => x.trim()).filter(Boolean) })}
+            hint="Separate sprint steps with |"
+          />
+          <div className="grid grid-cols-3 gap-4">
+            <Input
+              label="Board Outreach / Week"
+              type="number"
+              value={String(s.qlaBoardOutreachWeeklyTarget || 10)}
+              onChange={(e) => u({ qlaBoardOutreachWeeklyTarget: Number(e.target.value) || 0 })}
+            />
+            <Input
+              label="Seller Outreach / Week"
+              type="number"
+              value={String(s.qlaSellerOutreachWeeklyTarget || 25)}
+              onChange={(e) => u({ qlaSellerOutreachWeeklyTarget: Number(e.target.value) || 0 })}
+            />
+            <Input
+              label="Target Count Goal"
+              type="number"
+              value={String(s.qlaTargetCountGoal || 100)}
+              onChange={(e) => u({ qlaTargetCountGoal: Number(e.target.value) || 0 })}
+            />
+          </div>
+        </div>
+      </section>
+
       {/* Data management */}
       <section aria-labelledby="data-settings">
         <div className="flex items-center gap-2 mb-4">

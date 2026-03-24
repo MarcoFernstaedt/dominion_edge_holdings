@@ -733,6 +733,7 @@ function SentinelOperatorPanel() {
   const tasks = useAppStore((s) => s.tasks);
   const boardCandidates = useAppStore((s) => s.boardCandidates);
   const deals = useAppStore((s) => s.deals);
+  const settings = useAppStore((s) => s.settings);
 
   const today = new Date().toDateString();
   const weekAgo = new Date();
@@ -745,23 +746,32 @@ function SentinelOperatorPanel() {
   const sellerOutreachCount = interactions.filter((i) => i.direction === 'outbound' && new Date(i.createdAt) > weekAgo).length;
   const dueToday = tasks.filter((t) => t.status !== 'done' && t.status !== 'archived' && t.dueDate && new Date(t.dueDate).toDateString() === today).length;
 
+  const wakeTime = settings.operatorWakeTime || '05:00';
+  const qlaStart = settings.qlaWorkStartTime || '17:00';
+  const industry = settings.qlaPrimaryIndustry || 'Pest control';
+  const goal = settings.qlaPrimaryGoal || 'First acquisition in ~12 months. Three acquisitions in 2 years.';
+  const morningStack = settings.qlaMorningStack?.length
+    ? settings.qlaMorningStack
+    : ['Wake', 'Train', 'Affirmations', 'Read/Study', 'Plan outreach', 'Prepare evening execution block'];
+  const sprintSteps = settings.qlaSprintTemplate?.length
+    ? settings.qlaSprintTemplate
+    : [
+        '15 min — review Command Center and confirm the single win',
+        '30 min — add or qualify 10 pest control targets',
+        '45 min — send board or seller outreach and log it',
+        '30 min — advance one task, follow-up, or underwriting item',
+      ];
+
   const topActions = [
     { label: 'Build board strength', detail: boardReadyCount > 0 ? `${boardReadyCount} warm board candidates in motion` : 'No warm board candidates yet — start outreach' },
-    { label: 'Increase sourcing volume', detail: targetCount > 0 ? `${targetCount} total targets tracked` : 'No targets loaded — sourcing must start' },
+    { label: 'Increase sourcing volume', detail: targetCount > 0 ? `${targetCount} total ${industry.toLowerCase()} targets tracked` : `No ${industry.toLowerCase()} targets loaded — sourcing must start` },
     { label: 'Advance live opportunities', detail: activeDeals > 0 ? `${activeDeals} active deal${activeDeals !== 1 ? 's' : ''} need momentum` : 'No active deals yet — fill the pipeline' },
   ];
 
-  const sprintSteps = [
-    '15 min — review Command Center and confirm today\'s single win',
-    '30 min — add or qualify 10 pest control targets',
-    '45 min — send board or seller outreach and log it',
-    '30 min — advance one task, follow-up, or underwriting item',
-  ];
-
   const scorecard = [
-    { label: 'Board outreach / week', current: boardOutreachCount, target: 10 },
-    { label: 'Seller outreach / week', current: sellerOutreachCount, target: 25 },
-    { label: 'Targets tracked', current: targetCount, target: 100 },
+    { label: 'Board outreach / week', current: boardOutreachCount, target: settings.qlaBoardOutreachWeeklyTarget || 10 },
+    { label: 'Seller outreach / week', current: sellerOutreachCount, target: settings.qlaSellerOutreachWeeklyTarget || 25 },
+    { label: 'Targets tracked', current: targetCount, target: settings.qlaTargetCountGoal || 100 },
     { label: 'Tasks due today', current: dueToday, target: 0 },
   ];
 
@@ -771,14 +781,31 @@ function SentinelOperatorPanel() {
         <div>
           <div className="text-[10px] tracking-[0.12em] uppercase text-[#C9A227] mb-1.5">Sentinel Operator Layer</div>
           <h2 className="font-serif text-[22px] font-semibold text-[#E5E5E5] leading-snug">Daily QLA Command Brief</h2>
-          <p className="text-sm text-[#737373] mt-1">Phase-one operating rhythm for first acquisition execution.</p>
+          <p className="text-sm text-[#737373] mt-1">Wake {wakeTime} · QLA block starts {qlaStart} · Focus: {industry}</p>
         </div>
         <Badge variant="warning" size="sm">Phase 1</Badge>
       </div>
 
-      <div className="bg-[#0F0F10] border border-[#262626] rounded-[10px] px-4 py-3">
-        <div className="text-[10px] tracking-[0.12em] uppercase text-[#C9A22799] mb-1.5">Affirmation</div>
-        <p className="font-serif italic text-[#A3A3A3] leading-relaxed">I move first, build credibility fast, and create acquisition momentum every day.</p>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="bg-[#0F0F10] border border-[#262626] rounded-[10px] px-4 py-3">
+          <div className="text-[10px] tracking-[0.12em] uppercase text-[#C9A22799] mb-1.5">Current Goal</div>
+          <p className="text-sm text-[#A3A3A3] leading-relaxed">{goal}</p>
+        </div>
+        <div className="bg-[#0F0F10] border border-[#262626] rounded-[10px] px-4 py-3">
+          <div className="text-[10px] tracking-[0.12em] uppercase text-[#C9A22799] mb-1.5">Affirmation</div>
+          <p className="font-serif italic text-[#A3A3A3] leading-relaxed">I move first, build credibility fast, and create acquisition momentum every day.</p>
+        </div>
+      </div>
+
+      <div>
+        <div className="text-[11px] font-semibold tracking-[0.12em] uppercase text-[#C9A227] mb-2">Morning Stack</div>
+        <div className="flex flex-wrap gap-2">
+          {morningStack.map((item) => (
+            <span key={item} className="text-[11px] px-2.5 py-1 rounded bg-[#0F0F10] border border-[#262626] text-[#A3A3A3]">
+              {item}
+            </span>
+          ))}
+        </div>
       </div>
 
       <div>
