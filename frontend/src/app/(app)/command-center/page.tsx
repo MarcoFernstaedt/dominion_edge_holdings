@@ -19,7 +19,7 @@ import {
   MessageSquare, UserCheck, Radar, BookOpen, TrendingUp,
   Settings2, Pencil, Trash2, Check, X as XIcon,
 } from 'lucide-react';
-import { sourcingRadarApi, meetingPrepApi, dealProbabilityApi } from '@/lib/api';
+import { performanceSystemsApi } from '@/lib/api';
 import { smoothScrollTo, navigateWithScroll } from '@/lib/scrollTo';
 import { useScrollTarget } from '@/hooks/useScrollTarget';
 import { ConversationKPIWidget } from '@/components/modules/ConversationKPIWidget';
@@ -28,8 +28,6 @@ import type {
   DealVelocityEntry, ConversationFunnel, FrequencyProgress,
   Deal, EmailThread, BoardCandidate, ChecklistPhase, Company,
 } from '@/lib/types';
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -608,12 +606,17 @@ function PipelinePressurePanel() {
   const [data, setData] = useState<PipelinePressureMetrics | null>(null);
   const [scanning, setScanning] = useState(false);
 
-  useEffect(() => { fetch(`${API_BASE}/api/pipeline-pressure`, { credentials: 'include' }).then((r) => r.json()).then(setData).catch(() => {}); }, []);
+  useEffect(() => {
+    performanceSystemsApi.getPipelinePressure().then(setData).catch(() => {});
+  }, []);
 
   async function scan() {
     setScanning(true);
-    try { const r = await fetch(`${API_BASE}/api/pipeline-pressure/scan`, { method: 'POST', credentials: 'include' }); setData(await r.json()); }
-    finally { setScanning(false); }
+    try {
+      setData(await performanceSystemsApi.scanPipelinePressure());
+    } finally {
+      setScanning(false);
+    }
   }
 
   return (
@@ -641,7 +644,9 @@ function PipelinePressurePanel() {
 function DealVelocityPanel() {
   const [data, setData] = useState<{ deals: DealVelocityEntry[]; slowMovingCount: number } | null>(null);
 
-  useEffect(() => { fetch(`${API_BASE}/api/deal-velocity`, { credentials: 'include' }).then((r) => r.json()).then(setData).catch(() => {}); }, []);
+  useEffect(() => {
+    performanceSystemsApi.getDealVelocity().then(setData).catch(() => {});
+  }, []);
 
   return (
     <section>
@@ -683,9 +688,12 @@ function ConversationFunnelPanel() {
 
   useEffect(() => {
     Promise.all([
-      fetch(`${API_BASE}/api/conversation-funnel`, { credentials: 'include' }).then((r) => r.json()),
-      fetch(`${API_BASE}/api/frequency-progress`,  { credentials: 'include' }).then((r) => r.json()),
-    ]).then(([f, p]) => { setFunnel(f); setFreq(p); }).catch(() => {});
+      performanceSystemsApi.getConversationFunnel(),
+      performanceSystemsApi.getFrequencyProgress(),
+    ]).then(([f, p]) => {
+      setFunnel(f);
+      setFreq(p);
+    }).catch(() => {});
   }, []);
 
   const steps = funnel ? [
@@ -785,6 +793,108 @@ function SellerSignalsPanel() {
           </ul>
         )}
     </section>
+  );
+}
+
+function DriftRadarPanel({
+  boardOutreachCount,
+  sellerOutreachCount,
+  targetCount,
+  activeDeals,
+  dueToday,
+}: {
+  boardOutreachCount: number;
+  sellerOutreachCount: number;
+  targetCount: number;
+  activeDeals: number;
+  dueToday: number;
+}) {
+  const tasks = useAppStore((s) => s.tasks);
+  const deals = useAppStore((s) => s.deals);
+  const dailyBriefings = useAppStore((s) => s.dailyBriefings);
+  const accountabilityLog = useAppStore((s) => s.accountabilityLog);
+  const companies = useAppStore((s) => s.companies);
+
+  const todayKey = new Date().toDateString();
+  const weekAgo = new Date();
+  weekAgo.setDate(weekAgo.getDate() - 7);
+
+  const hasBriefingToday = dailyBriefings.some((entry) => new Date(entry.createdAt).toDateString() === todayKey);
+  const hasAccountabilityToday = accountabilityLog.some((entry) => new Date(entry.createdAt).toDateString() === todayKey);
+  const newTargetsThisWeek = companies.filter((company) => new Date(company.createdAt) > weekAgo).length;
+  const overdueTasks = tasks.filter((task) => task.status !== 'done' && task.status !== 'archived' && task.dueDate && new Date(task.dueDate) < new Date()).length;
+  const stalledDeals = deals.filter((deal) => deal.status === 'stalled' || (deal.updatedAt && daysSince(deal.updatedAt) > 7)).length;
+
+  const checks = [
+    {
+      label: 'Board-first discipline',
+      detail: boardOutreachCount > 0 ? `${boardOutreachCount} board touches in the last 7 days` : 'No board touches logged in the last 7 days',
+      state: boardOutreachCount > 0 ? 'healthy' : 'critical',
+    },
+    {
+      label: 'Sourcing engine',
+      detail: sellerOutreachCount > 0 || newTargetsThisWeek > 0
+        ? `${sellerOutreachCount} seller touches · ${newTargetsThisWeek} new targets this week`
+        : 'No seller touches or new targets logged this week',
+      state: sellerOutreachCount > 0 || newTargetsThisWeek > 0 ? 'healthy' : 'critical',
+    },
+    {
+      label: 'Daily operator routine',
+      detail: hasBriefingToday && hasAccountabilityToday
+        ? 'Today has both a saved brief and accountability check-in'
+        : hasBriefingToday || hasAccountabilityToday
+        ? 'Only one of today’s operator check-ins is logged'
+        : 'No operator brief or accountability check-in logged today',
+      state: hasBriefingToday && hasAccountabilityToday ? 'healthy' : hasBriefingToday || hasAccountabilityToday ? 'warning' : 'critical',
+    },
+    {
+      label: 'Pipeline movement',
+      detail: activeDeals > 0
+        ? `${activeDeals} active deals · ${stalledDeals} stalled · ${dueToday} due today`
+        : targetCount > 0
+        ? `${targetCount} targets tracked, but no active deals yet`
+        : 'No targets or active deals in motion',
+      state: activeDeals > 0 && stalledDeals === 0 ? 'healthy' : activeDeals > 0 || targetCount > 0 ? 'warning' : 'critical',
+    },
+    {
+      label: 'Task discipline',
+      detail: overdueTasks === 0 ? 'No overdue tasks right now' : `${overdueTasks} overdue task${overdueTasks !== 1 ? 's' : ''} dragging execution`,
+      state: overdueTasks === 0 ? 'healthy' : overdueTasks <= 3 ? 'warning' : 'critical',
+    },
+  ] as const;
+
+  const redFlags = checks.filter((check) => check.state === 'critical').length;
+  const warnings = checks.filter((check) => check.state === 'warning').length;
+  const score = Math.max(0, 100 - (redFlags * 25) - (warnings * 10));
+  const tone = redFlags > 0 ? 'critical' : warnings > 0 ? 'warning' : 'healthy';
+  const toneStyles = {
+    healthy: { border: '#4CAF5060', text: '#4CAF50', badge: 'Locked in' },
+    warning: { border: '#E6A23C60', text: '#E6A23C', badge: 'Watch drift' },
+    critical: { border: '#D6454560', text: '#D64545', badge: 'Drift active' },
+  } as const;
+
+  return (
+    <div className="bg-[#0F0F10] border rounded-[10px] p-4 space-y-3" style={{ borderColor: toneStyles[tone].border }}>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="text-[10px] tracking-[0.12em] uppercase mb-1" style={{ color: toneStyles[tone].text }}>Anti-Drift Radar</div>
+          <div className="text-sm font-medium text-[#E5E5E5]">QLA enforcement score · {score}/100</div>
+        </div>
+        <Badge variant={tone === 'healthy' ? 'success' : tone === 'warning' ? 'warning' : 'danger'} size="sm">{toneStyles[tone].badge}</Badge>
+      </div>
+
+      <ul className="space-y-2">
+        {checks.map((check) => (
+          <li key={check.label} className="bg-[#111111] border border-[#262626] rounded-[8px] px-3 py-2.5">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-sm text-[#E5E5E5]">{check.label}</span>
+              <span className="text-[10px] uppercase tracking-[0.12em]" style={{ color: check.state === 'healthy' ? '#4CAF50' : check.state === 'warning' ? '#E6A23C' : '#D64545' }}>{check.state}</span>
+            </div>
+            <div className="text-xs text-[#737373] mt-1">{check.detail}</div>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 
@@ -902,6 +1012,14 @@ function SentinelOperatorPanel() {
           <p className="font-serif italic text-[#A3A3A3] leading-relaxed">I move first, build credibility fast, and create acquisition momentum every day.</p>
         </div>
       </div>
+
+      <DriftRadarPanel
+        boardOutreachCount={boardOutreachCount}
+        sellerOutreachCount={sellerOutreachCount}
+        targetCount={targetCount}
+        activeDeals={activeDeals}
+        dueToday={dueToday}
+      />
 
       <div>
         <div className="text-[11px] font-semibold tracking-[0.12em] uppercase text-[#C9A227] mb-2">{isEveningMode ? 'Morning Foundation' : 'Morning Stack'}</div>
