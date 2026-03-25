@@ -442,7 +442,8 @@ export type DocumentType =
   | 'deal_memo'
   | 'diligence_checklist'
   | 'board_update'
-  | 'post_acquisition_plan';
+  | 'post_acquisition_plan'
+  | 'checklist_evidence';
 
 export type DocumentStatus = 'draft' | 'approved' | 'sent' | 'signed' | 'archived';
 

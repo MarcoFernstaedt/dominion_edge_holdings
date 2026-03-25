@@ -1,13 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import Link from 'next/link';
 import { useAppStore } from '@/lib/store';
 import { cn, generateId, nowIso, formatDate, statusLabel } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
 import { Badge, StatusBadge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
 import { Input, Select, Textarea } from '@/components/ui/Input';
-import { FileText, Plus, Download, Eye } from 'lucide-react';
+import { FileText, Plus, Download, Eye, CheckSquare, ArrowRight } from 'lucide-react';
 import type { Document, DocumentType, DocumentStatus } from '@/lib/types';
 import { useFormField } from '@/hooks/useFormField';
 
@@ -22,6 +23,7 @@ const DOC_TYPES: { value: DocumentType; label: string }[] = [
   { value: 'diligence_checklist', label: 'Diligence Checklist' },
   { value: 'board_update', label: 'Board Update' },
   { value: 'post_acquisition_plan', label: 'Post-Acquisition Plan' },
+  { value: 'checklist_evidence', label: 'Checklist Evidence' },
 ];
 
 const LOI_TEMPLATE = String.raw`LETTER OF INTENT
@@ -233,9 +235,23 @@ function DocumentView({ doc, onClose }: { doc: Document; onClose: () => void }) 
 
 export default function DocumentsPage() {
   const documents = useAppStore((s) => s.documents);
+  const checklistPhases = useAppStore((s) => s.checklistPhases);
   const addDocument = useAppStore((s) => s.addDocument);
   const [showLOI, setShowLOI] = useState(false);
   const [viewDoc, setViewDoc] = useState<Document | null>(null);
+
+  const checklistItemsById = useMemo(
+    () => Object.fromEntries(checklistPhases.flatMap((phase) => phase.items.map((item) => [item.id, { item, phase }] as const))),
+    [checklistPhases],
+  );
+  const checklistDocuments = useMemo(
+    () => documents.filter((doc) => doc.entityType === 'checklist_item'),
+    [documents],
+  );
+  const otherDocuments = useMemo(
+    () => documents.filter((doc) => doc.entityType !== 'checklist_item'),
+    [documents],
+  );
 
   return (
     <div className="page-container space-y-6">
@@ -254,15 +270,78 @@ export default function DocumentsPage() {
         All generated documents are template drafts. Attorney review is required before any legal or business use.
       </div>
 
+      <section className="bg-[#141414] border border-[#2A2A2E] rounded-xl p-5 space-y-4">
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div>
+            <div className="flex items-center gap-2 text-[10px] tracking-widest uppercase text-[#C9A227] font-semibold">
+              <CheckSquare size={12} aria-hidden /> Checklist evidence hub
+            </div>
+            <h2 className="text-lg font-semibold text-[#E8E6E3] mt-1">One place for checklist submissions and support docs</h2>
+            <p className="text-sm text-[#A7A29A] mt-1 max-w-3xl">
+              Every graded checklist submission is mirrored here automatically so the operator can review evidence without hunting through individual checklist cards.
+            </p>
+          </div>
+          <Link href="/checklist" className="inline-flex items-center gap-2 text-sm text-[#C9A227] hover:text-[#E0B93B] transition-colors">
+            Open checklist <ArrowRight size={14} aria-hidden />
+          </Link>
+        </div>
+
+        {checklistDocuments.length === 0 ? (
+          <div className="rounded-md border border-dashed border-[#2A2A2E] px-4 py-5 text-sm text-[#A7A29A]">
+            No checklist evidence yet. Submit work from the checklist and it will centralize here automatically.
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {checklistDocuments.map((doc) => {
+              const linked = doc.entityId ? checklistItemsById[doc.entityId] : undefined;
+              return (
+                <div key={doc.id} className="bg-[#101010] border border-[#2A2A2E] rounded-md px-4 py-3 flex items-center justify-between gap-4 hover:border-[#3A3A3E]">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <CheckSquare size={16} className="text-[#C9A227] flex-shrink-0" aria-hidden />
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium text-[#E8E6E3] truncate">{doc.title}</div>
+                      <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                        <StatusBadge status={doc.status} />
+                        <span className="text-xs text-[#A7A29A]">{statusLabel(doc.documentType)}</span>
+                        {linked && <span className="text-xs text-[#A7A29A]">{linked.phase.name}</span>}
+                        <span className="text-xs text-[#A7A29A]">v{doc.version}</span>
+                        <span className="text-xs text-[#A7A29A]">{formatDate(doc.updatedAt)}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    {doc.entityId && (
+                      <Link href={`/checklist#checklist-item-${doc.entityId}`} className="text-xs text-[#A7A29A] hover:text-[#E8E6E3] transition-colors">
+                        View item
+                      </Link>
+                    )}
+                    <Button variant="ghost" size="sm" onClick={() => setViewDoc(doc)}>
+                      <Eye size={13} aria-hidden />
+                      View
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
       {documents.length === 0 ? (
         <div className="bg-[#141414] border border-[#2A2A2E] rounded-md p-12 text-center">
           <FileText size={32} className="mx-auto text-[#A7A29A] mb-3" aria-hidden />
           <p className="text-sm text-[#A7A29A] mb-3">No documents yet. Generate your first LOI.</p>
           <Button variant="primary" onClick={() => setShowLOI(true)}>Generate LOI Draft</Button>
         </div>
+      ) : otherDocuments.length === 0 ? (
+        <div className="bg-[#141414] border border-[#2A2A2E] rounded-md p-12 text-center">
+          <FileText size={32} className="mx-auto text-[#A7A29A] mb-3" aria-hidden />
+          <p className="text-sm text-[#A7A29A] mb-3">No general documents yet. Generate an LOI or keep using the checklist evidence hub above.</p>
+          <Button variant="primary" onClick={() => setShowLOI(true)}>Generate LOI Draft</Button>
+        </div>
       ) : (
         <div className="space-y-2">
-          {documents.map((doc) => (
+          {otherDocuments.map((doc) => (
             <div key={doc.id} className="bg-[#141414] border border-[#2A2A2E] rounded-md px-4 py-3 flex items-center justify-between gap-4 hover:border-[#3A3A3E]">
               <div className="flex items-center gap-3 min-w-0">
                 <FileText size={16} className="text-[#A7A29A] flex-shrink-0" aria-hidden />

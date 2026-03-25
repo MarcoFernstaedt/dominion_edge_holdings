@@ -38,6 +38,7 @@ import type {
 import { CHECKLIST_PHASES } from '@/data/checklistData';
 import { DEFAULT_BOARD_SEATS } from '@/data/boardSeats';
 import { SYSTEM_TEMPLATES } from '@/data/outreachTemplates';
+import { generateId, nowIso } from './utils';
 import { AFFIRMATIONS as DEFAULT_AFFIRMATIONS } from '@/data/affirmations';
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -180,28 +181,77 @@ export const useAppStore = create<AppState>()(
         })),
 
       submitChecklistItem: (phaseId: string, itemId: ID, submission: ChecklistSubmission) =>
-        set((s) => ({
-          checklistPhases: s.checklistPhases.map((phase) =>
-            phase.id === phaseId
-              ? {
-                  ...phase,
-                  items: phase.items.map((item) =>
-                    item.id === itemId
-                      ? {
-                          ...item,
-                          submission,
-                          // Auto-mark complete when grade passes
-                          isComplete: submission.grade?.passed ? true : item.isComplete,
-                          completedAt: submission.grade?.passed && !item.isComplete
-                            ? new Date().toISOString()
-                            : item.completedAt,
-                        }
-                      : item
-                  ),
-                }
-              : phase
-          ),
-        })),
+        set((s) => {
+          const phase = s.checklistPhases.find((entry) => entry.id === phaseId);
+          const item = phase?.items.find((entry) => entry.id === itemId);
+          const timestamp = nowIso();
+          const evidenceTitle = item ? `${phase?.name ?? 'Checklist'} — ${item.title}` : `Checklist Evidence — ${itemId}`;
+          const evidenceBody = [
+            item ? `Checklist item: ${item.title}` : null,
+            phase ? `Phase: ${phase.name}` : null,
+            submission.grade ? `Grade: ${submission.grade.score}/100 · ${submission.grade.level}${submission.grade.passed ? ' · passed' : ' · revisions required'}` : null,
+            submission.fileName ? `Attachment noted: ${submission.fileName}` : null,
+            '',
+            submission.text?.trim() ?? '',
+          ]
+            .filter(Boolean)
+            .join('\n');
+
+          const existingEvidence = s.documents.find(
+            (doc) => doc.entityType === 'checklist_item' && doc.entityId === itemId,
+          );
+          const nextStatus: Document['status'] = submission.grade?.passed ? 'approved' : 'draft';
+
+          const nextDocument: Document = existingEvidence
+            ? {
+                ...existingEvidence,
+                title: evidenceTitle,
+                content: evidenceBody,
+                status: nextStatus,
+                version: existingEvidence.version + 1,
+                updatedAt: timestamp,
+              }
+            : {
+                id: generateId(),
+                entityType: 'checklist_item',
+                entityId: itemId,
+                documentType: 'checklist_evidence',
+                title: evidenceTitle,
+                content: evidenceBody,
+                status: nextStatus,
+                version: 1,
+                source: 'checklist_submission',
+                generatedBy: 'operator',
+                createdAt: timestamp,
+                updatedAt: timestamp,
+              };
+
+          return {
+            checklistPhases: s.checklistPhases.map((phaseEntry) =>
+              phaseEntry.id === phaseId
+                ? {
+                    ...phaseEntry,
+                    items: phaseEntry.items.map((itemEntry) =>
+                      itemEntry.id === itemId
+                        ? {
+                            ...itemEntry,
+                            submission,
+                            // Auto-mark complete when grade passes
+                            isComplete: submission.grade?.passed ? true : itemEntry.isComplete,
+                            completedAt: submission.grade?.passed && !itemEntry.isComplete
+                              ? timestamp
+                              : itemEntry.completedAt,
+                          }
+                        : itemEntry,
+                    ),
+                  }
+                : phaseEntry,
+            ),
+            documents: existingEvidence
+              ? s.documents.map((doc) => (doc.id === existingEvidence.id ? nextDocument : doc))
+              : [nextDocument, ...s.documents],
+          };
+        }),
 
       // ── Tasks ──────────────────────────────────────────────────────────────
       tasks: [],
