@@ -1,4 +1,3 @@
-import Anthropic   from '@anthropic-ai/sdk';
 import { z }       from 'zod';
 import store       from '../store.js';
 import IntegrationRegistry         from '../../services/IntegrationRegistry.js';
@@ -11,8 +10,7 @@ import { errorResponse }   from '../middleware/errorResponse.js';
 import { uid, nowIso, findById, getSafeModel } from '../lib/helpers.js';
 import { MeetingSchema }   from '../../schemas/index.js';
 import { DEH_SYSTEM_PROMPT } from '../config/constants.js';
-
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+import { createAnthropicMessage } from '../lib/aiClient.js';
 
 // ─── Calendar sync helpers ────────────────────────────────────────────────────
 
@@ -156,7 +154,7 @@ export async function generateAgenda(req, res) {
     const meeting = findById(store.meetings, req.params.id);
     if (!meeting) return errorResponse(res, 404, 'NOT_FOUND', 'Meeting not found');
     const linkedCompany = meeting.linkedCompanyId ? findById(store.companies, meeting.linkedCompanyId) : null;
-    const message = await anthropic.messages.create({
+    const message = await createAnthropicMessage({
       model: getSafeModel(store.settings), max_tokens: 512, system: DEH_SYSTEM_PROMPT,
       messages: [{ role: 'user', content: `Generate a concise meeting agenda for a ${(meeting.meetingType||'').replace(/_/g,' ')} call.\nTitle: ${meeting.title}\nCompany: ${linkedCompany?.name || 'Not specified'}\nDuration: ${meeting.durationMinutes} minutes\nNotes: ${meeting.meetingNotes || 'None'}\n\nReturn a numbered list of agenda items only. Be specific and actionable.` }],
     });

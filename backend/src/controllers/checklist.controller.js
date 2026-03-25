@@ -1,9 +1,10 @@
-import Anthropic          from '@anthropic-ai/sdk';
 import { z }              from 'zod';
 import store               from '../store.js';
+import env                 from '../config/env.js';
 import { validate }        from '../middleware/validate.js';
 import { errorResponse }   from '../middleware/errorResponse.js';
 import { nowIso, getSafeModel } from '../lib/helpers.js';
+import { createAnthropicMessage } from '../lib/aiClient.js';
 
 // ─── List / complete ──────────────────────────────────────────────────────────
 
@@ -44,7 +45,7 @@ const GradeSchema = z.object({
 export const gradeSubmissionValidate = validate(GradeSchema);
 
 export async function gradeSubmission(req, res) {
-  if (!process.env.ANTHROPIC_API_KEY) {
+  if (!env.ANTHROPIC_API_KEY) {
     return errorResponse(res, 503, 'AI_UNAVAILABLE', 'AI grading requires ANTHROPIC_API_KEY');
   }
 
@@ -79,8 +80,7 @@ Scoring guide:
 Be Peña-level demanding. Do not pass mediocre work.`;
 
   try {
-    const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-    const message   = await anthropic.messages.create({
+    const message = await createAnthropicMessage({
       model:      getSafeModel(store.settings),
       max_tokens: 700,
       system,

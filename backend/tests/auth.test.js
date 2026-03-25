@@ -194,4 +194,25 @@ describe('Cookie security', () => {
     // Whether 401 or 503, no token should be in the body
     expect(JSON.stringify(res.body)).not.toMatch(/eyJ/); // JWT header prefix
   });
+
+  it('blocks unsafe cookie-authenticated requests without a trusted origin', async () => {
+    const res = await request(app)
+      .post('/api/auth/logout')
+      .set('Cookie', ['deh_token=test-session'])
+      .send({});
+
+    expect(res.status).toBe(403);
+    expect(res.body.error.code).toBe('CSRF_BLOCKED');
+  });
+
+  it('allows unsafe cookie-authenticated requests from a trusted origin', async () => {
+    const res = await request(app)
+      .post('/api/auth/logout')
+      .set('Origin', 'http://localhost:3000')
+      .set('Cookie', ['deh_token=test-session'])
+      .send({});
+
+    expect(res.status).toBe(200);
+    expect(res.body.ok).toBe(true);
+  });
 });

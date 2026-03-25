@@ -55,6 +55,24 @@ import monitoringRouter    from './routes/monitoring.routes.js';
 
 // ─── App ──────────────────────────────────────────────────────────────────────
 const app = express();
+const UNSAFE_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
+
+function extractTrustedOrigin(req) {
+  const candidate = req.headers.origin || req.headers.referer;
+  if (!candidate) return null;
+
+  try {
+    return new URL(candidate).origin;
+  } catch {
+    return null;
+  }
+}
+
+function isCookieAuthenticatedRequest(req) {
+  const hasSessionCookie = Boolean(req.cookies?.deh_token);
+  const hasBearerToken = typeof req.headers.authorization === 'string' && req.headers.authorization.startsWith('Bearer ');
+  return hasSessionCookie && !hasBearerToken;
+}
 
 // Security headers
 app.use(
@@ -96,6 +114,24 @@ app.use(compression());
 app.use(express.json({ limit: '512kb' }));
 app.use(express.urlencoded({ extended: false, limit: '128kb' }));
 app.use(cookieParser());
+
+app.use((req, res, next) => {
+  if (!UNSAFE_METHODS.has(req.method) || !isCookieAuthenticatedRequest(req)) {
+    return next();
+  }
+
+  const requestOrigin = extractTrustedOrigin(req);
+  if (requestOrigin && ALLOWED_ORIGINS.includes(requestOrigin)) {
+    return next();
+  }
+
+  return res.status(403).json({
+    error: {
+      code: 'CSRF_BLOCKED',
+      message: 'Cross-site state-changing cookie request blocked',
+    },
+  });
+});
 
 // Request ID + structured logging
 app.use((req, res, next) => {
@@ -188,7 +224,7 @@ app.use((req, res) => {
 app.use((err, req, res, _next) => {
   const status  = err.status || err.statusCode || 500;
   const code    = err.code   || 'INTERNAL_ERROR';
-  const message = process.env.NODE_ENV === 'production' ? 'An internal error occurred' : (err.message || 'Unknown error');
+  const message = env.isProd ? 'An internal error occurred' : (err.message || 'Unknown error');
 
   if (status >= 500) {
     (req.log || logger).error({ err, reqId: req.id }, 'Unhandled error');

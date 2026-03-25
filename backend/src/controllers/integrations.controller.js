@@ -5,9 +5,8 @@ import IntegrationHealthService from '../../services/IntegrationHealthService.js
 import AuditLogService          from '../../services/AuditLogService.js';
 import VelocityService          from '../../services/VelocityService.js';
 import repo                     from '../../db/repo.js';
-import { validate }             from '../middleware/validate.js';
+import { validate, asyncRoute } from '../middleware/validate.js';
 import { errorResponse }        from '../middleware/errorResponse.js';
-import { asyncRoute }           from '../middleware/validate.js';
 import { IntegrationPatchSchema } from '../../schemas/index.js';
 
 export function listIntegrations(_req, res) {

@@ -1,10 +1,8 @@
-import Anthropic   from '@anthropic-ai/sdk';
 import store       from '../store.js';
 import { errorResponse } from '../middleware/errorResponse.js';
 import { DEH_SYSTEM_PROMPT } from '../config/constants.js';
 import { getSafeModel } from '../lib/helpers.js';
-
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+import { createAnthropicMessage } from '../lib/aiClient.js';
 
 export function getMetrics(req, res) {
   try {
@@ -68,7 +66,7 @@ export async function getBriefing(req, res) {
       activeDeals:  store.deals.filter((d) => d.status === 'active').length,
       needsReply:   store.emailThreads.filter((t) => t.needsReply).length,
     };
-    const message = await anthropic.messages.create({
+    const message = await createAnthropicMessage({
       model:      getSafeModel(store.settings),
       max_tokens: 512,
       system:     DEH_SYSTEM_PROMPT,

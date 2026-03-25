@@ -1,9 +1,7 @@
-import Anthropic   from '@anthropic-ai/sdk';
 import { DEH_SYSTEM_PROMPT } from '../config/constants.js';
 import store from '../store.js';
 import { getSafeModel } from '../lib/helpers.js';
-
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+import { streamAnthropicMessages } from '../lib/aiClient.js';
 
 export async function chat(req, res) {
   const { messages, system } = req.validated;
@@ -19,7 +17,7 @@ export async function chat(req, res) {
   }, 60000);
 
   try {
-    const stream = anthropic.messages.stream({
+    const stream = streamAnthropicMessages({
       model:      getSafeModel(store.settings),
       max_tokens: 2048,
       system:     system || DEH_SYSTEM_PROMPT,
