@@ -212,6 +212,9 @@ POST   /api/quick-action/approve-and-send
 
 ## Setup
 
+> Status note: see `DB_SETUP_STATUS.md` for the current machine-specific database blocker and `AFFIRMATION_REMINDER_STATUS.md` for the workspace-level reminder delivery note.
+
+
 ### Prerequisites
 
 - Node.js 20+
