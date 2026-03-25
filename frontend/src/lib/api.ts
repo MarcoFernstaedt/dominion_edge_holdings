@@ -104,10 +104,118 @@ export interface DashboardMetrics {
   needsReply: number;
 }
 
+export interface CommandCenterSystemStatus {
+  generatedAt: string;
+  app: {
+    status: 'ok' | 'watch' | 'degraded' | string;
+    uptimeSeconds: number;
+    environment: string;
+    version: string | null;
+    checks: {
+      dataLoaded: {
+        companies: number;
+        deals: number;
+        tasks: number;
+        notifications: number;
+      };
+      automation: {
+        registeredJobs: number;
+        runningJobs: number;
+        jobsTouchedLastHour: number;
+        failedRunsLastHour: number;
+      };
+    };
+  };
+  vps: {
+    available: boolean;
+    hostname: string | null;
+    platform: string | null;
+    uptimeSeconds: number | null;
+    loadAverage1m: number | null;
+    memory: {
+      usedBytes: number;
+      freeBytes: number;
+      totalBytes: number;
+      usedPercent: number | null;
+    } | null;
+    node: {
+      version: string;
+      pid: number;
+      rssBytes: number;
+      heapUsedBytes: number;
+      heapTotalBytes: number;
+    };
+  };
+  codexSession: {
+    available: boolean;
+    status: string;
+    note: string;
+  };
+  workforce: {
+    registeredAgents: number;
+    agentsActiveLastHour: number;
+    agentRunsLastHour: number;
+    activeWorkNowApprox: number;
+    subagents: {
+      available: boolean;
+      note: string;
+    };
+    agents: Array<{
+      agentName: string;
+      latestTask: string;
+      lastRunAt: string;
+      modelUsed: string | null;
+      status: string;
+      fallbackUsed: boolean;
+      runCount: number;
+    }>;
+    jobs: Array<{
+      id: string;
+      name: string;
+      running: boolean;
+      enabled: boolean;
+      lastRun: string | null;
+      recentRuns: Array<{
+        runId: string;
+        status: string;
+        startedAt: string;
+        durationMs: number;
+        error?: string;
+      }>;
+    }>;
+  };
+  ai: {
+    totalRuns: number;
+    failureRate: number;
+    fallbackRate: number;
+    cacheHitRate: number;
+    recentRuns: Array<{
+      runId: string;
+      agentName: string;
+      taskType: string;
+      modelUsed: string;
+      createdAt: string;
+      latencyMs: number;
+      estimatedCost: number;
+      status: string;
+      fallbackUsed: boolean;
+      cached: boolean;
+    }>;
+  };
+  integrations: {
+    available: boolean;
+    checkedAt: string | null;
+    connected: number;
+    degraded: number;
+    items: Array<Record<string, unknown>>;
+  };
+}
+
 export const dashboardApi = {
   getMetrics: () => api.get<DashboardMetrics>('/api/dashboard/metrics'),
   getNextActions: () => api.get<unknown[]>('/api/dashboard/next-actions'),
   getBriefing: () => api.get<{ briefing: string | null }>('/api/dashboard/briefing'),
+  getSystemStatus: () => api.get<CommandCenterSystemStatus>('/api/dashboard/system-status'),
 };
 
 export const checklistApi = {

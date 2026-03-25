@@ -18,8 +18,9 @@ import {
   Bell, Zap, Activity, Flame, BarChart2, TrendingDown,
   MessageSquare, UserCheck, Radar, BookOpen, TrendingUp,
   Settings2, Pencil, Trash2, Check, X as XIcon,
+  Server, Cpu, MemoryStick, Bot, Workflow, RefreshCw,
 } from 'lucide-react';
-import { performanceSystemsApi } from '@/lib/api';
+import { dashboardApi, performanceSystemsApi } from '@/lib/api';
 import { smoothScrollTo, navigateWithScroll } from '@/lib/scrollTo';
 import { useScrollTarget } from '@/hooks/useScrollTarget';
 import { ConversationKPIWidget } from '@/components/modules/ConversationKPIWidget';
@@ -60,6 +61,28 @@ function getActionDestination(action: NextBestAction): { route: string; scrollId
     default:
       return { route: '/checklist', scrollId: 'section-checklist' };
   }
+}
+
+function formatDurationCompact(totalSeconds?: number | null) {
+  if (totalSeconds == null) return '—';
+  const days = Math.floor(totalSeconds / 86400);
+  const hours = Math.floor((totalSeconds % 86400) / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  if (days > 0) return `${days}d ${hours}h`;
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  return `${minutes}m`;
+}
+
+function formatBytes(bytes?: number | null) {
+  if (bytes == null || Number.isNaN(bytes)) return '—';
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  let value = bytes;
+  let unitIndex = 0;
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024;
+    unitIndex += 1;
+  }
+  return `${value >= 10 || unitIndex === 0 ? value.toFixed(0) : value.toFixed(1)} ${units[unitIndex]}`;
 }
 
 function generateNextBestActions(
@@ -950,6 +973,127 @@ function DriftRadarPanel({
   );
 }
 
+function SystemStatusPanel() {
+  const [data, setData] = useState<Awaited<ReturnType<typeof dashboardApi.getSystemStatus>> | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  async function load() {
+    setRefreshing(true);
+    try {
+      setData(await dashboardApi.getSystemStatus());
+    } finally {
+      setRefreshing(false);
+    }
+  }
+
+  useEffect(() => {
+    load().catch(() => {});
+  }, []);
+
+  return (
+    <section className="bg-[#111111] border border-[#262626] rounded-[10px] p-5 space-y-5">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <div className="text-[10px] tracking-[0.12em] uppercase text-[#C9A227] mb-1.5">System Status</div>
+          <h2 className="font-serif text-[22px] font-semibold text-[#E5E5E5] leading-snug">Command Center Runtime Surface</h2>
+          <p className="text-sm text-[#737373] mt-1">App health, VPS telemetry, AI activity, automation state, and available workforce visibility.</p>
+        </div>
+        <Button variant="ghost" size="sm" onClick={() => load()} disabled={refreshing}>
+          <RefreshCw size={13} aria-hidden className={cn(refreshing && 'animate-spin')} />
+          {refreshing ? 'Refreshing…' : 'Refresh'}
+        </Button>
+      </div>
+
+      {!data ? <Skeleton className="h-48" /> : (
+        <>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <StatCard label="App Status" value={data.app.status.toUpperCase()} sub={`${data.app.environment} · up ${formatDurationCompact(data.app.uptimeSeconds)}`} valueColor={data.app.status === 'ok' ? 'success' : 'warning'} />
+            <StatCard label="VPS Load" value={data.vps.loadAverage1m ?? '—'} sub={data.vps.hostname || 'host'} valueColor={data.vps.loadAverage1m != null && data.vps.loadAverage1m >= 2 ? 'warning' : 'gold'} />
+            <StatCard label="Agents Active" value={data.workforce.agentsActiveLastHour} sub={`${data.workforce.agentRunsLastHour} runs last hour`} valueColor={data.workforce.agentsActiveLastHour > 0 ? 'success' : 'default'} />
+            <StatCard label="Work Now" value={data.workforce.activeWorkNowApprox} sub="recent AI + running jobs" valueColor={data.workforce.activeWorkNowApprox > 0 ? 'success' : 'default'} />
+          </div>
+
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+            <div className="space-y-4">
+              <div className="bg-[#0F0F10] border border-[#262626] rounded-[10px] p-4 space-y-3">
+                <div className="flex items-center gap-2 text-[11px] font-semibold tracking-[0.12em] uppercase text-[#C9A227]"><Server size={12} aria-hidden /> VPS + App</div>
+                <div className="grid grid-cols-2 gap-2">
+                  <StatCard label="Memory" value={data.vps.memory?.usedPercent != null ? `${data.vps.memory.usedPercent}%` : '—'} sub={data.vps.memory ? `${formatBytes(data.vps.memory.usedBytes)} / ${formatBytes(data.vps.memory.totalBytes)}` : 'Unavailable'} valueColor={data.vps.memory?.usedPercent != null && data.vps.memory.usedPercent >= 85 ? 'warning' : 'gold'} />
+                  <StatCard label="Node RSS" value={formatBytes(data.vps.node.rssBytes)} sub={`heap ${formatBytes(data.vps.node.heapUsedBytes)}`} valueColor="default" />
+                  <StatCard label="Jobs Running" value={data.app.checks.automation.runningJobs} sub={`${data.app.checks.automation.registeredJobs} registered`} valueColor={data.app.checks.automation.runningJobs > 0 ? 'success' : 'default'} />
+                  <StatCard label="Failures 1h" value={data.app.checks.automation.failedRunsLastHour} sub={`${data.app.checks.automation.jobsTouchedLastHour} jobs touched`} valueColor={data.app.checks.automation.failedRunsLastHour > 0 ? 'danger' : 'success'} />
+                </div>
+                <div className="text-xs text-[#737373]">{data.vps.platform || 'Unknown platform'} · host uptime {formatDurationCompact(data.vps.uptimeSeconds)} · Node {data.vps.node.version}</div>
+              </div>
+
+              <div className="bg-[#0F0F10] border border-[#262626] rounded-[10px] p-4 space-y-3">
+                <div className="flex items-center gap-2 text-[11px] font-semibold tracking-[0.12em] uppercase text-[#C9A227]"><Cpu size={12} aria-hidden /> AI + Session Surface</div>
+                <div className="grid grid-cols-2 gap-2">
+                  <StatCard label="AI Runs" value={data.ai.totalRuns} sub="captured in logger" valueColor="gold" />
+                  <StatCard label="Failure Rate" value={`${Math.round((data.ai.failureRate || 0) * 100)}%`} sub={`fallback ${Math.round((data.ai.fallbackRate || 0) * 100)}%`} valueColor={data.ai.failureRate > 0.1 ? 'warning' : 'success'} />
+                </div>
+                <div className="bg-[#111111] border border-[#262626] rounded-[8px] px-3 py-3">
+                  <div className="flex items-center justify-between gap-3 mb-1.5">
+                    <span className="text-sm text-[#E5E5E5]">Codex / OpenClaw session usage</span>
+                    <Badge variant={data.codexSession.available ? 'success' : 'muted'} size="sm">{data.codexSession.status}</Badge>
+                  </div>
+                  <p className="text-xs text-[#737373] leading-relaxed">{data.codexSession.note}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div className="bg-[#0F0F10] border border-[#262626] rounded-[10px] p-4 space-y-3">
+                <div className="flex items-center gap-2 text-[11px] font-semibold tracking-[0.12em] uppercase text-[#C9A227]"><Bot size={12} aria-hidden /> Agent Workforce</div>
+                <div className="grid grid-cols-3 gap-2">
+                  <StatCard label="Registered" value={data.workforce.registeredAgents} sub="known agents" />
+                  <StatCard label="Active 1h" value={data.workforce.agentsActiveLastHour} sub="by run log" valueColor={data.workforce.agentsActiveLastHour > 0 ? 'success' : 'default'} />
+                  <StatCard label="Subagents" value={data.workforce.subagents.available ? 'Live' : 'N/A'} sub="runtime integration" valueColor={data.workforce.subagents.available ? 'success' : 'warning'} />
+                </div>
+                <div className="space-y-2">
+                  {data.workforce.agents.length === 0 ? (
+                    <InlineEmpty message="No recent agent executions captured yet." />
+                  ) : data.workforce.agents.map((agent) => (
+                    <div key={agent.agentName} className="bg-[#111111] border border-[#262626] rounded-[8px] px-3 py-2.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-sm text-[#E5E5E5]">{agent.agentName}</span>
+                        <Badge variant={agent.status === 'error' ? 'danger' : agent.fallbackUsed ? 'warning' : 'success'} size="sm">
+                          {agent.status === 'error' ? 'error' : agent.fallbackUsed ? 'fallback' : 'healthy'}
+                        </Badge>
+                      </div>
+                      <div className="text-xs text-[#737373] mt-1">{agent.latestTask} · {agent.runCount} recent run{agent.runCount !== 1 ? 's' : ''} · {formatRelativeDate(agent.lastRunAt)}</div>
+                    </div>
+                  ))}
+                </div>
+                <div className="text-xs text-[#737373]">{data.workforce.subagents.note}</div>
+              </div>
+
+              <div className="bg-[#0F0F10] border border-[#262626] rounded-[10px] p-4 space-y-3">
+                <div className="flex items-center gap-2 text-[11px] font-semibold tracking-[0.12em] uppercase text-[#C9A227]"><Workflow size={12} aria-hidden /> Automation + Integrations</div>
+                <div className="grid grid-cols-2 gap-2">
+                  <StatCard label="Integrations" value={data.integrations.available ? data.integrations.connected : '—'} sub={data.integrations.available ? `${data.integrations.degraded} degraded` : 'Health job has not reported yet'} valueColor={data.integrations.degraded > 0 ? 'warning' : 'success'} />
+                  <StatCard label="Recent Jobs" value={data.workforce.jobs.length} sub={data.integrations.checkedAt ? `checked ${formatRelativeDate(data.integrations.checkedAt)}` : 'waiting for check'} valueColor="default" />
+                </div>
+                <div className="space-y-2">
+                  {data.workforce.jobs.map((job) => (
+                    <div key={job.id} className="bg-[#111111] border border-[#262626] rounded-[8px] px-3 py-2.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-sm text-[#E5E5E5]">{job.name}</span>
+                        <Badge variant={job.running ? 'info' : job.enabled ? 'success' : 'muted'} size="sm">{job.running ? 'running' : job.enabled ? 'enabled' : 'disabled'}</Badge>
+                      </div>
+                      <div className="text-xs text-[#737373] mt-1">{job.lastRun ? `Last run ${formatRelativeDate(job.lastRun)}` : 'No run recorded yet'}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+    </section>
+  );
+}
+
 function SentinelOperatorPanel() {
   const companies = useAppStore((s) => s.companies);
   const interactions = useAppStore((s) => s.interactions);
@@ -1217,6 +1361,9 @@ export default function CommandCenterPage() {
 
       {/* ── Zone 1: Hero action ─────────────────────────────────────────── */}
       {hero && <HeroAction action={hero} />}
+
+      {/* ── System status surface ──────────────────────────────────────── */}
+      <SystemStatusPanel />
 
       {/* ── Sentinel operator layer ─────────────────────────────────────── */}
       <SentinelOperatorPanel />
