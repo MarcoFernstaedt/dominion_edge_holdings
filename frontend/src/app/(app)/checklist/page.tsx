@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, useRef } from 'react';
+import { useMemo, useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { useAppStore } from '@/lib/store';
 import { checklistApi } from '@/lib/api';
@@ -261,6 +261,18 @@ function matchesTagFilter(item: ChecklistItem, filter: TagFilter) {
   return getItemTags(item).includes(filter);
 }
 
+function getNextChecklistItem(phases: ChecklistPhase[], currentItemId: string): { item: ChecklistItem; phase: ChecklistPhase } | null {
+  const flat = phases.flatMap((phase) => phase.items.map((item) => ({ phase, item })));
+  const currentIndex = flat.findIndex(({ item }) => item.id === currentItemId);
+  if (currentIndex === -1) return null;
+
+  for (let i = currentIndex + 1; i < flat.length; i += 1) {
+    if (!flat[i].item.isComplete) return flat[i];
+  }
+
+  return null;
+}
+
 function GradePanel({ grade, onRevise }: { grade: ChecklistGrade; onRevise: () => void }) {
   const cfg = GRADE_CFG[grade.level];
   const Icon = cfg.Icon;
@@ -307,9 +319,11 @@ function GradePanel({ grade, onRevise }: { grade: ChecklistGrade; onRevise: () =
 
 function SubmissionPanel({ item, phaseId, onClose }: { item: ChecklistItem; phaseId: string; onClose: () => void }) {
   const submitItem = useAppStore((s) => s.submitChecklistItem);
+  const phases = useAppStore((s) => s.checklistPhases);
   const guidelines = getGuidelines(item);
   const isFinancial = item.completionType === 'requires-financial-model';
   const existing = item.submission;
+  const nextStep = useMemo(() => getNextChecklistItem(phases, item.id), [phases, item.id]);
   const [text, setText] = useState(existing?.text ?? '');
   const [fileName, setFileName] = useState(existing?.fileName ?? '');
   const [grading, setGrading] = useState(false);
@@ -357,7 +371,47 @@ function SubmissionPanel({ item, phaseId, onClose }: { item: ChecklistItem; phas
       </div>
 
       {!showForm && item.submission?.grade && (
-        <GradePanel grade={item.submission.grade} onRevise={() => setShowForm(true)} />
+        <>
+          <GradePanel grade={item.submission.grade} onRevise={() => setShowForm(true)} />
+          {item.submission.grade.passed && (
+            <div className="rounded-md border border-[#3FA66B30] bg-[#3FA66B10] p-4 space-y-3">
+              <div className="flex items-center gap-2 text-[10px] tracking-[0.14em] uppercase font-semibold text-[#3FA66B]">
+                <CheckCircle2 size={12} aria-hidden /> Workflow closure
+              </div>
+              <p className="text-sm text-[#D5EEDA] leading-relaxed">
+                This checklist item is closed. Move immediately into the operating surface that advances the phase instead of stopping at the grade.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Link href={PHASE_ROUTE_MAP[phaseId] ?? '/command-center'}>
+                  <Button size="sm" variant="secondary">Open phase workspace</Button>
+                </Link>
+                {nextStep ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const target = document.getElementById(`checklist-item-${nextStep.item.id}`);
+                      target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                      target?.setAttribute('tabindex', target.getAttribute('tabindex') ?? '-1');
+                      target?.focus({ preventScroll: true });
+                    }}
+                    className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-[#3FA66B40] text-sm text-[#D5EEDA] hover:border-[#3FA66B70] hover:bg-[#3FA66B12] transition-colors"
+                  >
+                    Next checklist item <ArrowRight size={13} aria-hidden />
+                  </button>
+                ) : (
+                  <Link href="/execution">
+                    <Button size="sm" variant="primary">Open execution tracker</Button>
+                  </Link>
+                )}
+              </div>
+              {nextStep && (
+                <div className="text-xs text-[#A7A29A]">
+                  Next open item: <span className="text-[#E8E6E3]">{nextStep.phase.name} — {nextStep.item.title}</span>
+                </div>
+              )}
+            </div>
+          )}
+        </>
       )}
 
       {showForm && (
@@ -442,13 +496,25 @@ function TagPill({ tag }: { tag: string }) {
 
 function ChecklistItemRow({ item, phaseId, onToggle }: { item: ChecklistItem; phaseId: string; onToggle: () => void }) {
   const [expanded, setExpanded] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const targetId = window.location.hash.replace('#', '');
+    if (targetId === `checklist-item-${item.id}` && (item.whyItMatters || TYPE_META[item.completionType]?.submittable)) {
+      setExpanded(true);
+    }
+  }, [item.id, item.whyItMatters, item.completionType]);
   const meta = TYPE_META[item.completionType];
   const isSubmittable = meta?.submittable;
   const grade = item.submission?.grade;
   const tags = getItemTags(item);
 
   return (
-    <li className={cn('border-b border-[#2A2A2E] last:border-0', item.isComplete && !isSubmittable && 'opacity-70')}>
+    <li
+      id={`checklist-item-${item.id}`}
+      className={cn('border-b border-[#2A2A2E] last:border-0 scroll-mt-24', item.isComplete && !isSubmittable && 'opacity-70')}
+      tabIndex={-1}
+    >
       <div className="flex items-start gap-3 px-4 py-4">
         <button
           onClick={onToggle}
@@ -470,6 +536,9 @@ function ChecklistItemRow({ item, phaseId, onToggle }: { item: ChecklistItem; ph
               <div className={cn('text-sm font-medium leading-snug', item.isComplete ? 'line-through text-[#8C8A87]' : 'text-[#E8E6E3]')}>
                 {item.title}
               </div>
+              {item.description && (
+                <p className="text-xs text-[#8C8A87] leading-relaxed max-w-2xl">{item.description}</p>
+              )}
               <div className="flex items-center gap-1.5 flex-wrap">
                 {tags.map((tag) => <TagPill key={tag} tag={tag} />)}
                 {item.autoGenerateTasks && <Badge variant="info" size="sm">AUTO-TASKS</Badge>}
@@ -510,6 +579,11 @@ function ChecklistItemRow({ item, phaseId, onToggle }: { item: ChecklistItem; ph
           <div className="flex items-center gap-2 mt-0.5 flex-wrap text-[10px] text-[#8C8A87]">
             {item.completedAt && item.isComplete && <span>Completed {formatDate(item.completedAt)}</span>}
             {item.notes && <span className="italic">{item.notes}</span>}
+            {!item.isComplete && (
+              <Link href={PHASE_ROUTE_MAP[phaseId] ?? '/command-center'} className="text-[#C9A227] hover:text-[#E0B93B] transition-colors">
+                Open related workspace →
+              </Link>
+            )}
             {grade && (
               <span className="font-semibold uppercase tracking-wider" style={{ color: GRADE_CFG[grade.level].color }}>
                 {GRADE_CFG[grade.level].label} · {grade.score}/100
