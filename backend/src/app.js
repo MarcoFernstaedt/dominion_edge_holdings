@@ -12,8 +12,8 @@ import compression  from 'compression';
 import rateLimit    from 'express-rate-limit';
 import cookieParser from 'cookie-parser';
 import crypto       from 'crypto';
-import pino         from 'pino';
 import env          from './config/env.js';
+import logger       from './lib/logger.js';
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 import authRouter          from './routes/auth.routes.js';
@@ -52,15 +52,6 @@ import filesRouter         from './routes/files.routes.js';
 import adminRouter         from './routes/admin.routes.js';
 import diligenceRouter     from './routes/diligence.routes.js';
 import monitoringRouter    from './routes/monitoring.routes.js';
-
-// ─── Structured logging ───────────────────────────────────────────────────────
-const logger = pino({
-  level: env.LOG_LEVEL || 'info',
-  base: { service: 'deh-backend', env: env.NODE_ENV },
-  ...(!env.isProd && {
-    transport: { target: 'pino-pretty', options: { colorize: true, ignore: 'pid,hostname,service,env' } },
-  }),
-});
 
 // ─── App ──────────────────────────────────────────────────────────────────────
 const app = express();

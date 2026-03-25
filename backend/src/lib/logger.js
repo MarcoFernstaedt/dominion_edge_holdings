@@ -11,16 +11,15 @@
  */
 
 import pino from 'pino';
-
-const isDev = (process.env.NODE_ENV || 'development') !== 'production';
+import env from '../config/env.js';
 
 const logger = pino({
-  level:    process.env.LOG_LEVEL || 'info',
-  base:     { service: 'deh-backend' },
-  ...(isDev && {
+  level: env.LOG_LEVEL || 'info',
+  base: { service: 'deh-backend', env: env.NODE_ENV },
+  ...(env.isDev && {
     transport: {
       target: 'pino-pretty',
-      options: { colorize: true, ignore: 'pid,hostname,service' },
+      options: { colorize: true, ignore: 'pid,hostname,service,env' },
     },
   }),
 });
