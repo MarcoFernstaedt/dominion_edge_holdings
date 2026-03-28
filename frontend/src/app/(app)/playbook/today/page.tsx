@@ -3,6 +3,8 @@
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { playbookApi } from '@/lib/api';
+import { useAppStore } from '@/lib/store';
+import { getAffirmationDisciplineState } from '@/lib/qlaAffirmations';
 import {
   Zap,
   BookOpen,
@@ -238,6 +240,10 @@ function ActionSection({
 
 /* ─── main ───────────────────────────────────────────────────────── */
 export default function PlaybookTodayPage() {
+  const affirmations = useAppStore((s) => s.affirmations);
+  const settings = useAppStore((s) => s.settings);
+  const currentAffirmationIndex = useAppStore((s) => s.currentAffirmationIndex);
+  const affirmationStatusByDate = useAppStore((s) => s.affirmationStatusByDate);
   const [plan,       setPlan]       = useState<DailyActionPlan | null>(null);
   const [loading,    setLoading]    = useState(true);
   const [completing, setCompleting] = useState<string | null>(null);
@@ -279,6 +285,13 @@ export default function PlaybookTodayPage() {
     ? new Date(dateStr).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
     : new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
 
+  const affirmationState = getAffirmationDisciplineState({
+    affirmations,
+    settings,
+    currentIndex: currentAffirmationIndex,
+    affirmationStatusByDate,
+  });
+
   return (
     <div className="p-6 space-y-8 max-w-3xl mx-auto">
       {/* Header */}
@@ -311,6 +324,18 @@ export default function PlaybookTodayPage() {
 
       {!loading && topAction && (
         <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-4 space-y-3">
+          <div className="bg-[var(--color-bg)] border border-[var(--color-border)] rounded-lg p-3">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div>
+                <div className="text-[10px] uppercase tracking-[0.16em] text-[#C9A227] font-semibold mb-1">Affirmation gate</div>
+                <div className="text-sm text-[var(--color-text-primary)]">{affirmationState.enforcementLabel}</div>
+                <div className="text-xs text-[var(--color-text-muted)] mt-1">{affirmationState.enforcementMessage}</div>
+              </div>
+              <Link href="/command-center" className="text-xs text-[var(--color-accent)] hover:underline">
+                Open affirmation controls →
+              </Link>
+            </div>
+          </div>
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div>
               <div className="text-[10px] uppercase tracking-[0.16em] text-[#C9A227] font-semibold mb-1">Operator Day Rail</div>

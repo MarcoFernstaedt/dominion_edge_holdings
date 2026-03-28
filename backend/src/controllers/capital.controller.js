@@ -1,4 +1,3 @@
-import store   from '../store.js';
 import InvestorCRMService   from '../../services/InvestorCRMService.js';
 import CapitalStackService  from '../../services/CapitalStackService.js';
 import InvestorMemoService  from '../../services/InvestorMemoService.js';

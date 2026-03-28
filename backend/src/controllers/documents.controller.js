@@ -101,13 +101,13 @@ export function getReportSummary(_req, res) {
 }
 
 export function getSettings(_req, res) {
-  const { smtpPassword, ...safeSettings } = store.settings;
+  const { smtpPassword: _smtpPassword, ...safeSettings } = store.settings;
   res.json(safeSettings);
 }
 
 export function patchSettings(req, res) {
   try {
-    const { smtpPassword, ...safeUpdates } = req.validated;
+    const { smtpPassword: _smtpPassword, ...safeUpdates } = req.validated;
     store.settings = { ...store.settings, ...safeUpdates };
     IntegrationRegistry.syncFromSettings(store.settings);
     const { smtpPassword: _, ...safeSettings } = store.settings;

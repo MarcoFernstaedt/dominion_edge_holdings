@@ -10,9 +10,7 @@
 import prisma from '../lib/prisma.js';
 import {
   registerEntity,
-  disableEntity,
   runEntityCheck,
-  SIGNAL_TYPES,
 } from '../../services/MonitoringEngine.js';
 import pino from 'pino';
 

@@ -9,7 +9,6 @@ import NetworkAlerts       from '../../services/NetworkAlerts.js';
 import ModelGateway        from '../../services/ModelGateway.js';
 import { errorResponse }   from '../middleware/errorResponse.js';
 import { uid, nowIso, candidateSeatType } from '../lib/helpers.js';
-import { z }               from 'zod';
 
 // ─── Relationship graph ───────────────────────────────────────────────────────
 
@@ -211,7 +210,6 @@ export function getCommandCenterNetwork(req, res) {
 export function getInvestorReadinessGaps(req, res) {
   try {
     const s = store.settings ?? {};
-    const boardState = BoardSeatEngine.calcBoardReadinessScore(store.boardSeats ?? [], store.boardCandidates ?? []);
     const credIdx    = CredibilityIndex.quickCredibilityEstimate(store);
     const firmContext = { hasThesis: !!(s.dealThesis || s.thesis), hasDeal: (store.deals ?? []).some((d) => !['lost','identified'].includes(d.stage ?? d.status ?? '')), hasMemo: (store.documents ?? []).some((d) => d.documentType === 'deal_memo') || (store.investorMemos ?? []).length > 0, hasTraction: (store.meetings ?? []).filter((m) => ['banker_intro','capital_intro'].includes(m.meetingType ?? '')).length > 0, hasAsk: !!(s.askAmount || s.targetDealSize), hasIntro: (store.relationshipEdges ?? []).length > 0, credibilityScore: credIdx.score };
     const gaps = InvestorScoring.calcInvestorReadinessGaps(firmContext);

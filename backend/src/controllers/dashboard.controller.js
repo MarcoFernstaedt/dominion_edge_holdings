@@ -100,7 +100,7 @@ export function getSystemStatus(_req, res) {
     const cpuLoad = os.loadavg?.()[0] ?? null;
     const totalMem = os.totalmem?.() ?? null;
     const freeMem = os.freemem?.() ?? null;
-    const usedMem = totalMem != null && freeMem != null ? totalMem - freeMem : null;
+    const usedMem = totalMem !== null && totalMem !== undefined && freeMem !== null && freeMem !== undefined ? totalMem - freeMem : null;
 
     const activeJobs = jobs.filter((job) => job.running);
     const recentlyTouchedJobs = jobs.filter((job) => job.lastRun && new Date(job.lastRun) > oneHourAgo);
@@ -167,8 +167,8 @@ export function getSystemStatus(_req, res) {
         hostname: os.hostname?.() || null,
         platform: `${os.platform?.() || 'unknown'} ${os.release?.() || ''}`.trim(),
         uptimeSeconds: os.uptime?.() ?? null,
-        loadAverage1m: cpuLoad != null ? Number(cpuLoad.toFixed(2)) : null,
-        memory: totalMem != null && freeMem != null ? {
+        loadAverage1m: cpuLoad !== null && cpuLoad !== undefined ? Number(cpuLoad.toFixed(2)) : null,
+        memory: totalMem !== null && totalMem !== undefined && freeMem !== null && freeMem !== undefined ? {
           usedBytes: usedMem,
           freeBytes: freeMem,
           totalBytes: totalMem,

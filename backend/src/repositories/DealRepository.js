@@ -41,7 +41,7 @@ export class DealRepository extends BaseRepository {
     });
   }
 
-  async updateStage(id, stage, userId) {
+  async updateStage(id, stage, _userId) {
     return this.update(id, {
       stage,
       stageChangedAt:   new Date(),

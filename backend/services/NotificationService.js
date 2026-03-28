@@ -247,7 +247,7 @@ export function taskDueNotification(task) {
   const hoursUntil = task.dueDate
     ? Math.round((new Date(task.dueDate) - Date.now()) / 3_600_000)
     : null;
-  const urgencyLabel = hoursUntil != null ? `in ${hoursUntil}h` : 'soon';
+  const urgencyLabel = hoursUntil !== null && hoursUntil !== undefined ? `in ${hoursUntil}h` : 'soon';
   return createNotification({
     type:              NOTIFICATION_TYPES.TASK_DUE,
     title:             `Task due ${urgencyLabel}`,

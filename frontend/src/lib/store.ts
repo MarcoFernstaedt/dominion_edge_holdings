@@ -41,6 +41,14 @@ import { SYSTEM_TEMPLATES } from '@/data/outreachTemplates';
 import { generateId, nowIso } from './utils';
 import { AFFIRMATIONS as DEFAULT_AFFIRMATIONS } from '@/data/affirmations';
 
+const affirmationDateKey = (date = new Date()) => date.toISOString().slice(0, 10);
+
+const createAffirmationStatus = (date = affirmationDateKey()) => ({
+  date,
+  morningCompleted: false,
+  eveningCompleted: false,
+});
+
 const DEFAULT_SETTINGS: AppSettings = {
   reducedMotion: false,
   highContrast: false,
@@ -400,7 +408,26 @@ export const useAppStore = create<AppState>()(
       // ── Affirmations ───────────────────────────────────────────────────────
       affirmations: DEFAULT_AFFIRMATIONS,
       currentAffirmationIndex: 0,
+      affirmationStatusByDate: {},
       setAffirmationIndex: (idx: number) => set({ currentAffirmationIndex: idx }),
+      markAffirmationComplete: (period: 'morning' | 'evening', date = affirmationDateKey()) =>
+        set((s) => ({
+          affirmationStatusByDate: {
+            ...s.affirmationStatusByDate,
+            [date]: {
+              ...(s.affirmationStatusByDate[date] ?? createAffirmationStatus(date)),
+              [period === 'morning' ? 'morningCompleted' : 'eveningCompleted']: true,
+              lastCompletedAt: nowIso(),
+            },
+          },
+        })),
+      resetAffirmationStatus: (date = affirmationDateKey()) =>
+        set((s) => ({
+          affirmationStatusByDate: {
+            ...s.affirmationStatusByDate,
+            [date]: createAffirmationStatus(date),
+          },
+        })),
       addAffirmation: (affirmation: Affirmation) =>
         set((s) => ({
           affirmations: [...s.affirmations, { ...affirmation, order: s.affirmations.length + 1 }],
@@ -439,6 +466,7 @@ export const useAppStore = create<AppState>()(
         // User preferences — affirmations are personalizable, persist all edits
         affirmations: state.affirmations,
         currentAffirmationIndex: state.currentAffirmationIndex,
+        affirmationStatusByDate: state.affirmationStatusByDate,
         // Checklist and board seats are seeded from static data and safe to cache
         checklistPhases: state.checklistPhases,
         boardSeats: state.boardSeats,

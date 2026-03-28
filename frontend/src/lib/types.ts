@@ -609,6 +609,14 @@ export interface Affirmation {
   intensity?: 1 | 2 | 3;
 }
 
+
+export interface AffirmationDailyStatus {
+  date: string;
+  morningCompleted: boolean;
+  eveningCompleted: boolean;
+  lastCompletedAt?: string;
+}
+
 // ─── Next Best Action ─────────────────────────────────────────────────────────
 
 export type ActionUrgency = 'critical' | 'high' | 'medium' | 'low';
@@ -889,7 +897,10 @@ export interface AppState {
   // Affirmations
   affirmations: Affirmation[];
   currentAffirmationIndex: number;
+  affirmationStatusByDate: Record<string, AffirmationDailyStatus>;
   setAffirmationIndex: (idx: number) => void;
+  markAffirmationComplete: (period: 'morning' | 'evening', date?: string) => void;
+  resetAffirmationStatus: (date?: string) => void;
   addAffirmation: (affirmation: Affirmation) => void;
   updateAffirmation: (id: string, updates: Partial<Affirmation>) => void;
   deleteAffirmation: (id: string) => void;

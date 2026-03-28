@@ -76,7 +76,6 @@ import CostControlService  from './services/CostControlService.js';
 import AgentRunLogger       from './services/AgentRunLogger.js';
 import PromptRegistry       from './services/PromptRegistry.js';
 import ModelGateway         from './services/ModelGateway.js';
-import OutputValidator      from './services/OutputValidator.js';
 import ApprovalService      from './services/ApprovalService.js';
 import * as ArtifactStore   from './services/ArtifactStore.js';
 import WorkflowEngine       from './services/WorkflowEngine.js';
@@ -376,7 +375,7 @@ const SELLER_SIGNAL_FIELDS = Object.freeze([
 ]);
 
 /** Rate-limit windows and caps — single source of truth. */
-const RATE_LIMITS = Object.freeze({
+const _RATE_LIMITS = Object.freeze({
   GENERAL_WINDOW_MS:  15 * 60 * 1000,   // 15 min
   GENERAL_MAX:        500,
   AI_WINDOW_MS:       60 * 1000,         // 1 min
@@ -384,7 +383,7 @@ const RATE_LIMITS = Object.freeze({
 });
 
 /** Financial thresholds used across underwriting routes. */
-const FINANCIAL_RULES = Object.freeze({
+const _FINANCIAL_RULES = Object.freeze({
   DSCR_MINIMUM:              1.25,
   SBA_MIN_DOWN_PAYMENT_PCT:  10,
   DEFAULT_SENIOR_RATE_PCT:   6.5,
@@ -1446,9 +1445,7 @@ app.get('/api/investors/readiness-gaps', (req, res) => {
     const s = store.settings ?? {};
     const documents = store.documents ?? [];
     const deals     = store.deals ?? [];
-    const contacts  = store.contacts ?? [];
 
-    const boardState = BoardSeatEngine.calcBoardReadinessScore(store.boardSeats ?? [], store.boardCandidates ?? []);
     const credIdx    = CredibilityIndex.quickCredibilityEstimate(store);
 
     const firmContext = {
@@ -1758,14 +1755,14 @@ app.get('/api/reports/summary', (_req, res) => {
 // ─── Settings ─────────────────────────────────────────────────────────────────
 app.get('/api/settings', (_req, res) => {
   // Never return passwords or internal-only values
-  const { smtpPassword, ...safeSettings } = store.settings;
+  const { smtpPassword: _smtpPassword, ...safeSettings } = store.settings;
   res.json(safeSettings);
 });
 
 app.patch('/api/settings', validate(SettingsPatchSchema), (req, res) => {
   try {
     // Credentials must never be accepted from API clients
-    const { smtpPassword, ...safeUpdates } = req.validated;
+    const { smtpPassword: _smtpPassword, ...safeUpdates } = req.validated;
     store.settings = { ...store.settings, ...safeUpdates };
     IntegrationRegistry.syncFromSettings(store.settings);
     const { smtpPassword: _, ...safeSettings } = store.settings;
@@ -1885,7 +1882,7 @@ app.patch('/api/meetings/:id', validate(MeetingSchema.partial()), (req, res) => 
   }
 });
 
-const MEETING_STATUS_TRANSITIONS = {
+const _MEETING_STATUS_TRANSITIONS = {
   draft: ['proposed', 'confirmed', 'cancelled'],
   proposed: ['awaiting_confirmation', 'confirmed', 'cancelled'],
   awaiting_confirmation: ['confirmed', 'cancelled'],
@@ -4750,7 +4747,7 @@ AutomationRuleEngine.register({
   description: 'When a deal is marked stalled → notify operator with momentum context',
   trigger: 'deal_stalled',
   condition: (ctx) => !!ctx.deal?.id,
-  action: (ctx, { notificationService, store: s, nowIso }) => {
+  action: (ctx, { notificationService, store: s, nowIso: _nowIso }) => {
     const momentum = ExecutionTrackerService.calculateMomentumStats();
     const dealMom  = momentum.find((m) => m.dealId === ctx.deal.id);
     const msg = dealMom
@@ -5618,7 +5615,7 @@ if (process.env.NODE_ENV !== 'test') {
   });
 
   app.listen(PORT, () => {
-    console.log(`DEH backend running on port ${PORT} [${NODE_ENV}]`);
+    console.info(`DEH backend running on port ${PORT} [${NODE_ENV}]`);
   });
 }
 

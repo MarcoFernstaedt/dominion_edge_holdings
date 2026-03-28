@@ -3,7 +3,6 @@ import TimingEngine  from '../../services/TimingEngine.js';
 import RecoveryEngine from '../../services/RecoveryEngine.js';
 import ALL_THRESHOLDS from '../../services/CadenceThresholds.js';
 import { validate }  from '../middleware/validate.js';
-import { errorResponse } from '../middleware/errorResponse.js';
 
 export function timingSummary(req, res) {
   try {

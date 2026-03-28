@@ -12,6 +12,7 @@ import { InlineEmpty } from '@/components/ui/EmptyState';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { PageHeader, SectionHeader } from '@/components/ui/PageHeader';
 import { cn, formatDate, daysSince, nowIso, generateId, STAGE_LABELS, formatCurrency, formatRelativeDate } from '@/lib/utils';
+import { getAffirmationDisciplineState } from '@/lib/qlaAffirmations';
 import {
   ChevronRight, ChevronLeft, AlertTriangle, Clock, Plus,
   CheckCircle2, Circle, ArrowRight, Users, KanbanSquare,
@@ -435,6 +436,9 @@ function AffirmationStrip() {
   const settings          = useAppStore((s) => s.settings);
   const idx               = useAppStore((s) => s.currentAffirmationIndex);
   const setIdx            = useAppStore((s) => s.setAffirmationIndex);
+  const affirmationStatusByDate = useAppStore((s) => s.affirmationStatusByDate);
+  const markAffirmationComplete = useAppStore((s) => s.markAffirmationComplete);
+  const resetAffirmationStatus = useAppStore((s) => s.resetAffirmationStatus);
   const addAffirmation    = useAppStore((s) => s.addAffirmation);
   const updateAffirmation = useAppStore((s) => s.updateAffirmation);
   const deleteAffirmation = useAppStore((s) => s.deleteAffirmation);
@@ -449,20 +453,19 @@ function AffirmationStrip() {
   const active = affirmations.filter((a) => a.isActive !== false);
   const total = active.length;
 
-  const isEvening = (() => {
-    if (typeof window === 'undefined') return false;
-    const hour = new Date().getHours();
-    return hour >= 16;
-  })();
-
-  const filtered = active.filter((a) => {
-    const timeMatch = !a.timeOfDay || a.timeOfDay === 'any' || (isEvening ? a.timeOfDay === 'evening' : a.timeOfDay === 'morning');
-    const focusMatch = !a.qlaFocus || settings.qlaAffirmationFocus === 'auto' || a.qlaFocus === settings.qlaAffirmationFocus;
-    return timeMatch && focusMatch;
+  const affirmationState = getAffirmationDisciplineState({
+    affirmations,
+    settings,
+    currentIndex: idx,
+    affirmationStatusByDate,
   });
-
-  const pool = filtered.length > 0 ? filtered : active;
-  const aff = pool.length > 0 ? pool[idx % pool.length] : null;
+  const pool = affirmationState.activePool;
+  const aff = affirmationState.currentAffirmation;
+  const todayStatus = affirmationStatusByDate[affirmationState.todayKey] ?? { date: affirmationState.todayKey, morningCompleted: false, eveningCompleted: false };
+  const completedBlocks = affirmationState.completedBlocks;
+  const progressPct = affirmationState.progressPct;
+  const streakDays = affirmationState.streakDays;
+  const script = affirmationState.script;
   const focusOptions = [
     { key: 'auto', label: 'Auto' },
     { key: 'execution', label: 'Execution' },
@@ -629,8 +632,8 @@ function AffirmationStrip() {
         </Link>
       </div>
 
-      <div className="flex items-center gap-4">
-        <div className="flex-1 min-w-0">
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_260px] gap-4">
+        <div className="min-w-0">
           <div className="text-[10px] tracking-[0.12em] uppercase text-[#C9A227] mb-1.5">
             {aff!.theme}
             {aff!.qlaFocus ? ` · ${aff!.qlaFocus}` : ''}
@@ -638,16 +641,56 @@ function AffirmationStrip() {
           </div>
           <blockquote className="font-serif text-base italic text-[#A3A3A3] leading-relaxed">&ldquo;{aff!.text}&rdquo;</blockquote>
         </div>
-        <div className="flex gap-1 flex-shrink-0">
-          <button onClick={() => setIdx((idx - 1 + total) % total)} className="w-6 h-6 flex items-center justify-center text-[#737373] hover:text-[#E5E5E5] rounded transition-colors" aria-label="Previous affirmation">
-            <ChevronLeft size={12} aria-hidden />
-          </button>
-          <button onClick={() => setIdx((idx + 1) % total)} className="w-6 h-6 flex items-center justify-center text-[#737373] hover:text-[#E5E5E5] rounded transition-colors" aria-label="Next affirmation">
-            <ChevronRight size={12} aria-hidden />
-          </button>
-          <button onClick={() => setManaging(true)} className="w-6 h-6 flex items-center justify-center text-[#737373] hover:text-[#C9A227] rounded transition-colors" aria-label="Manage affirmations">
-            <Settings2 size={11} aria-hidden />
-          </button>
+        <div className="bg-[#0F0F10] border border-[#262626] rounded-[10px] p-3 space-y-3">
+          <div className="flex items-center justify-between gap-2">
+            <div>
+              <div className="text-[10px] tracking-[0.12em] uppercase text-[#C9A227]">Daily affirmation status</div>
+              <div className="text-sm text-[#E5E5E5]">{completedBlocks}/2 blocks complete · {streakDays} day streak</div>
+            </div>
+            <button onClick={() => resetAffirmationStatus()} className="text-[10px] uppercase tracking-[0.12em] text-[#737373] hover:text-[#E5E5E5] transition-colors">Reset</button>
+          </div>
+          <div className="h-1.5 rounded-full bg-[#262626] overflow-hidden">
+            <div className="h-full rounded-full bg-[#C9A227]" style={{ width: `${progressPct}%` }} />
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <button onClick={() => markAffirmationComplete('morning')} className={cn('rounded-[8px] border px-3 py-2 text-xs transition-colors', todayStatus.morningCompleted ? 'border-[#4CAF5060] bg-[#4CAF5010] text-[#4CAF50]' : 'border-[#262626] bg-[#111111] text-[#A3A3A3] hover:border-[#C9A22750]')}>
+              {todayStatus.morningCompleted ? 'Morning complete' : 'Mark morning'}
+            </button>
+            <button onClick={() => markAffirmationComplete('evening')} className={cn('rounded-[8px] border px-3 py-2 text-xs transition-colors', todayStatus.eveningCompleted ? 'border-[#4CAF5060] bg-[#4CAF5010] text-[#4CAF50]' : 'border-[#262626] bg-[#111111] text-[#A3A3A3] hover:border-[#C9A22750]')}>
+              {todayStatus.eveningCompleted ? 'Evening complete' : 'Mark evening'}
+            </button>
+          </div>
+          <div className={cn(
+            'rounded-[8px] border px-3 py-3',
+            affirmationState.enforcementTone === 'critical'
+              ? 'border-[#D6454530] bg-[#D6454510]'
+              : affirmationState.enforcementTone === 'warning'
+              ? 'border-[#E6A23C30] bg-[#E6A23C10]'
+              : 'border-[#4CAF5030] bg-[#4CAF5010]'
+          )}>
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[10px] uppercase tracking-[0.12em]" style={{ color: affirmationState.enforcementTone === 'critical' ? '#D64545' : affirmationState.enforcementTone === 'warning' ? '#E6A23C' : '#4CAF50' }}>
+                {affirmationState.enforcementLabel}
+              </span>
+              <span className="text-[10px] text-[#737373]">{affirmationState.nextCompletionLabel}</span>
+            </div>
+            <div className="text-[11px] text-[#A3A3A3] leading-relaxed mt-1.5">{affirmationState.enforcementMessage}</div>
+          </div>
+          <div className="text-[11px] text-[#737373] leading-relaxed">Script ready: {pool.length} active lines in the current focus stack.</div>
+          <div className="max-h-28 overflow-y-auto rounded-[8px] border border-[#262626] bg-[#111111] px-3 py-2 text-[11px] text-[#A3A3A3] leading-relaxed">
+            {script}
+          </div>
+          <div className="flex gap-1 justify-end">
+            <button onClick={() => setIdx((idx - 1 + total) % total)} className="w-6 h-6 flex items-center justify-center text-[#737373] hover:text-[#E5E5E5] rounded transition-colors" aria-label="Previous affirmation">
+              <ChevronLeft size={12} aria-hidden />
+            </button>
+            <button onClick={() => setIdx((idx + 1) % total)} className="w-6 h-6 flex items-center justify-center text-[#737373] hover:text-[#E5E5E5] rounded transition-colors" aria-label="Next affirmation">
+              <ChevronRight size={12} aria-hidden />
+            </button>
+            <button onClick={() => setManaging(true)} className="w-6 h-6 flex items-center justify-center text-[#737373] hover:text-[#C9A227] rounded transition-colors" aria-label="Manage affirmations">
+              <Settings2 size={11} aria-hidden />
+            </button>
+          </div>
         </div>
       </div>
     </div>

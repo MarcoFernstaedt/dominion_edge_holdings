@@ -212,7 +212,7 @@ POST   /api/quick-action/approve-and-send
 
 ## Setup
 
-> Status note: see `DB_SETUP_STATUS.md` for the current machine-specific database blocker and `AFFIRMATION_REMINDER_STATUS.md` for the workspace-level reminder delivery note.
+> Status note: see `DB_SETUP_STATUS.md` for the current machine-specific database blocker. Daily affirmation content now lives in `AFFIRMATIONS.md`.
 
 
 ### Prerequisites
@@ -228,12 +228,7 @@ POST   /api/quick-action/approve-and-send
 npm run install:all
 ```
 
-If npm stops on a React peer dependency conflict in the frontend (currently caused by the `@react-three/drei` stack), install the frontend with legacy peer resolution:
-
-```bash
-cd frontend
-npm install --legacy-peer-deps
-```
+The frontend dependency set is pinned to React 18-compatible `@react-three/fiber` / `@react-three/drei` versions, so a standard install should work without legacy peer resolution.
 
 ### Backend environment
 

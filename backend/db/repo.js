@@ -48,7 +48,7 @@ export async function getSystemUserId() {
   });
   _systemUserId = created.id;
   process.env.SYSTEM_USER_ID = created.id;
-  console.log(`[repo] System user created: ${created.id}`);
+  console.info(`[repo] System user created: ${created.id}`);
   return created.id;
 }
 

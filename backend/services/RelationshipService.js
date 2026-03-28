@@ -333,11 +333,11 @@ class RelationshipService {
       return rel;
     }
 
-    if (interactionCount >= 10 && daysAgo != null && daysAgo <= 30) {
+    if (interactionCount >= 10 && daysAgo !== null && daysAgo !== undefined && daysAgo <= 30) {
       newStatus = 'long_term';
-    } else if (interactionCount >= 4 && daysAgo != null && daysAgo <= 14) {
+    } else if (interactionCount >= 4 && daysAgo !== null && daysAgo !== undefined && daysAgo <= 14) {
       newStatus = 'active';
-    } else if (interactionCount >= 1 && daysAgo != null && daysAgo <= 30) {
+    } else if (interactionCount >= 1 && daysAgo !== null && daysAgo !== undefined && daysAgo <= 30) {
       newStatus = 'warming';
     }
 

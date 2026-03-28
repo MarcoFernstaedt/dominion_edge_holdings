@@ -90,19 +90,19 @@ class DealFeedService {
         (l.location || '').toLowerCase().includes(location.toLowerCase())
       );
     }
-    if (minRevenue != null) {
+    if (minRevenue !== null && minRevenue !== undefined) {
       items = items.filter((l) => (l.revenueEstimate || 0) >= minRevenue);
     }
-    if (maxRevenue != null) {
+    if (maxRevenue !== null && maxRevenue !== undefined) {
       items = items.filter((l) => (l.revenueEstimate || 0) <= maxRevenue);
     }
-    if (minYears != null) {
+    if (minYears !== null && minYears !== undefined) {
       items = items.filter((l) => (l.yearsInBusiness || 0) >= minYears);
     }
-    if (maxYears != null) {
+    if (maxYears !== null && maxYears !== undefined) {
       items = items.filter((l) => (l.yearsInBusiness || 0) <= maxYears);
     }
-    if (minScore != null) {
+    if (minScore !== null && minScore !== undefined) {
       items = items.filter((l) => (l.acquisitionScore || 0) >= minScore);
     }
     if (search) {

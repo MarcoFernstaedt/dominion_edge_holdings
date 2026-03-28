@@ -201,7 +201,7 @@ export function rankCandidates(candidates, seatType) {
 
   return candidates
     .map((c) => {
-      const scored = c.fit_score != null ? c : scoreCandidateFull(c, st);
+      const scored = c.fit_score !== null && c.fit_score !== undefined ? c : scoreCandidateFull(c, st);
       const stalePenalty = (scored.days_since_last_progress ?? 0) > 14 ? 15
         : (scored.days_since_last_progress ?? 0) > 7 ? 7 : 0;
 

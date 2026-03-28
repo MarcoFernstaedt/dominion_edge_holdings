@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { executionApi } from '@/lib/api';
 import { useAppStore } from '@/lib/store';
 import { AlertBanner, ExecutionProgressBar, ExecutionMetricCard } from '@/components/execution/ExecutionComponents';
+import { getAffirmationDisciplineState } from '@/lib/qlaAffirmations';
 import { Activity, CalendarDays, TrendingUp, Users, Layers, Target, Zap, Settings2 } from 'lucide-react';
 import type { ExecutionSummary } from '@/lib/types';
 
@@ -22,6 +23,9 @@ export default function ExecutionPage() {
   const [summary, setSummary] = useState<ExecutionSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const settings = useAppStore((s) => s.settings);
+  const affirmations = useAppStore((s) => s.affirmations);
+  const currentAffirmationIndex = useAppStore((s) => s.currentAffirmationIndex);
+  const affirmationStatusByDate = useAppStore((s) => s.affirmationStatusByDate);
 
   const load = useCallback(async () => {
     try {
@@ -53,6 +57,13 @@ export default function ExecutionPage() {
       .slice(0, 3);
   }, [summary, td, wk, mo, pl, t]);
 
+  const affirmationState = getAffirmationDisciplineState({
+    affirmations,
+    settings,
+    currentIndex: currentAffirmationIndex,
+    affirmationStatusByDate,
+  });
+
   return (
     <div className="p-6 space-y-8">
       <div>
@@ -64,6 +75,21 @@ export default function ExecutionPage() {
 
       <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-5">
         <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div className="w-full bg-[var(--color-bg)] border border-[var(--color-border)] rounded-lg p-4 mb-4">
+            <div className="flex items-start justify-between gap-3 flex-wrap">
+              <div>
+                <div className="text-xs uppercase tracking-[0.16em] text-[var(--color-accent)] mb-1">Affirmation posture</div>
+                <p className="text-sm text-[var(--color-text-primary)]">{affirmationState.currentAffirmation?.text || 'No active affirmation stack configured.'}</p>
+                <p className="text-xs text-[var(--color-text-muted)] mt-1">{affirmationState.enforcementMessage}</p>
+              </div>
+              <div className="text-right">
+                <div className="text-xs font-semibold" style={{ color: affirmationState.enforcementTone === 'critical' ? '#D64545' : affirmationState.enforcementTone === 'warning' ? '#E6A23C' : '#4CAF50' }}>
+                  {affirmationState.enforcementLabel}
+                </div>
+                <div className="text-xs text-[var(--color-text-muted)] mt-1">{affirmationState.completedBlocks}/2 complete · {affirmationState.streakDays} day streak</div>
+              </div>
+            </div>
+          </div>
           <div>
             <div className="text-xs uppercase tracking-[0.16em] text-[var(--color-accent)] mb-1">Operator Alignment</div>
             <p className="text-sm text-[var(--color-text-primary)]">
