@@ -1,0 +1,74 @@
+/**
+ * StrategyAdvisorAgent
+ *
+ * Identify bottlenecks, summarize pipeline health, recommend focus areas.
+ * Model: Claude Sonnet (strategy_summary task — advanced reasoning tier)
+ */
+
+import ModelGateway from '../services/ModelGateway.js';
+
+const SYSTEM_PROMPT = `You are the Strategy Advisor Agent for Dominion Edge Holdings.
+
+Senior advisor to a search fund entrepreneur (Marco Fernstaedt). Expertise:
+- Search fund strategy and operations
+- SMB acquisition and due diligence
+- Deal structuring: SBA 7(a) ($5M max, 10yr, ~7-8%), seller financing (10-20%, subordinated), equity rollover (10-20% for 3-5 yrs)
+- Post-acquisition value creation
+- Board governance
+
+When given acquisition scoreboard data, analyze weekly trends and identify outreach slowdowns, pipeline stagnation, and conversion rate drops.
+Example insights: "Owner contact rate dropped this week.", "Reply rate below 10% — review outreach messaging.", "No new LOIs in 30 days — pipeline stagnating."
+
+Advice is specific, actionable, and grounded in search fund best practices. Return structured JSON only.`;
+
+export async function StrategyAdvisorAgent({ question, context, dealData, scoreboard, entityId, costFlags }) {
+  const scoreboardSection = scoreboard
+    ? `\nAcquisition Scoreboard (System 5):
+Targets found: ${scoreboard.targetsFound}
+Owners contacted: ${scoreboard.ownersContacted}
+Conversations started: ${scoreboard.conversationsStarted}
+Meetings held: ${scoreboard.meetingsHeld}
+Deals evaluated: ${scoreboard.dealsEvaluated}
+LOIs submitted: ${scoreboard.LOIsSubmitted}
+Deals closed: ${scoreboard.dealsClosed}
+Emails sent this week: ${scoreboard.emailsSentThisWeek ?? 'N/A'}
+Replies this week: ${scoreboard.repliesThisWeek ?? 'N/A'}
+Reply rate: ${scoreboard.emailsSentThisWeek > 0 ? ((scoreboard.repliesThisWeek / scoreboard.emailsSentThisWeek) * 100).toFixed(1) + '%' : 'N/A'}`
+    : '';
+
+  const userMessage = `Provide strategic advice.
+
+Question: ${question}
+${context ? `\nContext:\n${context}` : ''}
+${scoreboardSection}
+${dealData ? `\nDeal data:\n${JSON.stringify(dealData, null, 2)}` : ''}
+
+Return ONLY this JSON:
+{
+  "agentName": "StrategyAdvisorAgent",
+  "analysisSummary": "<one sentence recommendation>",
+  "actionsProposed": ["<action>", ...],
+  "confidenceScore": <number 0-1>,
+  "recommendation": "<clear, direct recommendation>",
+  "rationale": "<2-3 paragraphs>",
+  "alternativeApproaches": [
+    { "approach": "<name>", "pros": ["<pro>", ...], "cons": ["<con>", ...] }
+  ],
+  "keyConsiderations": ["<consideration>", ...],
+  "riskFactors": ["<risk>", ...],
+  "nextSteps": ["<step>", ...],
+  "confidenceLevel": "<high|medium|low>",
+  "scoreboardInsights": ["<insight about scoreboard metrics>", ...]
+}`;
+
+  const result = await ModelGateway.run({
+    taskType: 'strategy_summary',
+    agentName: 'StrategyAdvisorAgent',
+    entityIds: [entityId || `strategy_${Date.now()}`],
+    systemPrompt: SYSTEM_PROMPT,
+    userMessage,
+    outputSchema: null,
+  });
+
+  return result.content;
+}

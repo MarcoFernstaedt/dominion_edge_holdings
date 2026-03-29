@@ -1,0 +1,17 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+echo "Running pre-commit checks..."
+
+# Frontend: lint + type-check
+echo "→ Frontend lint"
+npm --prefix frontend run lint || { echo "✗ Frontend lint failed"; exit 1; }
+
+echo "→ Frontend type-check"
+npm --prefix frontend run type-check || { echo "✗ Frontend type-check failed"; exit 1; }
+
+# Backend: lint
+echo "→ Backend lint"
+npm --prefix backend run lint || { echo "✗ Backend lint failed"; exit 1; }
+
+echo "✓ All pre-commit checks passed"

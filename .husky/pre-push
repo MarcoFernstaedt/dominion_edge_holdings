@@ -1,0 +1,12 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+echo "Running pre-push checks (tests)..."
+
+echo "→ Frontend tests"
+npm --prefix frontend run test || { echo "✗ Frontend tests failed"; exit 1; }
+
+echo "→ Backend tests"
+npm --prefix backend run test || { echo "✗ Backend tests failed"; exit 1; }
+
+echo "✓ All tests passed — push approved"

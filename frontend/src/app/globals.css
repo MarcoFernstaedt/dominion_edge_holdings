@@ -1,0 +1,316 @@
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&family=Inter:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── Design Tokens ─────────────────────────────────────────────────────────── */
+
+:root {
+  /* Backgrounds */
+  --bg-primary:   #0A0A0A;
+  --bg-surface:   #111111;
+  --bg-elevated:  #1A1A1A;
+
+  /* Borders */
+  --border-subtle: #262626;
+  --border-strong: #333333;
+
+  /* Text */
+  --text-primary:   #E5E5E5;
+  --text-secondary: #A3A3A3;
+  --text-muted:     #737373;
+
+  /* Gold — used only for primary actions, active states, key KPIs */
+  --gold-primary: #C9A227;
+  --gold-hover:   #E0B93B;
+  --gold-muted:   rgba(201, 162, 39, 0.15);
+  --gold-border:  rgba(201, 162, 39, 0.4);
+
+  /* Status */
+  --success: #4CAF50;
+  --warning: #E6A23C;
+  --danger:  #D64545;
+  --info:    #4D7EA8;
+
+  /* Spacing rhythm (reference only — use Tailwind classes) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
+  /* Legacy aliases (kept for backward compat during refactor) */
+  --obsidian:           #0A0A0A;
+  --charcoal-deep:      #111111;
+  --charcoal-panel:     #1A1A1A;
+  --border-muted:       #262626;
+  --gold-deep:          #A8841A;
+  --gold-muted-solid:   #C9A84C;
+  --color-bg:           #0A0A0A;
+  --color-surface:      #111111;
+  --color-surface-raised: #1A1A1A;
+  --color-border:       #262626;
+  --color-text-primary: #E5E5E5;
+  --color-text-secondary: #A3A3A3;
+  --color-text-muted:   #737373;
+  --color-accent:       #C9A227;
+  --color-accent-deep:  #A8841A;
+}
+
+/* ─── Reset ─────────────────────────────────────────────────────────────────── */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  font-weight: 400;
+  min-height: 100vh;
+}
+
+/* ─── Typography ────────────────────────────────────────────────────────────── */
+
+.font-serif {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  line-height: 1.2;
+  font-weight: 600;
+}
+
+/* KPI numbers use serif */
+.kpi-value {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-weight: 600;
+  line-height: 1;
+}
+
+/* Micro labels — uppercase, wide tracking */
+.label-micro {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+/* ─── Focus ─────────────────────────────────────────────────────────────────── */
+
+:focus-visible {
+  outline: 2px solid var(--gold-primary);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* ─── Selection ─────────────────────────────────────────────────────────────── */
+
+::selection {
+  background: rgba(201, 162, 39, 0.25);
+  color: var(--text-primary);
+}
+
+/* ─── Scrollbar ─────────────────────────────────────────────────────────────── */
+
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-surface);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #404040;
+}
+
+/* ─── Reduced Motion ────────────────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+.reduced-motion *, .reduced-motion *::before, .reduced-motion *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+}
+
+/* ─── Skeleton / Shimmer ────────────────────────────────────────────────────── */
+
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--bg-surface) 25%,
+    #1e1e1e 50%,
+    var(--bg-surface) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.6s ease-in-out infinite;
+}
+
+/* Skeleton block utility */
+.skeleton {
+  border-radius: 4px;
+  overflow: hidden;
+}
+.skeleton::after {
+  content: '';
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* ─── Skip to content ───────────────────────────────────────────────────────── */
+
+.skip-link {
+  position: absolute;
+  top: -100%;
+  left: 0;
+  padding: 8px 16px;
+  background: var(--gold-primary);
+  color: #000;
+  font-weight: 700;
+  z-index: 9999;
+  border-radius: 0 0 4px 0;
+  text-decoration: none;
+  transition: top 0.1s;
+}
+
+.skip-link:focus {
+  top: 0;
+}
+
+/* ─── Screen reader only ────────────────────────────────────────────────────── */
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* ─── Fade / Slide animations ───────────────────────────────────────────────── */
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ─── Component utility classes ─────────────────────────────────────────────── */
+
+/* Gold accent left border — used on prominent cards */
+.accent-border-left {
+  border-left: 2px solid var(--gold-primary);
+}
+
+/* Danger accent left border */
+.danger-border-left {
+  border-left: 2px solid var(--danger);
+}
+
+/* Warning accent left border */
+.warning-border-left {
+  border-left: 2px solid var(--warning);
+}
+
+/* Divider */
+.divider {
+  width: 100%;
+  height: 1px;
+  background: var(--border-subtle);
+}
+
+/* Dense table rows */
+.table-row-hover:hover {
+  background: var(--bg-elevated);
+}
+
+/* ─── Page layout shells ─────────────────────────────────────────────────────── */
+
+/* Standard page container */
+.page-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 24px 24px;
+}
+
+/* Narrow form / settings page */
+.page-container-narrow {
+  max-width: 840px;
+  margin: 0 auto;
+  padding: 24px 24px;
+}
+
+/* Data-dense page */
+.page-container-wide {
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 24px 24px;
+}
+
+@media (max-width: 768px) {
+  .page-container,
+  .page-container-narrow,
+  .page-container-wide {
+    padding: 16px 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .page-container,
+  .page-container-narrow,
+  .page-container-wide {
+    padding: 14px 14px;
+  }
+}
