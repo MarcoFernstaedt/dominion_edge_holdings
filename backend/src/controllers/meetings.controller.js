@@ -1,5 +1,6 @@
 import { z }       from 'zod';
 import store       from '../store.js';
+import logger from '../lib/logger.js';
 import IntegrationRegistry         from '../../services/IntegrationRegistry.js';
 import MeetingPreparationService   from '../../services/MeetingPreparationService.js';
 import { errorResponse }   from '../middleware/errorResponse.js';
@@ -35,7 +36,7 @@ async function _syncCalendarCreate(meeting) {
     }
   } catch (err) {
     IntegrationRegistry.recordError('google', err.message);
-    console.warn(`[meetings] Calendar sync failed for ${meeting.id}: ${err.message}`);
+    logger.warn({ meetingId: meeting.id, err: err.message }, '[meetings] Calendar sync failed');
   }
 }
 
@@ -49,7 +50,7 @@ async function _syncCalendarCancel(meeting) {
     IntegrationRegistry.recordSuccess('google');
   } catch (err) {
     IntegrationRegistry.recordError('google', err.message);
-    console.warn(`[meetings] Calendar cancel failed for event ${meeting.calendarEventId}: ${err.message}`);
+    logger.warn({ calendarEventId: meeting.calendarEventId, err: err.message }, '[meetings] Calendar cancel failed');
   }
 }
 

@@ -17,6 +17,7 @@ import prisma from '../lib/prisma.js';
 import env    from '../config/env.js';
 import { errorResponse } from '../middleware/errorResponse.js';
 import AuditLogService from '../../services/AuditLogService.js';
+import logger from '../lib/logger.js';
 
 const COOKIE_NAME    = 'deh_token';
 const COOKIE_MAX_AGE = 7 * 24 * 60 * 60 * 1000; // 7 days in ms
@@ -65,7 +66,7 @@ export async function login(req, res) {
   try {
     user = await prisma.user.findUnique({ where: { email: email.toLowerCase().trim() } });
   } catch (err) {
-    console.error('[auth/login] DB error:', err.message);
+    logger.error({ err: err.message }, '[auth/login] DB error');
     return errorResponse(res, 503, 'SERVICE_UNAVAILABLE', 'Authentication service temporarily unavailable');
   }
 

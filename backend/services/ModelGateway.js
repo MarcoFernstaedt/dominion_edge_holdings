@@ -1,13 +1,11 @@
 /**
- * ModelGateway — provider-agnostic central model routing layer.
+ * ModelGateway — central model routing layer.
  *
  * Business logic requests TASK TYPES, never model names.
- * All provider selection, fallback, caching, logging, and cost tracking
+ * All provider selection, caching, logging, and cost tracking
  * happens here. No module outside this file may select a model directly.
  *
- * Provider priority:
- *   1. Anthropic (primary for all structured reasoning)
- *   2. OpenAI   (fallback / cost-effective alternatives)
+ * Provider: Anthropic (sole provider — deterministic fallback on failure)
  *
  * Tier routing:
  *   LOW  → cheapest reliable model (classification, tagging, short summaries)
@@ -16,6 +14,7 @@
  */
 
 import Anthropic from '@anthropic-ai/sdk';
+import logger             from '../src/lib/logger.js';
 import CacheService        from './CacheService.js';
 import * as AIArtifactCache from './AIArtifactCache.js';
 import * as AIFallbackService from './AIFallbackService.js';
@@ -98,14 +97,6 @@ function getAnthropicClient() {
   return _anthropicClient;
 }
 
-async function getOpenAIClient() {
-  if (!process.env.OPENAI_API_KEY) throw new GatewayError('OPENAI_API_KEY not set', 'NO_OPENAI_KEY');
-  const { default: OpenAI } = await import('openai').catch(() => {
-    throw new GatewayError('openai package not installed', 'MISSING_DEPENDENCY');
-  });
-  return new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-}
-
 // ─── Error ────────────────────────────────────────────────────────────────────
 
 export class GatewayError extends Error {
@@ -170,22 +161,6 @@ async function callAnthropic({ model, maxTokens, timeoutMs, systemPrompt, userMe
   });
 
   return { rawText, inputTokens, outputTokens, provider: 'anthropic', model };
-}
-
-// ─── OpenAI call ─────────────────────────────────────────────────────────────
-
-async function callOpenAI({ model, maxTokens, systemPrompt, userMessage }) {
-  const client = await getOpenAIClient();
-  const messages = [];
-  if (systemPrompt) messages.push({ role: 'system', content: systemPrompt });
-  messages.push({ role: 'user', content: userMessage });
-
-  const resp = await client.chat.completions.create({ model, messages, max_tokens: maxTokens });
-  const rawText     = resp.choices[0]?.message?.content ?? '';
-  const inputTokens = resp.usage?.prompt_tokens     ?? 0;
-  const outputTokens= resp.usage?.completion_tokens ?? 0;
-
-  return { rawText, inputTokens, outputTokens, provider: 'openai', model };
 }
 
 // ─── JSON extraction ──────────────────────────────────────────────────────────
@@ -297,77 +272,36 @@ export async function run({
       userMessage,
     });
   } catch (primaryErr) {
-    console.warn(`[ModelGateway] Anthropic failed for ${taskType}: ${primaryErr.message}. Trying OpenAI fallback.`);
+    logger.warn({ taskType, err: primaryErr.message }, '[ModelGateway] Anthropic call failed — using deterministic fallback');
     errorInfo = primaryErr.message;
 
-    // ── 4. Fallback: OpenAI ─────────────────────────────────────────────────
-    if (process.env.OPENAI_API_KEY) {
-      try {
-        const openaiCfg = PROVIDERS.openai;
-        callResult    = await callOpenAI({
-          model:     openaiCfg.models[tier],
-          maxTokens: openaiCfg.maxTokens[tier],
-          systemPrompt,
-          userMessage,
-        });
-        fallbackUsed = true;
-      } catch (fbErr) {
-        const latencyMs = Date.now() - startMs;
-        const detFallback = AIFallbackService.buildFallback(taskType, { systemPrompt, userMessage, entityIds });
+    // ── 4. Deterministic fallback ────────────────────────────────────────────
+    const latencyMs   = Date.now() - startMs;
+    const detFallback = AIFallbackService.buildFallback(taskType, { systemPrompt, userMessage, entityIds });
 
-        _logAndTrack({ agentName, promptKey, promptVersion, taskType, tier,
-          provider: 'deterministic', model: 'none', inputTokens: 0, outputTokens: 0,
-          cached: false, fallbackUsed: true, parseSuccess: true, approvalRequired,
-          latencyMs, inputHash, entityIds, errorType: 'BOTH_PROVIDERS_FAILED',
-          errorMessage: `Primary: ${errorInfo}. OpenAI: ${fbErr.message}` });
+    _logAndTrack({ agentName, promptKey, promptVersion, taskType, tier,
+      provider: 'deterministic', model: anthropicModel, inputTokens: 0, outputTokens: 0,
+      cached: false, fallbackUsed: true, parseSuccess: true, approvalRequired,
+      latencyMs, inputHash, entityIds, errorType: 'MODEL_ERROR', errorMessage: primaryErr.message });
 
-        return {
-          content:          detFallback.content,
-          provider_used:    'deterministic_fallback',
-          model_used:       'none',
-          tier_used:        tier,
-          fallback_used:    true,
-          fallback_type:    'deterministic',
-          fallback_reason:  detFallback.fallback_reason,
-          cached:           false,
-          input_hash:       inputHash,
-          generated_at:     new Date().toISOString(),
-          stale_after:      staleAt,
-          token_usage:      { input: 0, output: 0, total: 0 },
-          estimated_cost:   0,
-          confidence:       'low',
-          parse_success:    true,
-          approval_required: approvalRequired,
-        };
-      }
-    } else {
-      const latencyMs = Date.now() - startMs;
-      const detFallback = AIFallbackService.buildFallback(taskType, { systemPrompt, userMessage, entityIds });
-
-      _logAndTrack({ agentName, promptKey, promptVersion, taskType, tier,
-        provider: 'deterministic', model: anthropicModel, inputTokens: 0, outputTokens: 0,
-        cached: false, fallbackUsed: true, parseSuccess: true, approvalRequired,
-        latencyMs, inputHash, entityIds, errorType: 'MODEL_ERROR', errorMessage: primaryErr.message });
-
-      return {
-        content:          detFallback.content,
-        provider_used:    'deterministic_fallback',
-        model_used:       'none',
-        tier_used:        tier,
-        fallback_used:    true,
-        fallback_type:    'deterministic',
-        fallback_reason:  detFallback.fallback_reason,
-        cached:           false,
-        input_hash:       inputHash,
-        generated_at:     new Date().toISOString(),
-        stale_after:      staleAt,
-        token_usage:      { input: 0, output: 0, total: 0 },
-        estimated_cost:   0,
-        confidence:       'low',
-        parse_success:    true,
-        approval_required: approvalRequired,
-      };
-    }
+    return {
+      content:          detFallback.content,
+      provider_used:    'deterministic_fallback',
+      model_used:       'none',
+      tier_used:        tier,
+      fallback_used:    true,
+      fallback_type:    'deterministic',
+      fallback_reason:  detFallback.fallback_reason,
+      cached:           false,
+      input_hash:       inputHash,
+      generated_at:     new Date().toISOString(),
+      stale_after:      staleAt,
+      token_usage:      { input: 0, output: 0, total: 0 },
+      estimated_cost:   0,
+      confidence:       'low',
+      parse_success:    true,
+      approval_required: approvalRequired,
+    };
   }
 
   // ── 5. Parse output ───────────────────────────────────────────────────────

@@ -1,5 +1,6 @@
 import { DEH_SYSTEM_PROMPT } from '../config/constants.js';
 import store from '../store.js';
+import logger from '../lib/logger.js';
 import { getSafeModel } from '../lib/helpers.js';
 import { streamAnthropicMessages } from '../lib/aiClient.js';
 
@@ -36,7 +37,7 @@ export async function chat(req, res) {
     res.end();
   } catch (err) {
     clearTimeout(timeout);
-    console.error('[/api/chat]', err.message);
+    logger.error({ err: err.message }, '[chat] stream failed');
     if (!res.writableEnded) {
       res.write(`data: ${JSON.stringify({ error: 'AI service error' })}\n\n`);
       res.end();

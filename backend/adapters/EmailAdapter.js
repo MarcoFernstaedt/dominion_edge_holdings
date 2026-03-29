@@ -8,6 +8,7 @@
 
 import IntegrationRegistry from '../services/IntegrationRegistry.js';
 import { withRetry, criticalGuard } from '../utils/retry.js';
+import env from '../src/config/env.js';
 
 // ─── Draft result ─────────────────────────────────────────────────────────────
 function draftResult(email, guard) {
@@ -35,7 +36,7 @@ async function smtpSend(email, cfg) {
     host:   cfg.host,
     port:   cfg.port,
     secure: cfg.port === 465,
-    auth:   { user: cfg.user, pass: process.env.SMTP_PASSWORD },
+    auth:   { user: cfg.user, pass: env.SMTP_PASS },
   });
 
   return withRetry(async () => {
@@ -50,7 +51,7 @@ async function smtpSend(email, cfg) {
   }, {
     maxRetries:  3,
     baseDelayMs: 1000,
-    onRetry: (attempt, err, delay) => console.warn(`[EmailAdapter] retry ${attempt} in ${delay}ms — ${err.message}`),
+    onRetry: (attempt, err, delay) => logger.warn({ attempt, delay, err: err.message }, '[EmailAdapter] SMTP retry'),
   });
 }
 

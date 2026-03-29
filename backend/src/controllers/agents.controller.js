@@ -1,4 +1,5 @@
 import store  from '../store.js';
+import logger from '../lib/logger.js';
 import AgentOrchestrator from '../../services/AgentOrchestrator.js';
 import AIService         from '../../services/AIService.js';
 import DealService       from '../../services/DealService.js';
@@ -23,7 +24,7 @@ async function runAgent(agentName, input, req, res) {
   } catch (err) {
     const code   = err.code === 'FEATURE_DISABLED' ? 'FEATURE_DISABLED' : 'AI_UNAVAILABLE';
     const status = err.code === 'FEATURE_DISABLED' ? 402 : 503;
-    console.error(`[agents/${agentName}]`, err.message);
+    logger.error({ agent: agentName, err: err.message }, '[agents] agent run failed');
     errorResponse(res, status, code, err.message);
   }
 }

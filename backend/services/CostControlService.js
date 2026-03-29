@@ -27,8 +27,11 @@ const THRESHOLDS = {
   single_run_warn:  0.10, // warn if a single run costs > $0.10
 };
 
-// ─── In-memory store (survives server restart via export) ─────────────────────
-// In production, persist to DB.
+// ─── In-memory store ──────────────────────────────────────────────────────────
+// NOTE: This store resets on every server restart — cost history is NOT persisted.
+// TODO: Persist to DB by writing cost records to the `AuditLog` Prisma model
+//       (eventType: 'AI_COST', actorId: systemUserId, context: { model, tokens, cost }).
+//       Query via: prisma.auditLog.findMany({ where: { eventType: 'AI_COST' } })
 const _store = {
   runs:         [],  // AgentRun cost records
   totalByAgent: {},  // { agentName: { tokens: n, cost: n, runs: n } }

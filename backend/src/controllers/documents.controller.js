@@ -4,6 +4,7 @@ import { errorResponse }   from '../middleware/errorResponse.js';
 import { uid, nowIso, findById, getSafeModel } from '../lib/helpers.js';
 import { DEH_SYSTEM_PROMPT } from '../config/constants.js';
 import { createAnthropicMessage } from '../lib/aiClient.js';
+import logger from '../lib/logger.js';
 
 export function listDocuments(req, res) {
   try {
@@ -144,7 +145,7 @@ export async function aiReplySuggestion(req, res) {
       res.json({ subject: `Re: ${threadSubject || ''}`, body: text });
     }
   } catch (err) {
-    console.error('[ai/reply-suggestion]', err.message);
+    logger.error({ err: err.message }, '[documents/ai/reply-suggestion] AI failed');
     errorResponse(res, 503, 'AI_UNAVAILABLE', 'AI service temporarily unavailable');
   }
 }

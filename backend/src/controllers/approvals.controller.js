@@ -6,6 +6,7 @@ import ModelGateway   from '../../services/ModelGateway.js';
 import { validate }   from '../middleware/validate.js';
 import { errorResponse } from '../middleware/errorResponse.js';
 import { nowIso }     from '../lib/helpers.js';
+import logger from '../lib/logger.js';
 
 // ─── Approval handlers ────────────────────────────────────────────────────────
 
@@ -228,7 +229,7 @@ export async function generateArtifact(req, res) {
         generated_at:  nowIso(),
       });
     } catch (aiErr) {
-      console.warn('[artifacts/generate] AI generation failed', aiErr.message);
+      logger.warn({ err: aiErr.message }, '[artifacts/generate] AI generation failed');
     }
 
     res.status(201).json({ artifact: ArtifactStore.getSummary(artifact.id) });
@@ -270,7 +271,7 @@ export async function regenerateArtifact(req, res) {
         generated_at:  nowIso(),
       });
     } catch (aiErr) {
-      console.warn('[artifacts/regenerate] AI failed', aiErr.message);
+      logger.warn({ err: aiErr.message }, '[artifacts/regenerate] AI generation failed');
     }
 
     res.status(201).json({ artifact: ArtifactStore.getSummary(newVersion.id), previous_version_id: existing.id });

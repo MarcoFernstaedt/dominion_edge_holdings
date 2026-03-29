@@ -203,7 +203,18 @@ const aiLimiter = rateLimit({
   message: { error: 'AI rate limit reached. Please wait before making more AI requests.', code: 'AI_RATE_LIMITED' },
 });
 
+// Strict limiter for authentication endpoints — prevents brute-force attacks
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many login attempts. Please try again later.', code: 'AUTH_RATE_LIMITED' },
+});
+
 app.use('/api', generalLimiter);
+app.use('/api/auth/login', authLimiter);
+app.use('/api/auth/setup', authLimiter);
 app.use('/api/chat', aiLimiter);
 app.use('/api/outreach/generate', aiLimiter);
 app.use('/api/ai', aiLimiter);
@@ -213,6 +224,16 @@ app.use('/api/capital-raising/memos/generate', aiLimiter);
 app.use('/api/capital-raising/messaging/generate', aiLimiter);
 app.use('/api/capital-raising/pitch-deck/generate', aiLimiter);
 app.use('/api/capital-raising/outreach/generate', aiLimiter);
+
+// ─── Safe JSON parse helper ───────────────────────────────────────────────────
+/**
+ * Parses a JSON string from an untrusted source (e.g. query params).
+ * Returns fallback on any parse error instead of throwing.
+ */
+function safeParseJson(str, fallback = {}) {
+  if (!str) return fallback;
+  try { return JSON.parse(str); } catch { return fallback; }
+}
 
 // ─── Structured error response ────────────────────────────────────────────────
 /**
@@ -5270,7 +5291,7 @@ if (process.env.NODE_ENV !== 'test') {
 
   // GET /api/workflow/status — detect current phase + readiness
   app.get('/api/workflow/status', (req, res) => {
-    const ctx = req.query.ctx ? JSON.parse(req.query.ctx) : {};
+    const ctx = safeParseJson(req.query.ctx);
     const result = WorkflowEngine.detectCurrentPhase(ctx);
     res.json(result);
   });
@@ -5299,7 +5320,7 @@ if (process.env.NODE_ENV !== 'test') {
       current_phase = 'targeting',
       tasks = [], deals = [], relationships = [], meetings = [],
       gates = [], scores = {}, proof_gaps = [],
-    } = req.query.ctx ? JSON.parse(req.query.ctx) : {};
+    } = safeParseJson(req.query.ctx);
     res.json(NextActionEngine.calculate({ current_phase, tasks, deals, relationships, meetings, gates, scores, proof_gaps }));
   });
 
@@ -5371,7 +5392,7 @@ if (process.env.NODE_ENV !== 'test') {
 
   // GET /api/scores/firm — firm-level health scores
   app.get('/api/scores/firm', (req, res) => {
-    const data = req.query.ctx ? JSON.parse(req.query.ctx) : {};
+    const data = safeParseJson(req.query.ctx);
     res.json(ScoringEngine.firmScores(data));
   });
 

@@ -1,5 +1,6 @@
 import os from 'os';
 import store       from '../store.js';
+import logger from '../lib/logger.js';
 import { errorResponse } from '../middleware/errorResponse.js';
 import { DEH_SYSTEM_PROMPT } from '../config/constants.js';
 import { getSafeModel } from '../lib/helpers.js';
@@ -25,7 +26,7 @@ export function getMetrics(req, res) {
 
     res.json({ overdueTasks, activeDeals, outboundWeek, confirmedBoard, progressPct, completedItems, totalItems: allItems.length, needsReply });
   } catch (err) {
-    console.error('[dashboard/metrics]', err);
+    logger.error({ err: err.message }, '[dashboard/metrics] failed');
     errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to compute metrics');
   }
 }
@@ -58,7 +59,7 @@ export function getNextActions(req, res) {
 
     res.json(actions.sort((a, b) => a.priority - b.priority));
   } catch (err) {
-    console.error('[dashboard/next-actions]', err);
+    logger.error({ err: err.message }, '[dashboard/next-actions] failed');
     errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to compute next actions');
   }
 }
@@ -79,7 +80,7 @@ export async function getBriefing(req, res) {
     });
     res.json({ briefing: message.content[0]?.text ?? '' });
   } catch (err) {
-    console.error('[dashboard/briefing]', err.message);
+    logger.error({ err: err.message }, '[dashboard/briefing] AI briefing failed');
     errorResponse(res, 503, 'AI_UNAVAILABLE', 'AI briefing service temporarily unavailable');
   }
 }
@@ -235,7 +236,7 @@ export function getSystemStatus(_req, res) {
       },
     });
   } catch (err) {
-    console.error('[dashboard/system-status]', err);
+    logger.error({ err: err.message }, '[dashboard/system-status] failed');
     errorResponse(res, 500, 'INTERNAL_ERROR', 'Failed to build system status');
   }
 }

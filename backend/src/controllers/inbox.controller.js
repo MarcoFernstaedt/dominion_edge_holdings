@@ -4,6 +4,7 @@ import { errorResponse } from '../middleware/errorResponse.js';
 import { uid, nowIso, findById, getSafeModel } from '../lib/helpers.js';
 import { DEH_SYSTEM_PROMPT } from '../config/constants.js';
 import { createAnthropicMessage } from '../lib/aiClient.js';
+import logger from '../lib/logger.js';
 
 export async function listThreads(req, res) {
   try {
@@ -169,7 +170,7 @@ export async function generateOutreach(req, res) {
       res.json({ subject: `Inquiry: ${companyName || 'Your Business'}`, body: text });
     }
   } catch (err) {
-    console.error('[outreach/generate]', err.message);
+    logger.error({ err: err.message }, '[inbox/outreach/generate] AI draft failed');
     errorResponse(res, 503, 'AI_UNAVAILABLE', 'AI drafting service temporarily unavailable');
   }
 }

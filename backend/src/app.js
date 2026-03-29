@@ -163,7 +163,18 @@ const aiLimiter = rateLimit({
   message:        { error: 'AI rate limit reached. Please wait before making more AI requests.', code: 'AI_RATE_LIMITED' },
 });
 
+// Strict limiter for authentication endpoints — prevents brute-force attacks
+const authLimiter = rateLimit({
+  windowMs:        15 * 60 * 1000,
+  max:             10,
+  standardHeaders: true,
+  legacyHeaders:   false,
+  message:         { error: 'Too many login attempts. Please try again later.', code: 'AUTH_RATE_LIMITED' },
+});
+
 app.use('/api', generalLimiter);
+app.use('/api/auth/login', authLimiter);
+app.use('/api/auth/setup', authLimiter);
 app.use('/api/chat', aiLimiter);
 app.use('/api/outreach/generate', aiLimiter);
 app.use('/api/ai', aiLimiter);

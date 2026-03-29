@@ -9,11 +9,23 @@
 import prisma from '../lib/prisma.js';
 import { S3StorageProvider } from '../../services/providers/S3StorageProvider.js';
 import IntegrationRegistry from '../../services/IntegrationRegistry.js';
+import logger from '../lib/logger.js';
 
 // ─── List stored files ────────────────────────────────────────────────────────
 
+const ALLOWED_ENTITY_TYPES = ['deal', 'company', 'contact', 'artifact', 'diligence', 'meeting', 'document'];
+
 export async function listFiles(req, res) {
-  const { entityType, entityId, limit = 50, offset = 0 } = req.query;
+  const { entityType, entityId } = req.query;
+
+  const rawLimit  = parseInt(req.query.limit,  10);
+  const rawOffset = parseInt(req.query.offset, 10);
+  const safeLimit  = Number.isNaN(rawLimit)  ? 50 : Math.min(Math.max(rawLimit, 1), 100);
+  const safeOffset = Number.isNaN(rawOffset) ? 0  : Math.max(rawOffset, 0);
+
+  if (entityType && !ALLOWED_ENTITY_TYPES.includes(entityType)) {
+    return res.status(400).json({ error: 'Invalid entityType', code: 'VALIDATION_ERROR' });
+  }
 
   const where = {};
   if (entityType) where.entityType = entityType;
@@ -23,13 +35,13 @@ export async function listFiles(req, res) {
     prisma.storedFile.findMany({
       where,
       orderBy: { createdAt: 'desc' },
-      take:    parseInt(limit, 10),
-      skip:    parseInt(offset, 10),
+      take:    safeLimit,
+      skip:    safeOffset,
     }),
     prisma.storedFile.count({ where }),
   ]);
 
-  res.json({ files, total, limit: parseInt(limit, 10), offset: parseInt(offset, 10) });
+  res.json({ files, total, limit: safeLimit, offset: safeOffset });
 }
 
 // ─── Request presigned upload URL ────────────────────────────────────────────
@@ -131,7 +143,7 @@ export async function deleteFile(req, res) {
       await S3StorageProvider.deleteObject(file.key);
     } catch (err) {
       // Log but don't block DB deletion
-      console.warn(`[files] S3 delete failed for key ${file.key}: ${err.message}`);
+      logger.warn({ err: err.message }, '[files] S3 delete failed — DB record still removed');
     }
   }
 
